@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Housekeeping Hub</title>
+<style>
+  :root {
+    --pine: #1d4e4a;
+    --pine-dark: #143835;
+    --linen: #f7f6f2;
+    --white: #ffffff;
+    --ink: #22302e;
+    --mist: #8aa3a0;
+    --line: #e3e1da;
+    --ok: #2e7d5b;
+    --err: #b3403a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--linen);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ---------- Login screen ---------- */
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: linear-gradient(160deg, var(--pine) 0%, var(--pine-dark) 100%);
+  }
+  .login-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 32px 26px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .brand { text-align: center; margin-bottom: 26px; }
+  .brand h1 { font-size: 22px; letter-spacing: 0.5px; color: var(--pine); }
+  .brand p { font-size: 13px; color: var(--mist); margin-top: 4px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 16px;
+    background: var(--white);
+    color: var(--ink);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--pine);
+    border-color: var(--pine);
+  }
+  button {
+    width: 100%;
+    padding: 13px;
+    background: var(--pine);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:active { background: var(--pine-dark); }
+  button:disabled { opacity: 0.6; }
+  .switch-mode {
+    text-align: center;
+    font-size: 13px;
+    color: var(--mist);
+    margin-top: 16px;
+  }
+  .switch-mode a { color: var(--pine); font-weight: 600; cursor: pointer; text-decoration: underline; }
+  .form-error {
+    background: #fdf0ef;
+    border: 1px solid var(--err);
+    color: var(--err);
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ---------- App shell ---------- */
+  .app { display: none; min-height: 100vh; }
+  .topbar {
+    background: var(--pine);
+    color: var(--white);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar h2 { font-size: 17px; font-weight: 600; }
+  .topbar .who { font-size: 13px; opacity: 0.85; }
+  .topbar .signout {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.4);
+    color: var(--white);
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    margin-left: 12px;
+  }
+
+  /* ---------- Tabs ---------- */
+  .tabbar {
+    display: flex;
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+  }
+  .tabbar button {
+    flex: 1;
+    background: none;
+    color: var(--mist);
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: 13px 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .tabbar button.active {
+    color: var(--pine);
+    border-bottom-color: var(--pine);
+  }
+
+  .content { padding: 18px; max-width: 640px; margin: 0 auto; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
+
+  /* ---------- Photo attach ---------- */
+  .photo-row { margin-bottom: 16px; }
+  .photo-btn {
+    background: var(--white);
+    color: var(--pine);
+    border: 1px dashed var(--pine);
+    font-weight: 600;
+  }
+  .photo-preview {
+    display: none;
+    margin-top: 10px;
+    position: relative;
+  }
+  .photo-preview img {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+  .photo-remove {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--err);
+    margin-top: 8px;
+  }
+
+  /* ---------- Clean log list ---------- */
+  .log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .log-item:last-child { border-bottom: none; }
+  .log-item .room { font-weight: 600; font-size: 15px; }
+  .log-item .meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
+  .log-item .notes { font-size: 13px; margin-top: 6px; }
+  .log-item img.thumb {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 8px;
+    border: 1px solid var(--line);
+  }
+  .badge {
+    display: inline-block;
+    background: var(--ok);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .empty { text-align: center; color: var(--mist); font-size: 13px; padding: 20px 0; }
+  .loading-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mist);
+    font-size: 14px;
+  }
+
+  /* ---------- Rota ---------- */
+  .rota-grid { display: flex; gap: 10px; }
+  .rota-grid > div { flex: 1; }
+  .shift-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .shift-item:last-child { border-bottom: none; }
+  .shift-item .s-name { font-weight: 600; font-size: 14px; }
+  .shift-item .s-time { font-size: 13px; color: var(--mist); }
+  .shift-del {
+    width: auto;
+    padding: 5px 10px;
+    font-size: 12px;
+    background: none;
+    color: var(--err);
+    border: 1px solid var(--err);
+  }
+  .day-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pine);
+    margin: 14px 0 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .day-header:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOADING ============ -->
+<div class="loading-screen" id="loadingScreen">Loading&hellip;</div>
+
+<!-- ============ LOGIN / SIGN UP ============ -->
+<div class="login-wrap" id="loginScreen" style="display:none;">
+  <div class="login-card">
+    <div class="brand">
+      <h1>Housekeeping Hub</h1>
+      <p>Deep clean tracking for hotels</p>
+    </div>
+
+    <div class="form-error" id="authError"></div>
+
+    <div id="signInForm">
+      <label for="siEmail">Email</label>
+      <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email">
+      <label for="siPassword">Password</label>
+      <input type="password" id="siPassword" placeholder="Your password" autocomplete="current-password">
+      <button id="signInBtn" onclick="doSignIn()">Sign in</button>
+      <p class="switch-mode">New here? <a onclick="showSignUp()">Create an account</a></p>
+    </div>
+
+    <div id="signUpForm" style="display:none;">
+      <label for="suName">Your name</label>
+      <input type="text" id="suName" placeholder="e.g. Michael">
+      <label for="suHotel">Hotel name</label>
+      <input type="text" id="suHotel" placeholder="e.g. The Grand, Blackpool">
+      <label for="suEmail">Email</label>
+      <input type="email" id="suEmail" placeholder="you@example.com" autocomplete="email">
+      <label for="suPassword">Password (6+ characters)</label>
+      <input type="password" id="suPassword" placeholder="Choose a password" autocomplete="new-password">
+      <button id="signUpBtn" onclick="doSignUp()">Create account</button>
+      <p class="switch-mode">Already have an account? <a onclick="showSignIn()">Sign in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="appScreen">
+  <div class="topbar">
+    <div>
+      <h2 id="hotelTitle">Housekeeping Hub</h2>
+      <div class="who" id="whoLine"></div>
+    </div>
+    <button class="signout" onclick="doSignOut()">Sign out</button>
+  </div>
+
+  <div class="tabbar">
+    <button id="tabCleans" class="active" onclick="switchTab('cleans')">Cleans</button>
+    <button id="tabRota" onclick="switchTab('rota')">Rota</button>
+  </div>
+
+  <!-- ---- Cleans tab ---- -->
+  <div class="content" id="cleansTab">
+    <div class="card">
+      <h3>Log a deep clean</h3>
+      <label for="roomInput">Room / area</label>
+      <input type="text" id="roomInput" placeholder="e.g. Room 204 or Lobby toilets">
+      <label for="typeInput">Clean type</label>
+      <select id="typeInput">
+        <option>Deep clean</option>
+        <option>Standard clean</option>
+        <option>Checkout clean</option>
+        <option>Periodic task</option>
+      </select>
+      <label for="notesInput">Notes (optional)</label>
+      <textarea id="notesInput" rows="2" placeholder="Anything worth flagging"></textarea>
+
+      <div class="photo-row">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="photoChosen(this)">
+        <button type="button" class="photo-btn" onclick="document.getElementById('photoInput').click()">Add photo (optional)</button>
+        <div class="photo-preview" id="photoPreview">
+          <img id="photoPreviewImg" alt="Photo preview">
+          <button type="button" class="photo-remove" onclick="removePhoto()">Remove photo</button>
+        </div>
+      </div>
+
+      <button id="saveBtn" onclick="logClean()">Save clean</button>
+    </div>
+
+    <div class="card">
+      <h3>Recent cleans</h3>
+      <div id="logList"><div class="empty">Loading cleans&hellip;</div></div>
+    </div>
+  </div>
+
+  <!-- ---- Rota tab ---- -->
+  <div class="content" id="rotaTab" style="display:none;">
+    <div class="card">
+      <h3>Add a shift</h3>
+      <label for="shiftName">Staff member</label>
+      <input type="text" id="shiftName" placeholder="e.g. Sarah">
+      <label for="shiftDay">Day</label>
+      <select id="shiftDay">
+        <option>Monday</option>
+        <option>Tuesday</option>
+        <option>Wednesday</option>
+        <option>Thursday</option>
+        <option>Friday</option>
+        <option>Saturday</option>
+        <option>Sunday</option>
+      </select>
+      <div class="rota-grid">
+        <div>
+          <label for="shiftStart">Start</label>
+          <input type="time" id="shiftStart" value="09:00">
+        </div>
+        <div>
+          <label for="shiftEnd">Finish</label>
+          <input type="time" id="shiftEnd" value="17:00">
+        </div>
+      </div>
+      <button id="shiftBtn" onclick="addShift()">Add shift</button>
+    </div>
+
+    <div class="card">
+      <h3>This week's rota</h3>
+      <div id="rotaList"><div class="empty">Loading rota&hellip;</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase (loaded from Google's servers, nothing to install) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyB9oh9GOnrF7H65tOc6IkME7Fhj9D-wul8",
+    authDomain: "housekeeping-app-4684b.firebaseapp.com",
+    projectId: "housekeeping-app-4684b",
+    storageBucket: "housekeeping-app-4684b.firebasestorage.app",
+    messagingSenderId: "602260982732",
+    appId: "1:602260982732:web:bf41ed65b62ae02fcc6b69"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+
+  var currentProfile = null;
+  var cleansUnsub = null;
+  var rotaUnsub = null;
+  var pendingPhoto = null;   // compressed base64 string, ready to save
+
+  var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+  /* ---------------- Screen switching ---------------- */
+
+  function show(screenId) {
+    document.getElementById("loadingScreen").style.display = "none";
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("appScreen").style.display = "none";
+    if (screenId === "login") {
+      document.getElementById("loginScreen").style.display = "flex";
+    } else if (screenId === "app") {
+      document.getElementById("appScreen").style.display = "block";
+    } else {
+      document.getElementById("loadingScreen").style.display = "flex";
+    }
+  }
+
+  function switchTab(tab) {
+    document.getElementById("cleansTab").style.display = (tab === "cleans") ? "block" : "none";
+    document.getElementById("rotaTab").style.display = (tab === "rota") ? "block" : "none";
+    document.getElementById("tabCleans").className = (tab === "cleans") ? "active" : "";
+    document.getElementById("tabRota").className = (tab === "rota") ? "active" : "";
+  }
+
+  function showSignUp() {
+    hideError();
+    document.getElementById("signInForm").style.display = "none";
+    document.getElementById("signUpForm").style.display = "block";
+  }
+
+  function showSignIn() {
+    hideError();
+    document.getElementById("signUpForm").style.display = "none";
+    document.getElementById("signInForm").style.display = "block";
+  }
+
+  function showError(msg) {
+    var box = document.getElementById("authError");
+    box.textContent = msg;
+    box.style.display = "block";
+  }
+
+  function hideError() {
+    document.getElementById("authError").style.display = "none";
+  }
+
+  function friendlyAuthError(err) {
+    var code = err && err.code ? err.code : "";
+    if (code === "auth/invalid-email") { return "That email address doesn't look right."; }
+    if (code === "auth/email-already-in-use") { return "There's already an account with that email. Try signing in instead."; }
+    if (code === "auth/weak-password") { return "Password needs to be at least 6 characters."; }
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+      return "Email or password not recognised. Check them and try again.";
+    }
+    if (code === "auth/too-many-requests") { return "Too many attempts. Wait a minute and try again."; }
+    if (code === "auth/network-request-failed") { return "No connection. Check your internet and try again."; }
+    return "Something went wrong: " + (err && err.message ? err.message : "unknown error");
+  }
+
+  /* ---------------- Auth ---------------- */
+
+  function doSignUp() {
+    hideError();
+    var name = document.getElementById("suName").value.trim();
+    var hotel = document.getElementById("suHotel").value.trim();
+    var email = document.getElementById("suEmail").value.trim();
+    var password = document.getElementById("suPassword").value;
+
+    if (!name || !hotel || !email || !password) {
+      showError("Fill in all four fields to create your account.");
+      return;
+    }
+
+    var btn = document.getElementById("signUpBtn");
+    btn.disabled = true;
+    btn.textContent = "Creating account\u2026";
+
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(function(cred) {
+        return db.collection("users").doc(cred.user.uid).set({
+          name: name,
+          hotel: hotel,
+          hotelKey: hotel.toLowerCase(),
+          created: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      })
+      .catch(function(err) {
+        showError(friendlyAuthError(err));
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Create account";
+      });
+  }
+
+  function doSignIn() {
+    hideError();
+    var email = document.getElementById("siEmail").value.trim();
+    var password = document.getElementById("siPassword").value;
+
+    if (!email || !password) {
+      showError("Enter your email and password.");
+      return;
+    }
+
+    var btn = document.getElementById("signInBtn");
+    btn.disabled = true;
+    btn.textContent = "Signing in\u2026";
+
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(function(err) {
+        showError(friendlyAuthError(err));
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      });
+  }
+
+  function doSignOut() {
+    auth.signOut();
+  }
+
+  auth.onAuthStateChanged(function(user) {
+    if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
+    if (rotaUnsub) { rotaUnsub(); rotaUnsub = null; }
+
+    if (!user) {
+      currentProfile = null;
+      showSignIn();
+      show("login");
+      return;
+    }
+
+    show("loading");
+    db.collection("users").doc(user.uid).get()
+      .then(function(doc) {
+        if (!doc.exists) {
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              db.collection("users").doc(user.uid).get().then(resolve);
+            }, 1200);
+          });
+        }
+        return doc;
+      })
+      .then(function(doc) {
+        if (!doc || !doc.exists) {
+          showError("Couldn't load your profile. Sign in again.");
+          auth.signOut();
+          return;
+        }
+        var data = doc.data();
+        currentProfile = {
+          name: data.name,
+          hotel: data.hotel,
+          hotelKey: data.hotelKey || data.hotel.toLowerCase()
+        };
+        document.getElementById("hotelTitle").textContent = currentProfile.hotel;
+        document.getElementById("whoLine").textContent = "Signed in as " + currentProfile.name;
+        show("app");
+        watchCleans();
+        watchRota();
+      })
+      .catch(function(err) {
+        showError("Couldn't load your profile: " + err.message);
+        auth.signOut();
+      });
+  });
+
+  /* ---------------- Photos ---------------- */
+
+  function photoChosen(input) {
+    if (!input.files || !input.files[0]) { return; }
+    var file = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      compressImage(e.target.result, function(compressed) {
+        if (compressed.length > 750000) {
+          alert("That photo is too large even after compressing. Try a different one.");
+          input.value = "";
+          return;
+        }
+        pendingPhoto = compressed;
+        document.getElementById("photoPreviewImg").src = compressed;
+        document.getElementById("photoPreview").style.display = "block";
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function compressImage(dataUrl, callback) {
+    var img = new Image();
+    img.onload = function() {
+      var maxSide = 900;
+      var w = img.width;
+      var h = img.height;
+      if (w > h && w > maxSide) { h = Math.round(h * maxSide / w); w = maxSide; }
+      else if (h >= w && h > maxSide) { w = Math.round(w * maxSide / h); h = maxSide; }
+      var canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL("image/jpeg", 0.6));
+    };
+    img.src = dataUrl;
+  }
+
+  function removePhoto() {
+    pendingPhoto = null;
+    document.getElementById("photoInput").value = "";
+    document.getElementById("photoPreview").style.display = "none";
+  }
+
+  /* ---------------- Cleans ---------------- */
+
+  function logClean() {
+    if (!currentProfile) { return; }
+    var room = document.getElementById("roomInput").value.trim();
+    if (!room) {
+      alert("Enter a room or area.");
+      return;
+    }
+
+    var btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving\u2026";
+
+    var record = {
+      hotelKey: currentProfile.hotelKey,
+      hotel: currentProfile.hotel,
+      room: room,
+      type: document.getElementById("typeInput").value,
+      notes: document.getElementById("notesInput").value.trim(),
+      by: currentProfile.name,
+      when: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (pendingPhoto) {
+      record.photo = pendingPhoto;
+    }
+
+    db.collection("cleans").add(record)
+      .then(function() {
+        document.getElementById("roomInput").value = "";
+        document.getElementById("notesInput").value = "";
+        removePhoto();
+      })
+      .catch(function(err) {
+        alert("Couldn't save: " + err.message);
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Save clean";
+      });
+  }
+
+  function watchCleans() {
+    if (cleansUnsub) { cleansUnsub(); }
+    cleansUnsub = db.collection("cleans")
+      .where("hotelKey", "==", currentProfile.hotelKey)
+      .onSnapshot(function(snapshot) {
+        var cleans = [];
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          d.whenMs = d.when && d.when.toMillis ? d.when.toMillis() : Date.now();
+          cleans.push(d);
+        });
+        cleans.sort(function(a, b) { return b.whenMs - a.whenMs; });
+        renderLog(cleans.slice(0, 30));
+      }, function(err) {
+        document.getElementById("logList").innerHTML =
+          '<div class="empty">Couldn\u2019t load cleans: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderLog(cleans) {
+    var list = document.getElementById("logList");
+    if (cleans.length === 0) {
+      list.innerHTML = '<div class="empty">No cleans logged yet. Your first one will show here.</div>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < cleans.length; i++) {
+      var c = cleans[i];
+      var d = new Date(c.whenMs);
+      var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      html += '<div class="log-item">';
+      html += '<span class="room">' + escapeHtml(c.room) + '</span>';
+      html += '<span class="badge">' + escapeHtml(c.type) + '</span>';
+      html += '<div class="meta">' + escapeHtml(c.by) + ' &middot; ' + dateStr + '</div>';
+      if (c.notes) {
+        html += '<div class="notes">' + escapeHtml(c.notes) + '</div>';
+      }
+      if (c.photo) {
+        html += '<img class="thumb" src="' + c.photo + '" alt="Clean photo">';
+      }
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  /* ---------------- Rota ---------------- */
+
+  function addShift() {
+    if (!currentProfile) { return; }
+    var name = document.getElementById("shiftName").value.trim();
+    if (!name) {
+      alert("Enter the staff member's name.");
+      return;
+    }
+
+    var btn = document.getElementById("shiftBtn");
+    btn.disabled = true;
+    btn.textContent = "Adding\u2026";
+
+    db.collection("rota").add({
+      hotelKey: currentProfile.hotelKey,
+      staff: name,
+      day: document.getElementById("shiftDay").value,
+      start: document.getElementById("shiftStart").value,
+      end: document.getElementById("shiftEnd").value,
+      addedBy: currentProfile.name,
+      created: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(function() {
+      document.getElementById("shiftName").value = "";
+    })
+    .catch(function(err) {
+      alert("Couldn't add shift: " + err.message);
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = "Add shift";
+    });
+  }
+
+  function deleteShift(id) {
+    if (!confirm("Remove this shift?")) { return; }
+    db.collection("rota").doc(id).delete().catch(function(err) {
+      alert("Couldn't remove: " + err.message);
+    });
+  }
+
+  function watchRota() {
+    if (rotaUnsub) { rotaUnsub(); }
+    rotaUnsub = db.collection("rota")
+      .where("hotelKey", "==", currentProfile.hotelKey)
+      .onSnapshot(function(snapshot) {
+        var shifts = [];
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          shifts.push(d);
+        });
+        renderRota(shifts);
+      }, function(err) {
+        document.getElementById("rotaList").innerHTML =
+          '<div class="empty">Couldn\u2019t load rota: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderRota(shifts) {
+    var list = document.getElementById("rotaList");
+    if (shifts.length === 0) {
+      list.innerHTML = '<div class="empty">No shifts yet. Add the first one above.</div>';
+      return;
+    }
+    shifts.sort(function(a, b) {
+      var dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
+      if (dayDiff !== 0) { return dayDiff; }
+      return (a.start || "").localeCompare(b.start || "");
+    });
+
+    var html = "";
+    var lastDay = "";
+    for (var i = 0; i < shifts.length; i++) {
+      var s = shifts[i];
+      if (s.day !== lastDay) {
+        html += '<div class="day-header">' + escapeHtml(s.day) + '</div>';
+        lastDay = s.day;
+      }
+      html += '<div class="shift-item">';
+      html += '<div><div class="s-name">' + escapeHtml(s.staff) + '</div>';
+      html += '<div class="s-time">' + escapeHtml(s.start) + ' \u2013 ' + escapeHtml(s.end) + '</div></div>';
+      html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+</script>
+</body>
+</html>
