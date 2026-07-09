@@ -23,7 +23,6 @@
     color: var(--ink);
     min-height: 100vh;
   }
-
   /* ---------- Login screen ---------- */
   .login-wrap {
     min-height: 100vh;
@@ -96,7 +95,6 @@
     margin-bottom: 16px;
     display: none;
   }
-
   /* ---------- App shell ---------- */
   .app { display: none; min-height: 100vh; }
   .topbar {
@@ -119,7 +117,6 @@
     border-radius: 6px;
     margin-left: 12px;
   }
-
   /* ---------- Tabs ---------- */
   .tabbar {
     display: flex;
@@ -141,9 +138,7 @@
     color: var(--pine);
     border-bottom-color: var(--pine);
   }
-
   .content { padding: 18px; max-width: 640px; margin: 0 auto; }
-
   .card {
     background: var(--white);
     border: 1px solid var(--line);
@@ -152,7 +147,6 @@
     margin-bottom: 18px;
   }
   .card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
-
   /* ---------- Photo attach ---------- */
   .photo-row { margin-bottom: 16px; }
   .photo-btn {
@@ -161,11 +155,7 @@
     border: 1px dashed var(--pine);
     font-weight: 600;
   }
-  .photo-preview {
-    display: none;
-    margin-top: 10px;
-    position: relative;
-  }
+  .photo-preview { display: none; margin-top: 10px; position: relative; }
   .photo-preview img {
     width: 100%;
     max-height: 220px;
@@ -180,7 +170,6 @@
     background: var(--err);
     margin-top: 8px;
   }
-
   /* ---------- Clean log list ---------- */
   .log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
   .log-item:last-child { border-bottom: none; }
@@ -215,7 +204,6 @@
     color: var(--mist);
     font-size: 14px;
   }
-
   /* ---------- Rota ---------- */
   .rota-grid { display: flex; gap: 10px; }
   .rota-grid > div { flex: 1; }
@@ -246,13 +234,33 @@
     letter-spacing: 0.5px;
   }
   .day-header:first-child { margin-top: 0; }
+  /* ---------- Dashboard ---------- */
+  .stat-row { display: flex; gap: 12px; margin-bottom: 18px; }
+  .stat-card {
+    flex: 1;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 12px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 26px; font-weight: 700; color: var(--pine); }
+  .stat-card .lbl { font-size: 11px; color: var(--mist); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .bar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-row .count { font-weight: 700; color: var(--pine); }
 </style>
 </head>
 <body>
-
 <!-- ============ LOADING ============ -->
 <div class="loading-screen" id="loadingScreen">Loading&hellip;</div>
-
 <!-- ============ LOGIN / SIGN UP ============ -->
 <div class="login-wrap" id="loginScreen" style="display:none;">
   <div class="login-card">
@@ -260,9 +268,7 @@
       <h1>Housekeeping Hub</h1>
       <p>Deep clean tracking for hotels</p>
     </div>
-
     <div class="form-error" id="authError"></div>
-
     <div id="signInForm">
       <label for="siEmail">Email</label>
       <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email">
@@ -271,12 +277,16 @@
       <button id="signInBtn" onclick="doSignIn()">Sign in</button>
       <p class="switch-mode">New here? <a onclick="showSignUp()">Create an account</a></p>
     </div>
-
     <div id="signUpForm" style="display:none;">
       <label for="suName">Your name</label>
       <input type="text" id="suName" placeholder="e.g. Michael">
       <label for="suHotel">Hotel name</label>
       <input type="text" id="suHotel" placeholder="e.g. The Grand, Blackpool">
+      <label for="suRole">Your role</label>
+      <select id="suRole">
+        <option value="staff">Staff</option>
+        <option value="manager">Manager</option>
+      </select>
       <label for="suEmail">Email</label>
       <input type="email" id="suEmail" placeholder="you@example.com" autocomplete="email">
       <label for="suPassword">Password (6+ characters)</label>
@@ -286,7 +296,6 @@
     </div>
   </div>
 </div>
-
 <!-- ============ APP ============ -->
 <div class="app" id="appScreen">
   <div class="topbar">
@@ -296,12 +305,11 @@
     </div>
     <button class="signout" onclick="doSignOut()">Sign out</button>
   </div>
-
   <div class="tabbar">
     <button id="tabCleans" class="active" onclick="switchTab('cleans')">Cleans</button>
     <button id="tabRota" onclick="switchTab('rota')">Rota</button>
+    <button id="tabDash" style="display:none;" onclick="switchTab('dash')">Dashboard</button>
   </div>
-
   <!-- ---- Cleans tab ---- -->
   <div class="content" id="cleansTab">
     <div class="card">
@@ -317,7 +325,6 @@
       </select>
       <label for="notesInput">Notes (optional)</label>
       <textarea id="notesInput" rows="2" placeholder="Anything worth flagging"></textarea>
-
       <div class="photo-row">
         <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="photoChosen(this)">
         <button type="button" class="photo-btn" onclick="document.getElementById('photoInput').click()">Add photo (optional)</button>
@@ -326,19 +333,16 @@
           <button type="button" class="photo-remove" onclick="removePhoto()">Remove photo</button>
         </div>
       </div>
-
       <button id="saveBtn" onclick="logClean()">Save clean</button>
     </div>
-
     <div class="card">
       <h3>Recent cleans</h3>
       <div id="logList"><div class="empty">Loading cleans&hellip;</div></div>
     </div>
   </div>
-
   <!-- ---- Rota tab ---- -->
   <div class="content" id="rotaTab" style="display:none;">
-    <div class="card">
+    <div class="card" id="addShiftCard">
       <h3>Add a shift</h3>
       <label for="shiftName">Staff member</label>
       <input type="text" id="shiftName" placeholder="e.g. Sarah">
@@ -364,19 +368,41 @@
       </div>
       <button id="shiftBtn" onclick="addShift()">Add shift</button>
     </div>
-
     <div class="card">
       <h3>This week's rota</h3>
       <div id="rotaList"><div class="empty">Loading rota&hellip;</div></div>
     </div>
   </div>
+  <!-- ---- Dashboard tab (managers only) ---- -->
+  <div class="content" id="dashTab" style="display:none;">
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="num" id="statWeek">&ndash;</div>
+        <div class="lbl">Cleans, last 7 days</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="statDeep">&ndash;</div>
+        <div class="lbl">Deep cleans</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="statPhotos">&ndash;</div>
+        <div class="lbl">With photos</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Cleans by staff member (last 7 days)</h3>
+      <div id="staffStats"><div class="empty">No data yet.</div></div>
+    </div>
+    <div class="card">
+      <h3>Cleans by type (last 7 days)</h3>
+      <div id="typeStats"><div class="empty">No data yet.</div></div>
+    </div>
+  </div>
 </div>
-
 <!-- Firebase (loaded from Google's servers, nothing to install) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
 <script>
   var firebaseConfig = {
     apiKey: "AIzaSyB9oh9GOnrF7H65tOc6IkME7Fhj9D-wul8",
@@ -386,20 +412,16 @@
     messagingSenderId: "602260982732",
     appId: "1:602260982732:web:bf41ed65b62ae02fcc6b69"
   };
-
   firebase.initializeApp(firebaseConfig);
   var auth = firebase.auth();
   var db = firebase.firestore();
-
   var currentProfile = null;
   var cleansUnsub = null;
   var rotaUnsub = null;
-  var pendingPhoto = null;   // compressed base64 string, ready to save
-
+  var pendingPhoto = null;
+  var latestCleans = [];   // kept for dashboard stats
   var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-
   /* ---------------- Screen switching ---------------- */
-
   function show(screenId) {
     document.getElementById("loadingScreen").style.display = "none";
     document.getElementById("loginScreen").style.display = "none";
@@ -412,36 +434,41 @@
       document.getElementById("loadingScreen").style.display = "flex";
     }
   }
-
   function switchTab(tab) {
     document.getElementById("cleansTab").style.display = (tab === "cleans") ? "block" : "none";
     document.getElementById("rotaTab").style.display = (tab === "rota") ? "block" : "none";
+    document.getElementById("dashTab").style.display = (tab === "dash") ? "block" : "none";
     document.getElementById("tabCleans").className = (tab === "cleans") ? "active" : "";
     document.getElementById("tabRota").className = (tab === "rota") ? "active" : "";
+    document.getElementById("tabDash").className = (tab === "dash") ? "active" : "";
+    if (tab === "dash") { renderDashboard(); }
   }
-
+  function isManager() {
+    return currentProfile && currentProfile.role === "manager";
+  }
+  function applyRoleUI() {
+    var manager = isManager();
+    document.getElementById("tabDash").style.display = manager ? "block" : "none";
+    document.getElementById("addShiftCard").style.display = manager ? "block" : "none";
+  }
   function showSignUp() {
     hideError();
     document.getElementById("signInForm").style.display = "none";
     document.getElementById("signUpForm").style.display = "block";
   }
-
   function showSignIn() {
     hideError();
     document.getElementById("signUpForm").style.display = "none";
     document.getElementById("signInForm").style.display = "block";
   }
-
   function showError(msg) {
     var box = document.getElementById("authError");
     box.textContent = msg;
     box.style.display = "block";
   }
-
   function hideError() {
     document.getElementById("authError").style.display = "none";
   }
-
   function friendlyAuthError(err) {
     var code = err && err.code ? err.code : "";
     if (code === "auth/invalid-email") { return "That email address doesn't look right."; }
@@ -454,31 +481,28 @@
     if (code === "auth/network-request-failed") { return "No connection. Check your internet and try again."; }
     return "Something went wrong: " + (err && err.message ? err.message : "unknown error");
   }
-
   /* ---------------- Auth ---------------- */
-
   function doSignUp() {
     hideError();
     var name = document.getElementById("suName").value.trim();
     var hotel = document.getElementById("suHotel").value.trim();
+    var role = document.getElementById("suRole").value;
     var email = document.getElementById("suEmail").value.trim();
     var password = document.getElementById("suPassword").value;
-
     if (!name || !hotel || !email || !password) {
-      showError("Fill in all four fields to create your account.");
+      showError("Fill in all the fields to create your account.");
       return;
     }
-
     var btn = document.getElementById("signUpBtn");
     btn.disabled = true;
     btn.textContent = "Creating account\u2026";
-
     auth.createUserWithEmailAndPassword(email, password)
       .then(function(cred) {
         return db.collection("users").doc(cred.user.uid).set({
           name: name,
           hotel: hotel,
           hotelKey: hotel.toLowerCase(),
+          role: role,
           created: firebase.firestore.FieldValue.serverTimestamp()
         });
       })
@@ -490,21 +514,17 @@
         btn.textContent = "Create account";
       });
   }
-
   function doSignIn() {
     hideError();
     var email = document.getElementById("siEmail").value.trim();
     var password = document.getElementById("siPassword").value;
-
     if (!email || !password) {
       showError("Enter your email and password.");
       return;
     }
-
     var btn = document.getElementById("signInBtn");
     btn.disabled = true;
     btn.textContent = "Signing in\u2026";
-
     auth.signInWithEmailAndPassword(email, password)
       .catch(function(err) {
         showError(friendlyAuthError(err));
@@ -514,22 +534,19 @@
         btn.textContent = "Sign in";
       });
   }
-
   function doSignOut() {
     auth.signOut();
   }
-
   auth.onAuthStateChanged(function(user) {
     if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
     if (rotaUnsub) { rotaUnsub(); rotaUnsub = null; }
-
     if (!user) {
       currentProfile = null;
+      latestCleans = [];
       showSignIn();
       show("login");
       return;
     }
-
     show("loading");
     db.collection("users").doc(user.uid).get()
       .then(function(doc) {
@@ -552,11 +569,15 @@
         currentProfile = {
           name: data.name,
           hotel: data.hotel,
-          hotelKey: data.hotelKey || data.hotel.toLowerCase()
+          hotelKey: data.hotelKey || data.hotel.toLowerCase(),
+          role: data.role || "manager"   // accounts made before roles existed count as managers
         };
         document.getElementById("hotelTitle").textContent = currentProfile.hotel;
-        document.getElementById("whoLine").textContent = "Signed in as " + currentProfile.name;
+        document.getElementById("whoLine").textContent =
+          "Signed in as " + currentProfile.name + (isManager() ? " (Manager)" : "");
+        applyRoleUI();
         show("app");
+        switchTab("cleans");
         watchCleans();
         watchRota();
       })
@@ -565,9 +586,7 @@
         auth.signOut();
       });
   });
-
   /* ---------------- Photos ---------------- */
-
   function photoChosen(input) {
     if (!input.files || !input.files[0]) { return; }
     var file = input.files[0];
@@ -586,7 +605,6 @@
     };
     reader.readAsDataURL(file);
   }
-
   function compressImage(dataUrl, callback) {
     var img = new Image();
     img.onload = function() {
@@ -604,15 +622,12 @@
     };
     img.src = dataUrl;
   }
-
   function removePhoto() {
     pendingPhoto = null;
     document.getElementById("photoInput").value = "";
     document.getElementById("photoPreview").style.display = "none";
   }
-
   /* ---------------- Cleans ---------------- */
-
   function logClean() {
     if (!currentProfile) { return; }
     var room = document.getElementById("roomInput").value.trim();
@@ -620,11 +635,9 @@
       alert("Enter a room or area.");
       return;
     }
-
     var btn = document.getElementById("saveBtn");
     btn.disabled = true;
     btn.textContent = "Saving\u2026";
-
     var record = {
       hotelKey: currentProfile.hotelKey,
       hotel: currentProfile.hotel,
@@ -637,7 +650,6 @@
     if (pendingPhoto) {
       record.photo = pendingPhoto;
     }
-
     db.collection("cleans").add(record)
       .then(function() {
         document.getElementById("roomInput").value = "";
@@ -652,7 +664,6 @@
         btn.textContent = "Save clean";
       });
   }
-
   function watchCleans() {
     if (cleansUnsub) { cleansUnsub(); }
     cleansUnsub = db.collection("cleans")
@@ -665,13 +676,16 @@
           cleans.push(d);
         });
         cleans.sort(function(a, b) { return b.whenMs - a.whenMs; });
+        latestCleans = cleans;
         renderLog(cleans.slice(0, 30));
+        if (document.getElementById("dashTab").style.display === "block") {
+          renderDashboard();
+        }
       }, function(err) {
         document.getElementById("logList").innerHTML =
           '<div class="empty">Couldn\u2019t load cleans: ' + escapeHtml(err.message) + '</div>';
       });
   }
-
   function renderLog(cleans) {
     var list = document.getElementById("logList");
     if (cleans.length === 0) {
@@ -697,21 +711,17 @@
     }
     list.innerHTML = html;
   }
-
   /* ---------------- Rota ---------------- */
-
   function addShift() {
-    if (!currentProfile) { return; }
+    if (!currentProfile || !isManager()) { return; }
     var name = document.getElementById("shiftName").value.trim();
     if (!name) {
       alert("Enter the staff member's name.");
       return;
     }
-
     var btn = document.getElementById("shiftBtn");
     btn.disabled = true;
     btn.textContent = "Adding\u2026";
-
     db.collection("rota").add({
       hotelKey: currentProfile.hotelKey,
       staff: name,
@@ -732,14 +742,13 @@
       btn.textContent = "Add shift";
     });
   }
-
   function deleteShift(id) {
+    if (!isManager()) { return; }
     if (!confirm("Remove this shift?")) { return; }
     db.collection("rota").doc(id).delete().catch(function(err) {
       alert("Couldn't remove: " + err.message);
     });
   }
-
   function watchRota() {
     if (rotaUnsub) { rotaUnsub(); }
     rotaUnsub = db.collection("rota")
@@ -757,11 +766,10 @@
           '<div class="empty">Couldn\u2019t load rota: ' + escapeHtml(err.message) + '</div>';
       });
   }
-
   function renderRota(shifts) {
     var list = document.getElementById("rotaList");
     if (shifts.length === 0) {
-      list.innerHTML = '<div class="empty">No shifts yet. Add the first one above.</div>';
+      list.innerHTML = '<div class="empty">No shifts yet.</div>';
       return;
     }
     shifts.sort(function(a, b) {
@@ -769,7 +777,7 @@
       if (dayDiff !== 0) { return dayDiff; }
       return (a.start || "").localeCompare(b.start || "");
     });
-
+    var manager = isManager();
     var html = "";
     var lastDay = "";
     for (var i = 0; i < shifts.length; i++) {
@@ -781,12 +789,54 @@
       html += '<div class="shift-item">';
       html += '<div><div class="s-name">' + escapeHtml(s.staff) + '</div>';
       html += '<div class="s-time">' + escapeHtml(s.start) + ' \u2013 ' + escapeHtml(s.end) + '</div></div>';
-      html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
+      if (manager) {
+        html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
+      }
       html += '</div>';
     }
     list.innerHTML = html;
   }
-
+  /* ---------------- Dashboard ---------------- */
+  function renderDashboard() {
+    var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    var weekCleans = [];
+    for (var i = 0; i < latestCleans.length; i++) {
+      if (latestCleans[i].whenMs >= weekAgo) {
+        weekCleans.push(latestCleans[i]);
+      }
+    }
+    var deepCount = 0;
+    var photoCount = 0;
+    var byStaff = {};
+    var byType = {};
+    for (var j = 0; j < weekCleans.length; j++) {
+      var c = weekCleans[j];
+      if (c.type === "Deep clean") { deepCount++; }
+      if (c.photo) { photoCount++; }
+      byStaff[c.by] = (byStaff[c.by] || 0) + 1;
+      byType[c.type] = (byType[c.type] || 0) + 1;
+    }
+    document.getElementById("statWeek").textContent = weekCleans.length;
+    document.getElementById("statDeep").textContent = deepCount;
+    document.getElementById("statPhotos").textContent = photoCount;
+    renderBars("staffStats", byStaff);
+    renderBars("typeStats", byType);
+  }
+  function renderBars(elementId, counts) {
+    var el = document.getElementById(elementId);
+    var keys = Object.keys(counts);
+    if (keys.length === 0) {
+      el.innerHTML = '<div class="empty">Nothing logged in the last 7 days.</div>';
+      return;
+    }
+    keys.sort(function(a, b) { return counts[b] - counts[a]; });
+    var html = "";
+    for (var i = 0; i < keys.length; i++) {
+      html += '<div class="bar-row"><span>' + escapeHtml(keys[i]) + '</span>';
+      html += '<span class="count">' + counts[keys[i]] + '</span></div>';
+    }
+    el.innerHTML = html;
+  }
   function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
