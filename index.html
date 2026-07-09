@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Housekeeping Hub</title>
+<style>
+  :root {
+    --pine: #1d4e4a;
+    --pine-dark: #143835;
+    --linen: #f7f6f2;
+    --white: #ffffff;
+    --ink: #22302e;
+    --mist: #8aa3a0;
+    --line: #e3e1da;
+    --ok: #2e7d5b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--linen);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ---------- Login screen ---------- */
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: linear-gradient(160deg, var(--pine) 0%, var(--pine-dark) 100%);
+  }
+  .login-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 32px 26px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .brand {
+    text-align: center;
+    margin-bottom: 26px;
+  }
+  .brand h1 {
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    color: var(--pine);
+  }
+  .brand p {
+    font-size: 13px;
+    color: var(--mist);
+    margin-top: 4px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 16px;
+    background: var(--white);
+    color: var(--ink);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--pine);
+    border-color: var(--pine);
+  }
+  button {
+    width: 100%;
+    padding: 13px;
+    background: var(--pine);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:active { background: var(--pine-dark); }
+  .demo-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--mist);
+    margin-top: 14px;
+  }
+
+  /* ---------- App shell ---------- */
+  .app { display: none; min-height: 100vh; }
+  .topbar {
+    background: var(--pine);
+    color: var(--white);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar h2 { font-size: 17px; font-weight: 600; }
+  .topbar .who { font-size: 13px; opacity: 0.85; }
+  .topbar .signout {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.4);
+    color: var(--white);
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    margin-left: 12px;
+  }
+  .content { padding: 18px; max-width: 640px; margin: 0 auto; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h3 {
+    font-size: 15px;
+    margin-bottom: 14px;
+    color: var(--pine);
+  }
+
+  /* ---------- Clean log list ---------- */
+  .log-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .log-item:last-child { border-bottom: none; }
+  .log-item .room {
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .log-item .meta {
+    font-size: 12px;
+    color: var(--mist);
+    margin-top: 2px;
+  }
+  .log-item .notes {
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--ok);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .empty {
+    text-align: center;
+    color: var(--mist);
+    font-size: 13px;
+    padding: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="brand">
+      <h1>Housekeeping Hub</h1>
+      <p>Deep clean tracking for hotels</p>
+    </div>
+    <label for="loginName">Your name</label>
+    <input type="text" id="loginName" placeholder="e.g. Michael">
+    <label for="loginHotel">Hotel name</label>
+    <input type="text" id="loginHotel" placeholder="e.g. The Grand, Blackpool">
+    <button onclick="doLogin()">Sign in</button>
+    <p class="demo-note">Version 0.1 &mdash; demo sign-in. Real accounts coming with Firebase.</p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="appScreen">
+  <div class="topbar">
+    <div>
+      <h2 id="hotelTitle">Housekeeping Hub</h2>
+      <div class="who" id="whoLine"></div>
+    </div>
+    <button class="signout" onclick="doSignOut()">Sign out</button>
+  </div>
+
+  <div class="content">
+    <div class="card">
+      <h3>Log a deep clean</h3>
+      <label for="roomInput">Room / area</label>
+      <input type="text" id="roomInput" placeholder="e.g. Room 204 or Lobby toilets">
+      <label for="typeInput">Clean type</label>
+      <select id="typeInput">
+        <option>Deep clean</option>
+        <option>Standard clean</option>
+        <option>Checkout clean</option>
+        <option>Periodic task</option>
+      </select>
+      <label for="notesInput">Notes (optional)</label>
+      <textarea id="notesInput" rows="2" placeholder="Anything worth flagging"></textarea>
+      <button onclick="logClean()">Save clean</button>
+    </div>
+
+    <div class="card">
+      <h3>Recent cleans</h3>
+      <div id="logList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var STORAGE_KEY = "hh_cleans";
+  var USER_KEY = "hh_user";
+
+  function doLogin() {
+    var name = document.getElementById("loginName").value.trim();
+    var hotel = document.getElementById("loginHotel").value.trim();
+    if (!name || !hotel) {
+      alert("Enter your name and hotel to sign in.");
+      return;
+    }
+    var user = { name: name, hotel: hotel };
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    showApp(user);
+  }
+
+  function doSignOut() {
+    localStorage.removeItem(USER_KEY);
+    document.getElementById("appScreen").style.display = "none";
+    document.getElementById("loginScreen").style.display = "flex";
+  }
+
+  function showApp(user) {
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("appScreen").style.display = "block";
+    document.getElementById("hotelTitle").textContent = user.hotel;
+    document.getElementById("whoLine").textContent = "Signed in as " + user.name;
+    renderLog();
+  }
+
+  function getCleans() {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { return []; }
+    try { return JSON.parse(raw); } catch (e) { return []; }
+  }
+
+  function logClean() {
+    var room = document.getElementById("roomInput").value.trim();
+    if (!room) {
+      alert("Enter a room or area.");
+      return;
+    }
+    var user = JSON.parse(localStorage.getItem(USER_KEY));
+    var cleans = getCleans();
+    cleans.unshift({
+      room: room,
+      type: document.getElementById("typeInput").value,
+      notes: document.getElementById("notesInput").value.trim(),
+      by: user.name,
+      when: new Date().toISOString()
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleans));
+    document.getElementById("roomInput").value = "";
+    document.getElementById("notesInput").value = "";
+    renderLog();
+  }
+
+  function renderLog() {
+    var cleans = getCleans();
+    var list = document.getElementById("logList");
+    if (cleans.length === 0) {
+      list.innerHTML = '<div class="empty">No cleans logged yet. Your first one will show here.</div>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < cleans.length; i++) {
+      var c = cleans[i];
+      var d = new Date(c.when);
+      var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      html += '<div class="log-item">';
+      html += '<span class="room">' + escapeHtml(c.room) + '</span>';
+      html += '<span class="badge">' + escapeHtml(c.type) + '</span>';
+      html += '<div class="meta">' + escapeHtml(c.by) + ' &middot; ' + dateStr + '</div>';
+      if (c.notes) {
+        html += '<div class="notes">' + escapeHtml(c.notes) + '</div>';
+      }
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // Auto sign-in if a user is saved
+  (function init() {
+    var saved = localStorage.getItem(USER_KEY);
+    if (saved) {
+      try { showApp(JSON.parse(saved)); } catch (e) {}
+    }
+  })();
+</script>
+</body>
+</html>
