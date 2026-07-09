@@ -14,6 +14,7 @@
     --mist: #8aa3a0;
     --line: #e3e1da;
     --ok: #2e7d5b;
+    --err: #b3403a;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -41,20 +42,9 @@
     max-width: 380px;
     box-shadow: 0 12px 40px rgba(0,0,0,0.25);
   }
-  .brand {
-    text-align: center;
-    margin-bottom: 26px;
-  }
-  .brand h1 {
-    font-size: 22px;
-    letter-spacing: 0.5px;
-    color: var(--pine);
-  }
-  .brand p {
-    font-size: 13px;
-    color: var(--mist);
-    margin-top: 4px;
-  }
+  .brand { text-align: center; margin-bottom: 26px; }
+  .brand h1 { font-size: 22px; letter-spacing: 0.5px; color: var(--pine); }
+  .brand p { font-size: 13px; color: var(--mist); margin-top: 4px; }
   label {
     display: block;
     font-size: 13px;
@@ -88,11 +78,23 @@
     cursor: pointer;
   }
   button:active { background: var(--pine-dark); }
-  .demo-note {
+  button:disabled { opacity: 0.6; }
+  .switch-mode {
     text-align: center;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--mist);
-    margin-top: 14px;
+    margin-top: 16px;
+  }
+  .switch-mode a { color: var(--pine); font-weight: 600; cursor: pointer; text-decoration: underline; }
+  .form-error {
+    background: #fdf0ef;
+    border: 1px solid var(--err);
+    color: var(--err);
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: none;
   }
 
   /* ---------- App shell ---------- */
@@ -126,31 +128,14 @@
     padding: 20px;
     margin-bottom: 18px;
   }
-  .card h3 {
-    font-size: 15px;
-    margin-bottom: 14px;
-    color: var(--pine);
-  }
+  .card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
 
   /* ---------- Clean log list ---------- */
-  .log-item {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--line);
-  }
+  .log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
   .log-item:last-child { border-bottom: none; }
-  .log-item .room {
-    font-weight: 600;
-    font-size: 15px;
-  }
-  .log-item .meta {
-    font-size: 12px;
-    color: var(--mist);
-    margin-top: 2px;
-  }
-  .log-item .notes {
-    font-size: 13px;
-    margin-top: 6px;
-  }
+  .log-item .room { font-weight: 600; font-size: 15px; }
+  .log-item .meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
+  .log-item .notes { font-size: 13px; margin-top: 6px; }
   .badge {
     display: inline-block;
     background: var(--ok);
@@ -162,29 +147,55 @@
     margin-left: 8px;
     vertical-align: middle;
   }
-  .empty {
-    text-align: center;
+  .empty { text-align: center; color: var(--mist); font-size: 13px; padding: 20px 0; }
+  .loading-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--mist);
-    font-size: 13px;
-    padding: 20px 0;
+    font-size: 14px;
   }
 </style>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
-<div class="login-wrap" id="loginScreen">
+<!-- ============ LOADING ============ -->
+<div class="loading-screen" id="loadingScreen">Loading&hellip;</div>
+
+<!-- ============ LOGIN / SIGN UP ============ -->
+<div class="login-wrap" id="loginScreen" style="display:none;">
   <div class="login-card">
     <div class="brand">
       <h1>Housekeeping Hub</h1>
       <p>Deep clean tracking for hotels</p>
     </div>
-    <label for="loginName">Your name</label>
-    <input type="text" id="loginName" placeholder="e.g. Michael">
-    <label for="loginHotel">Hotel name</label>
-    <input type="text" id="loginHotel" placeholder="e.g. The Grand, Blackpool">
-    <button onclick="doLogin()">Sign in</button>
-    <p class="demo-note">Version 0.1 &mdash; demo sign-in. Real accounts coming with Firebase.</p>
+
+    <div class="form-error" id="authError"></div>
+
+    <!-- Sign in fields -->
+    <div id="signInForm">
+      <label for="siEmail">Email</label>
+      <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email">
+      <label for="siPassword">Password</label>
+      <input type="password" id="siPassword" placeholder="Your password" autocomplete="current-password">
+      <button id="signInBtn" onclick="doSignIn()">Sign in</button>
+      <p class="switch-mode">New here? <a onclick="showSignUp()">Create an account</a></p>
+    </div>
+
+    <!-- Sign up fields -->
+    <div id="signUpForm" style="display:none;">
+      <label for="suName">Your name</label>
+      <input type="text" id="suName" placeholder="e.g. Michael">
+      <label for="suHotel">Hotel name</label>
+      <input type="text" id="suHotel" placeholder="e.g. The Grand, Blackpool">
+      <label for="suEmail">Email</label>
+      <input type="email" id="suEmail" placeholder="you@example.com" autocomplete="email">
+      <label for="suPassword">Password (6+ characters)</label>
+      <input type="password" id="suPassword" placeholder="Choose a password" autocomplete="new-password">
+      <button id="signUpBtn" onclick="doSignUp()">Create account</button>
+      <p class="switch-mode">Already have an account? <a onclick="showSignIn()">Sign in</a></p>
+    </div>
   </div>
 </div>
 
@@ -212,75 +223,254 @@
       </select>
       <label for="notesInput">Notes (optional)</label>
       <textarea id="notesInput" rows="2" placeholder="Anything worth flagging"></textarea>
-      <button onclick="logClean()">Save clean</button>
+      <button id="saveBtn" onclick="logClean()">Save clean</button>
     </div>
 
     <div class="card">
       <h3>Recent cleans</h3>
-      <div id="logList"></div>
+      <div id="logList"><div class="empty">Loading cleans&hellip;</div></div>
     </div>
   </div>
 </div>
 
-<script>
-  var STORAGE_KEY = "hh_cleans";
-  var USER_KEY = "hh_user";
+<!-- Firebase (loaded from Google's servers, nothing to install) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  function doLogin() {
-    var name = document.getElementById("loginName").value.trim();
-    var hotel = document.getElementById("loginHotel").value.trim();
-    if (!name || !hotel) {
-      alert("Enter your name and hotel to sign in.");
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyB9oh9GOnrF7H65tOc6IkME7Fhj9D-wul8",
+    authDomain: "housekeeping-app-4684b.firebaseapp.com",
+    projectId: "housekeeping-app-4684b",
+    storageBucket: "housekeeping-app-4684b.firebasestorage.app",
+    messagingSenderId: "602260982732",
+    appId: "1:602260982732:web:bf41ed65b62ae02fcc6b69"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+
+  var currentProfile = null;   // { name, hotel, hotelKey }
+  var cleansUnsub = null;      // live listener, so we can detach on sign-out
+
+  /* ---------------- Screen switching ---------------- */
+
+  function show(screenId) {
+    document.getElementById("loadingScreen").style.display = "none";
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("appScreen").style.display = "none";
+    if (screenId === "login") {
+      document.getElementById("loginScreen").style.display = "flex";
+    } else if (screenId === "app") {
+      document.getElementById("appScreen").style.display = "block";
+    } else {
+      document.getElementById("loadingScreen").style.display = "flex";
+    }
+  }
+
+  function showSignUp() {
+    hideError();
+    document.getElementById("signInForm").style.display = "none";
+    document.getElementById("signUpForm").style.display = "block";
+  }
+
+  function showSignIn() {
+    hideError();
+    document.getElementById("signUpForm").style.display = "none";
+    document.getElementById("signInForm").style.display = "block";
+  }
+
+  function showError(msg) {
+    var box = document.getElementById("authError");
+    box.textContent = msg;
+    box.style.display = "block";
+  }
+
+  function hideError() {
+    document.getElementById("authError").style.display = "none";
+  }
+
+  function friendlyAuthError(err) {
+    var code = err && err.code ? err.code : "";
+    if (code === "auth/invalid-email") { return "That email address doesn't look right."; }
+    if (code === "auth/email-already-in-use") { return "There's already an account with that email. Try signing in instead."; }
+    if (code === "auth/weak-password") { return "Password needs to be at least 6 characters."; }
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+      return "Email or password not recognised. Check them and try again.";
+    }
+    if (code === "auth/too-many-requests") { return "Too many attempts. Wait a minute and try again."; }
+    if (code === "auth/network-request-failed") { return "No connection. Check your internet and try again."; }
+    return "Something went wrong: " + (err && err.message ? err.message : "unknown error");
+  }
+
+  /* ---------------- Auth ---------------- */
+
+  function doSignUp() {
+    hideError();
+    var name = document.getElementById("suName").value.trim();
+    var hotel = document.getElementById("suHotel").value.trim();
+    var email = document.getElementById("suEmail").value.trim();
+    var password = document.getElementById("suPassword").value;
+
+    if (!name || !hotel || !email || !password) {
+      showError("Fill in all four fields to create your account.");
       return;
     }
-    var user = { name: name, hotel: hotel };
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    showApp(user);
+
+    var btn = document.getElementById("signUpBtn");
+    btn.disabled = true;
+    btn.textContent = "Creating account\u2026";
+
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(function(cred) {
+        return db.collection("users").doc(cred.user.uid).set({
+          name: name,
+          hotel: hotel,
+          hotelKey: hotel.toLowerCase(),
+          created: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      })
+      .catch(function(err) {
+        showError(friendlyAuthError(err));
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Create account";
+      });
+  }
+
+  function doSignIn() {
+    hideError();
+    var email = document.getElementById("siEmail").value.trim();
+    var password = document.getElementById("siPassword").value;
+
+    if (!email || !password) {
+      showError("Enter your email and password.");
+      return;
+    }
+
+    var btn = document.getElementById("signInBtn");
+    btn.disabled = true;
+    btn.textContent = "Signing in\u2026";
+
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(function(err) {
+        showError(friendlyAuthError(err));
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      });
   }
 
   function doSignOut() {
-    localStorage.removeItem(USER_KEY);
-    document.getElementById("appScreen").style.display = "none";
-    document.getElementById("loginScreen").style.display = "flex";
+    auth.signOut();
   }
 
-  function showApp(user) {
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("appScreen").style.display = "block";
-    document.getElementById("hotelTitle").textContent = user.hotel;
-    document.getElementById("whoLine").textContent = "Signed in as " + user.name;
-    renderLog();
-  }
+  auth.onAuthStateChanged(function(user) {
+    if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
 
-  function getCleans() {
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) { return []; }
-    try { return JSON.parse(raw); } catch (e) { return []; }
-  }
+    if (!user) {
+      currentProfile = null;
+      showSignIn();
+      show("login");
+      return;
+    }
+
+    show("loading");
+    db.collection("users").doc(user.uid).get()
+      .then(function(doc) {
+        if (!doc.exists) {
+          // Profile still being written (brand-new sign-up) - retry once
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              db.collection("users").doc(user.uid).get().then(resolve);
+            }, 1200);
+          });
+        }
+        return doc;
+      })
+      .then(function(doc) {
+        if (!doc || !doc.exists) {
+          showError("Couldn't load your profile. Sign in again.");
+          auth.signOut();
+          return;
+        }
+        var data = doc.data();
+        currentProfile = {
+          name: data.name,
+          hotel: data.hotel,
+          hotelKey: data.hotelKey || data.hotel.toLowerCase()
+        };
+        document.getElementById("hotelTitle").textContent = currentProfile.hotel;
+        document.getElementById("whoLine").textContent = "Signed in as " + currentProfile.name;
+        show("app");
+        watchCleans();
+      })
+      .catch(function(err) {
+        showError("Couldn't load your profile: " + err.message);
+        auth.signOut();
+      });
+  });
+
+  /* ---------------- Cleans ---------------- */
 
   function logClean() {
+    if (!currentProfile) { return; }
     var room = document.getElementById("roomInput").value.trim();
     if (!room) {
       alert("Enter a room or area.");
       return;
     }
-    var user = JSON.parse(localStorage.getItem(USER_KEY));
-    var cleans = getCleans();
-    cleans.unshift({
+
+    var btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving\u2026";
+
+    db.collection("cleans").add({
+      hotelKey: currentProfile.hotelKey,
+      hotel: currentProfile.hotel,
       room: room,
       type: document.getElementById("typeInput").value,
       notes: document.getElementById("notesInput").value.trim(),
-      by: user.name,
-      when: new Date().toISOString()
+      by: currentProfile.name,
+      when: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(function() {
+      document.getElementById("roomInput").value = "";
+      document.getElementById("notesInput").value = "";
+    })
+    .catch(function(err) {
+      alert("Couldn't save: " + err.message);
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = "Save clean";
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleans));
-    document.getElementById("roomInput").value = "";
-    document.getElementById("notesInput").value = "";
-    renderLog();
   }
 
-  function renderLog() {
-    var cleans = getCleans();
+  function watchCleans() {
+    if (cleansUnsub) { cleansUnsub(); }
+    cleansUnsub = db.collection("cleans")
+      .where("hotelKey", "==", currentProfile.hotelKey)
+      .onSnapshot(function(snapshot) {
+        var cleans = [];
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          d.whenMs = d.when && d.when.toMillis ? d.when.toMillis() : Date.now();
+          cleans.push(d);
+        });
+        cleans.sort(function(a, b) { return b.whenMs - a.whenMs; });
+        renderLog(cleans.slice(0, 30));
+      }, function(err) {
+        document.getElementById("logList").innerHTML =
+          '<div class="empty">Couldn\u2019t load cleans: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderLog(cleans) {
     var list = document.getElementById("logList");
     if (cleans.length === 0) {
       list.innerHTML = '<div class="empty">No cleans logged yet. Your first one will show here.</div>';
@@ -289,7 +479,7 @@
     var html = "";
     for (var i = 0; i < cleans.length; i++) {
       var c = cleans[i];
-      var d = new Date(c.when);
+      var d = new Date(c.whenMs);
       var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
       html += '<div class="log-item">';
       html += '<span class="room">' + escapeHtml(c.room) + '</span>';
@@ -306,14 +496,6 @@
   function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-
-  // Auto sign-in if a user is saved
-  (function init() {
-    var saved = localStorage.getItem(USER_KEY);
-    if (saved) {
-      try { showApp(JSON.parse(saved)); } catch (e) {}
-    }
-  })();
 </script>
 </body>
 </html>
