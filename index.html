@@ -119,6 +119,29 @@
     border-radius: 6px;
     margin-left: 12px;
   }
+
+  /* ---------- Tabs ---------- */
+  .tabbar {
+    display: flex;
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+  }
+  .tabbar button {
+    flex: 1;
+    background: none;
+    color: var(--mist);
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: 13px 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .tabbar button.active {
+    color: var(--pine);
+    border-bottom-color: var(--pine);
+  }
+
   .content { padding: 18px; max-width: 640px; margin: 0 auto; }
 
   .card {
@@ -130,12 +153,48 @@
   }
   .card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
 
+  /* ---------- Photo attach ---------- */
+  .photo-row { margin-bottom: 16px; }
+  .photo-btn {
+    background: var(--white);
+    color: var(--pine);
+    border: 1px dashed var(--pine);
+    font-weight: 600;
+  }
+  .photo-preview {
+    display: none;
+    margin-top: 10px;
+    position: relative;
+  }
+  .photo-preview img {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+  .photo-remove {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--err);
+    margin-top: 8px;
+  }
+
   /* ---------- Clean log list ---------- */
   .log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
   .log-item:last-child { border-bottom: none; }
   .log-item .room { font-weight: 600; font-size: 15px; }
   .log-item .meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
   .log-item .notes { font-size: 13px; margin-top: 6px; }
+  .log-item img.thumb {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 8px;
+    border: 1px solid var(--line);
+  }
   .badge {
     display: inline-block;
     background: var(--ok);
@@ -156,6 +215,37 @@
     color: var(--mist);
     font-size: 14px;
   }
+
+  /* ---------- Rota ---------- */
+  .rota-grid { display: flex; gap: 10px; }
+  .rota-grid > div { flex: 1; }
+  .shift-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .shift-item:last-child { border-bottom: none; }
+  .shift-item .s-name { font-weight: 600; font-size: 14px; }
+  .shift-item .s-time { font-size: 13px; color: var(--mist); }
+  .shift-del {
+    width: auto;
+    padding: 5px 10px;
+    font-size: 12px;
+    background: none;
+    color: var(--err);
+    border: 1px solid var(--err);
+  }
+  .day-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pine);
+    margin: 14px 0 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .day-header:first-child { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -173,7 +263,6 @@
 
     <div class="form-error" id="authError"></div>
 
-    <!-- Sign in fields -->
     <div id="signInForm">
       <label for="siEmail">Email</label>
       <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email">
@@ -183,7 +272,6 @@
       <p class="switch-mode">New here? <a onclick="showSignUp()">Create an account</a></p>
     </div>
 
-    <!-- Sign up fields -->
     <div id="signUpForm" style="display:none;">
       <label for="suName">Your name</label>
       <input type="text" id="suName" placeholder="e.g. Michael">
@@ -209,7 +297,13 @@
     <button class="signout" onclick="doSignOut()">Sign out</button>
   </div>
 
-  <div class="content">
+  <div class="tabbar">
+    <button id="tabCleans" class="active" onclick="switchTab('cleans')">Cleans</button>
+    <button id="tabRota" onclick="switchTab('rota')">Rota</button>
+  </div>
+
+  <!-- ---- Cleans tab ---- -->
+  <div class="content" id="cleansTab">
     <div class="card">
       <h3>Log a deep clean</h3>
       <label for="roomInput">Room / area</label>
@@ -223,12 +317,57 @@
       </select>
       <label for="notesInput">Notes (optional)</label>
       <textarea id="notesInput" rows="2" placeholder="Anything worth flagging"></textarea>
+
+      <div class="photo-row">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="photoChosen(this)">
+        <button type="button" class="photo-btn" onclick="document.getElementById('photoInput').click()">Add photo (optional)</button>
+        <div class="photo-preview" id="photoPreview">
+          <img id="photoPreviewImg" alt="Photo preview">
+          <button type="button" class="photo-remove" onclick="removePhoto()">Remove photo</button>
+        </div>
+      </div>
+
       <button id="saveBtn" onclick="logClean()">Save clean</button>
     </div>
 
     <div class="card">
       <h3>Recent cleans</h3>
       <div id="logList"><div class="empty">Loading cleans&hellip;</div></div>
+    </div>
+  </div>
+
+  <!-- ---- Rota tab ---- -->
+  <div class="content" id="rotaTab" style="display:none;">
+    <div class="card">
+      <h3>Add a shift</h3>
+      <label for="shiftName">Staff member</label>
+      <input type="text" id="shiftName" placeholder="e.g. Sarah">
+      <label for="shiftDay">Day</label>
+      <select id="shiftDay">
+        <option>Monday</option>
+        <option>Tuesday</option>
+        <option>Wednesday</option>
+        <option>Thursday</option>
+        <option>Friday</option>
+        <option>Saturday</option>
+        <option>Sunday</option>
+      </select>
+      <div class="rota-grid">
+        <div>
+          <label for="shiftStart">Start</label>
+          <input type="time" id="shiftStart" value="09:00">
+        </div>
+        <div>
+          <label for="shiftEnd">Finish</label>
+          <input type="time" id="shiftEnd" value="17:00">
+        </div>
+      </div>
+      <button id="shiftBtn" onclick="addShift()">Add shift</button>
+    </div>
+
+    <div class="card">
+      <h3>This week's rota</h3>
+      <div id="rotaList"><div class="empty">Loading rota&hellip;</div></div>
     </div>
   </div>
 </div>
@@ -252,8 +391,12 @@
   var auth = firebase.auth();
   var db = firebase.firestore();
 
-  var currentProfile = null;   // { name, hotel, hotelKey }
-  var cleansUnsub = null;      // live listener, so we can detach on sign-out
+  var currentProfile = null;
+  var cleansUnsub = null;
+  var rotaUnsub = null;
+  var pendingPhoto = null;   // compressed base64 string, ready to save
+
+  var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
   /* ---------------- Screen switching ---------------- */
 
@@ -268,6 +411,13 @@
     } else {
       document.getElementById("loadingScreen").style.display = "flex";
     }
+  }
+
+  function switchTab(tab) {
+    document.getElementById("cleansTab").style.display = (tab === "cleans") ? "block" : "none";
+    document.getElementById("rotaTab").style.display = (tab === "rota") ? "block" : "none";
+    document.getElementById("tabCleans").className = (tab === "cleans") ? "active" : "";
+    document.getElementById("tabRota").className = (tab === "rota") ? "active" : "";
   }
 
   function showSignUp() {
@@ -371,6 +521,7 @@
 
   auth.onAuthStateChanged(function(user) {
     if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
+    if (rotaUnsub) { rotaUnsub(); rotaUnsub = null; }
 
     if (!user) {
       currentProfile = null;
@@ -383,7 +534,6 @@
     db.collection("users").doc(user.uid).get()
       .then(function(doc) {
         if (!doc.exists) {
-          // Profile still being written (brand-new sign-up) - retry once
           return new Promise(function(resolve) {
             setTimeout(function() {
               db.collection("users").doc(user.uid).get().then(resolve);
@@ -408,12 +558,58 @@
         document.getElementById("whoLine").textContent = "Signed in as " + currentProfile.name;
         show("app");
         watchCleans();
+        watchRota();
       })
       .catch(function(err) {
         showError("Couldn't load your profile: " + err.message);
         auth.signOut();
       });
   });
+
+  /* ---------------- Photos ---------------- */
+
+  function photoChosen(input) {
+    if (!input.files || !input.files[0]) { return; }
+    var file = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      compressImage(e.target.result, function(compressed) {
+        if (compressed.length > 750000) {
+          alert("That photo is too large even after compressing. Try a different one.");
+          input.value = "";
+          return;
+        }
+        pendingPhoto = compressed;
+        document.getElementById("photoPreviewImg").src = compressed;
+        document.getElementById("photoPreview").style.display = "block";
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function compressImage(dataUrl, callback) {
+    var img = new Image();
+    img.onload = function() {
+      var maxSide = 900;
+      var w = img.width;
+      var h = img.height;
+      if (w > h && w > maxSide) { h = Math.round(h * maxSide / w); w = maxSide; }
+      else if (h >= w && h > maxSide) { w = Math.round(w * maxSide / h); h = maxSide; }
+      var canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL("image/jpeg", 0.6));
+    };
+    img.src = dataUrl;
+  }
+
+  function removePhoto() {
+    pendingPhoto = null;
+    document.getElementById("photoInput").value = "";
+    document.getElementById("photoPreview").style.display = "none";
+  }
 
   /* ---------------- Cleans ---------------- */
 
@@ -429,7 +625,7 @@
     btn.disabled = true;
     btn.textContent = "Saving\u2026";
 
-    db.collection("cleans").add({
+    var record = {
       hotelKey: currentProfile.hotelKey,
       hotel: currentProfile.hotel,
       room: room,
@@ -437,18 +633,24 @@
       notes: document.getElementById("notesInput").value.trim(),
       by: currentProfile.name,
       when: firebase.firestore.FieldValue.serverTimestamp()
-    })
-    .then(function() {
-      document.getElementById("roomInput").value = "";
-      document.getElementById("notesInput").value = "";
-    })
-    .catch(function(err) {
-      alert("Couldn't save: " + err.message);
-    })
-    .finally(function() {
-      btn.disabled = false;
-      btn.textContent = "Save clean";
-    });
+    };
+    if (pendingPhoto) {
+      record.photo = pendingPhoto;
+    }
+
+    db.collection("cleans").add(record)
+      .then(function() {
+        document.getElementById("roomInput").value = "";
+        document.getElementById("notesInput").value = "";
+        removePhoto();
+      })
+      .catch(function(err) {
+        alert("Couldn't save: " + err.message);
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Save clean";
+      });
   }
 
   function watchCleans() {
@@ -488,6 +690,98 @@
       if (c.notes) {
         html += '<div class="notes">' + escapeHtml(c.notes) + '</div>';
       }
+      if (c.photo) {
+        html += '<img class="thumb" src="' + c.photo + '" alt="Clean photo">';
+      }
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  /* ---------------- Rota ---------------- */
+
+  function addShift() {
+    if (!currentProfile) { return; }
+    var name = document.getElementById("shiftName").value.trim();
+    if (!name) {
+      alert("Enter the staff member's name.");
+      return;
+    }
+
+    var btn = document.getElementById("shiftBtn");
+    btn.disabled = true;
+    btn.textContent = "Adding\u2026";
+
+    db.collection("rota").add({
+      hotelKey: currentProfile.hotelKey,
+      staff: name,
+      day: document.getElementById("shiftDay").value,
+      start: document.getElementById("shiftStart").value,
+      end: document.getElementById("shiftEnd").value,
+      addedBy: currentProfile.name,
+      created: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(function() {
+      document.getElementById("shiftName").value = "";
+    })
+    .catch(function(err) {
+      alert("Couldn't add shift: " + err.message);
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = "Add shift";
+    });
+  }
+
+  function deleteShift(id) {
+    if (!confirm("Remove this shift?")) { return; }
+    db.collection("rota").doc(id).delete().catch(function(err) {
+      alert("Couldn't remove: " + err.message);
+    });
+  }
+
+  function watchRota() {
+    if (rotaUnsub) { rotaUnsub(); }
+    rotaUnsub = db.collection("rota")
+      .where("hotelKey", "==", currentProfile.hotelKey)
+      .onSnapshot(function(snapshot) {
+        var shifts = [];
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          shifts.push(d);
+        });
+        renderRota(shifts);
+      }, function(err) {
+        document.getElementById("rotaList").innerHTML =
+          '<div class="empty">Couldn\u2019t load rota: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderRota(shifts) {
+    var list = document.getElementById("rotaList");
+    if (shifts.length === 0) {
+      list.innerHTML = '<div class="empty">No shifts yet. Add the first one above.</div>';
+      return;
+    }
+    shifts.sort(function(a, b) {
+      var dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
+      if (dayDiff !== 0) { return dayDiff; }
+      return (a.start || "").localeCompare(b.start || "");
+    });
+
+    var html = "";
+    var lastDay = "";
+    for (var i = 0; i < shifts.length; i++) {
+      var s = shifts[i];
+      if (s.day !== lastDay) {
+        html += '<div class="day-header">' + escapeHtml(s.day) + '</div>';
+        lastDay = s.day;
+      }
+      html += '<div class="shift-item">';
+      html += '<div><div class="s-name">' + escapeHtml(s.staff) + '</div>';
+      html += '<div class="s-time">' + escapeHtml(s.start) + ' \u2013 ' + escapeHtml(s.end) + '</div></div>';
+      html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
       html += '</div>';
     }
     list.innerHTML = html;
