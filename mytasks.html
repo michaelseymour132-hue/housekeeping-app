@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Tasks - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>My Tasks</h1><p class="muted small" id="dateline"></p></div></div>
+      <div class="card mb16"><div class="row"><div class="grow"><strong id="progText">0 of 0 rooms</strong><div class="progress mt8"><span id="progBar" style="width:0%"></span></div></div></div></div>
+      <div id="list"></div>
+      <div id="skeleton"><div class="card"><div class="skeleton skel-line" style="width:40%"></div><div class="skeleton skel-card mt8"></div></div></div>
+      <div id="empty" class="empty hidden"><div class="empty-icon">\u2713</div><div>No rooms assigned to you today. Enjoy the quiet!</div></div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <div id="modal-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var uid = null, tasks = [];
+    HK.requireAuth(["admin", "supervisor", "housekeeper"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      uid = state.user.uid;
+      HK.mount("mytasks");
+      document.getElementById("dateline").textContent = new Date().toDateString();
+      load();
+    });
+    function load() {
+      HK.col("assignments").where("date", "==", HK.todayStr()).where("assignedToUid", "==", uid).get().then(function (snap) {
+        tasks = []; snap.forEach(function (d) { var t = d.data(); t.id = d.id; tasks.push(t); });
+        var order = { failed: 0, reclean: 0, pending: 1, inprogress: 2, complete: 3 };
+        tasks.sort(function (a, b) {
+          var ap = (a.type === "reclean" ? -1 : 0) + (order[a.status] || 5);
+          var bp = (b.type === "reclean" ? -1 : 0) + (order[b.status] || 5);
+          if (ap !== bp) { return ap - bp; }
+          return (a.roomNumber > b.roomNumber) ? 1 : -1;
+        });
+        document.getElementById("skeleton").className = "hidden";
+        render();
+      }).catch(function (err) { document.getElementById("skeleton").className = "hidden"; HK.toast("Could not load your tasks: " + err.message, "error"); });
+    }
+    function render() {
+      var list = document.getElementById("list"); list.innerHTML = "";
+      var done = tasks.filter(function (t) { return t.status === "complete"; }).length;
+      document.getElementById("progText").textContent = done + " of " + tasks.length + " rooms";
+      document.getElementById("progBar").style.width = tasks.length ? Math.round(done / tasks.length * 100) + "%" : "0%";
+      document.getElementById("empty").className = tasks.length ? "empty hidden" : "empty";
+      tasks.forEach(function (t) {
+        var card = document.createElement("div"); card.className = "card mb16";
+        var badge = t.type === "reclean" ? "<span class=\"badge badge-red\">Re-clean</span> " : (t.type === "deepclean" ? "<span class=\"badge badge-purple\">Deep clean</span> " : "");
+        var stBadge = { pending: "badge-grey", inprogress: "badge-amber", complete: "badge-green", failed: "badge-red" }[t.status] || "badge-grey";
+        card.innerHTML = "<div class=\"row\"><h2 class=\"grow\">Room " + HK.esc(t.roomNumber) + "</h2>" + badge + "<span class=\"badge " + stBadge + "\">" + HK.esc(t.status) + "</span></div>";
+        var body = document.createElement("div"); body.className = "mt16";
+        if (t.status === "pending") {
+          var startBtn = document.createElement("button"); startBtn.className = "btn btn-accent btn-block btn-lg"; startBtn.textContent = "Start cleaning";
+          startBtn.onclick = function () { startTask(t, startBtn); }; body.appendChild(startBtn);
+        } else if (t.status === "inprogress") {
+          renderChecklist(body, t);
+        } else if (t.status === "complete") {
+          var p = document.createElement("p"); p.className = "muted small"; p.textContent = "Completed " + HK.fmtDateTime(t.completedAt) + (t.durationMinutes ? " (" + t.durationMinutes + " min)" : ""); body.appendChild(p);
+        }
+        card.appendChild(body); list.appendChild(card);
+      });
+    }
+    function startTask(t, btn) {
+      btn.disabled = true; btn.textContent = "Starting...";
+      var b = db.batch();
+      b.update(HK.col("assignments").doc(t.id), { status: "inprogress", startedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      b.update(HK.col("rooms").doc(t.roomId), { status: "inprogress", updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      b.commit().then(function () { t.status = "inprogress"; t.startedAt = { toDate: function () { return new Date(); } }; HK.history(t.roomId, t.roomNumber, "clean", "Clean started", t.id); render(); }).catch(function (err) { btn.disabled = false; btn.textContent = "Start cleaning"; HK.toast("Could not start: " + err.message, "error"); });
+    }
+    function renderChecklist(body, t) {
+      var cl = t.checklist || [];
+      cl.forEach(function (c, i) {
+        var row = document.createElement("label"); row.className = "checkitem";
+        var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!c.done;
+        cb.onchange = function () { c.done = cb.checked; updateProgress(); };
+        var span = document.createElement("span"); span.className = "grow"; span.textContent = c.item;
+        row.appendChild(cb); row.appendChild(span); body.appendChild(row);
+      });
+      var note = document.createElement("textarea"); note.placeholder = "Add a note (optional)"; note.className = "mt8"; note.id = "note-" + t.id; body.appendChild(note);
+      var prog = document.createElement("p"); prog.className = "small muted mt8"; prog.id = "clprog-" + t.id; body.appendChild(prog);
+      var doneBtn = document.createElement("button"); doneBtn.className = "btn btn-accent btn-block btn-lg mt8"; doneBtn.textContent = "Complete room";
+      doneBtn.onclick = function () { completeTask(t, note.value, doneBtn); }; body.appendChild(doneBtn);
+      function updateProgress() { var d = cl.filter(function (x) { return x.done; }).length; document.getElementById("clprog-" + t.id).textContent = d + " of " + cl.length + " tasks ticked"; }
+      updateProgress();
+    }
+    function completeTask(t, noteText, btn) {
+      var cl = t.checklist || [];
+      var undone = cl.filter(function (x) { return !x.done; }).length;
+      var proceed = Promise.resolve(true);
+      if (undone > 0) { proceed = HK.confirm("Skip " + undone + " item(s)?", "Some checklist items are not ticked. Complete anyway?", "Complete anyway", false); }
+      proceed.then(function (go) {
+        if (!go) { return; }
+        btn.disabled = true; btn.textContent = "Saving...";
+        var mins = null; if (t.startedAt && t.startedAt.toDate) { mins = Math.max(1, Math.round((new Date() - t.startedAt.toDate()) / 60000)); }
+        var b = db.batch();
+        b.update(HK.col("assignments").doc(t.id), { status: "complete", completedAt: firebase.firestore.FieldValue.serverTimestamp(), durationMinutes: mins, checklist: cl });
+        b.update(HK.col("rooms").doc(t.roomId), { status: "dirty", lastCleanedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        b.commit().then(function () {
+          if (noteText && noteText.trim()) { HK.col("roomnotes").add({ roomId: t.roomId, roomNumber: t.roomNumber, text: noteText.trim(), category: "general", isMaintenanceIssue: false, photoUrls: [], createdByUid: uid, createdByName: HK.state.profile.displayName, createdAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function () {}); }
+          HK.history(t.roomId, t.roomNumber, "clean", "Clean completed" + (mins ? " in " + mins + " min" : ""), t.id);
+          HK.toast("Room " + t.roomNumber + " completed. Awaiting inspection.", "success");
+          t.status = "complete"; t.completedAt = { toDate: function () { return new Date(); } }; t.durationMinutes = mins; render();
+        }).catch(function (err) { btn.disabled = false; btn.textContent = "Complete room"; HK.toast("Could not complete: " + err.message, "error"); });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>
