@@ -5,268 +5,137 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Housekeeping Hub</title>
 <style>
-  :root {
-    --pine: #1d4e4a;
-    --pine-dark: #143835;
-    --linen: #f7f6f2;
-    --white: #ffffff;
-    --ink: #22302e;
-    --mist: #8aa3a0;
-    --line: #e3e1da;
-    --ok: #2e7d5b;
-    --err: #b3403a;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--linen);
-    color: var(--ink);
-    min-height: 100vh;
-  }
-  /* ---------- Login screen ---------- */
-  .login-wrap {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: linear-gradient(160deg, var(--pine) 0%, var(--pine-dark) 100%);
-  }
-  .login-card {
-    background: var(--white);
-    border-radius: 14px;
-    padding: 32px 26px;
-    width: 100%;
-    max-width: 380px;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-  }
-  .brand { text-align: center; margin-bottom: 26px; }
-  .brand h1 { font-size: 22px; letter-spacing: 0.5px; color: var(--pine); }
-  .brand p { font-size: 13px; color: var(--mist); margin-top: 4px; }
-  label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--ink);
-  }
-  input, select, textarea {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    font-size: 15px;
-    margin-bottom: 16px;
-    background: var(--white);
-    color: var(--ink);
-  }
-  input:focus, select:focus, textarea:focus {
-    outline: 2px solid var(--pine);
-    border-color: var(--pine);
-  }
-  button {
-    width: 100%;
-    padding: 13px;
-    background: var(--pine);
-    color: var(--white);
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  button:active { background: var(--pine-dark); }
-  button:disabled { opacity: 0.6; }
-  .switch-mode {
-    text-align: center;
-    font-size: 13px;
-    color: var(--mist);
-    margin-top: 16px;
-  }
-  .switch-mode a { color: var(--pine); font-weight: 600; cursor: pointer; text-decoration: underline; }
-  .form-error {
-    background: #fdf0ef;
-    border: 1px solid var(--err);
-    color: var(--err);
-    font-size: 13px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    display: none;
-  }
-  /* ---------- App shell ---------- */
-  .app { display: none; min-height: 100vh; }
-  .topbar {
-    background: var(--pine);
-    color: var(--white);
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .topbar h2 { font-size: 17px; font-weight: 600; }
-  .topbar .who { font-size: 13px; opacity: 0.85; }
-  .topbar .signout {
-    background: none;
-    border: 1px solid rgba(255,255,255,0.4);
-    color: var(--white);
-    width: auto;
-    padding: 6px 12px;
-    font-size: 12px;
-    border-radius: 6px;
-    margin-left: 12px;
-  }
-  /* ---------- Tabs ---------- */
-  .tabbar {
-    display: flex;
-    background: var(--white);
-    border-bottom: 1px solid var(--line);
-  }
-  .tabbar button {
-    flex: 1;
-    background: none;
-    color: var(--mist);
-    border: none;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
-    padding: 13px 0;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .tabbar button.active {
-    color: var(--pine);
-    border-bottom-color: var(--pine);
-  }
-  .content { padding: 18px; max-width: 640px; margin: 0 auto; }
-  .card {
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 18px;
-  }
-  .card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
-  /* ---------- Photo attach ---------- */
-  .photo-row { margin-bottom: 16px; }
-  .photo-btn {
-    background: var(--white);
-    color: var(--pine);
-    border: 1px dashed var(--pine);
-    font-weight: 600;
-  }
-  .photo-preview { display: none; margin-top: 10px; position: relative; }
-  .photo-preview img {
-    width: 100%;
-    max-height: 220px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-  }
-  .photo-remove {
-    width: auto;
-    padding: 6px 12px;
-    font-size: 12px;
-    background: var(--err);
-    margin-top: 8px;
-  }
-  /* ---------- Clean log list ---------- */
-  .log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .log-item:last-child { border-bottom: none; }
-  .log-item .room { font-weight: 600; font-size: 15px; }
-  .log-item .meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
-  .log-item .notes { font-size: 13px; margin-top: 6px; }
-  .log-item img.thumb {
-    width: 100%;
-    max-height: 200px;
-    object-fit: cover;
-    border-radius: 8px;
-    margin-top: 8px;
-    border: 1px solid var(--line);
-  }
-  .badge {
-    display: inline-block;
-    background: var(--ok);
-    color: var(--white);
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-left: 8px;
-    vertical-align: middle;
-  }
-  .empty { text-align: center; color: var(--mist); font-size: 13px; padding: 20px 0; }
-  .loading-screen {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--mist);
-    font-size: 14px;
-  }
-  /* ---------- Rota ---------- */
-  .rota-grid { display: flex; gap: 10px; }
-  .rota-grid > div { flex: 1; }
-  .shift-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .shift-item:last-child { border-bottom: none; }
-  .shift-item .s-name { font-weight: 600; font-size: 14px; }
-  .shift-item .s-time { font-size: 13px; color: var(--mist); }
-  .shift-del {
-    width: auto;
-    padding: 5px 10px;
-    font-size: 12px;
-    background: none;
-    color: var(--err);
-    border: 1px solid var(--err);
-  }
-  .day-header {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--pine);
-    margin: 14px 0 4px 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .day-header:first-child { margin-top: 0; }
-  /* ---------- Dashboard ---------- */
-  .stat-row { display: flex; gap: 12px; margin-bottom: 18px; }
-  .stat-card {
-    flex: 1;
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 16px 12px;
-    text-align: center;
-  }
-  .stat-card .num { font-size: 26px; font-weight: 700; color: var(--pine); }
-  .stat-card .lbl { font-size: 11px; color: var(--mist); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
-  .bar-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 14px;
-  }
-  .bar-row:last-child { border-bottom: none; }
-  .bar-row .count { font-weight: 700; color: var(--pine); }
+:root {
+  --pine: #1d4e4a;
+  --pine-dark: #143835;
+  --linen: #f7f6f2;
+  --white: #ffffff;
+  --ink: #22302e;
+  --mist: #8aa3a0;
+  --line: #e3e1da;
+  --ok: #2e7d5b;
+  --warn: #b8862b;
+  --err: #b3403a;
+  --blue: #2a6f97;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--linen);
+  color: var(--ink);
+  min-height: 100vh;
+}
+.login-wrap {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px;
+  background: linear-gradient(160deg, var(--pine) 0%, var(--pine-dark) 100%);
+}
+.login-card {
+  background: var(--white); border-radius: 14px; padding: 32px 26px;
+  width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.brand { text-align: center; margin-bottom: 26px; }
+.brand h1 { font-size: 22px; letter-spacing: 0.5px; color: var(--pine); }
+.brand p { font-size: 13px; color: var(--mist); margin-top: 4px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+input, select, textarea {
+  width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 15px; margin-bottom: 16px; background: var(--white); color: var(--ink);
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--pine); border-color: var(--pine); }
+button {
+  width: 100%; padding: 13px; background: var(--pine); color: var(--white);
+  border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+button:active { background: var(--pine-dark); }
+button:disabled { opacity: 0.6; }
+.switch-mode { text-align: center; font-size: 13px; color: var(--mist); margin-top: 16px; }
+.switch-mode a { color: var(--pine); font-weight: 600; cursor: pointer; text-decoration: underline; }
+.form-error {
+  background: #fdf0ef; border: 1px solid var(--err); color: var(--err); font-size: 13px;
+  padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none;
+}
+.app { display: none; min-height: 100vh; }
+.topbar { background: var(--pine); color: var(--white); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+.topbar h2 { font-size: 17px; font-weight: 600; }
+.topbar .who { font-size: 13px; opacity: 0.85; }
+.topbar .signout { background: none; border: 1px solid rgba(255,255,255,0.4); color: var(--white); width: auto; padding: 6px 12px; font-size: 12px; border-radius: 6px; margin-left: 12px; }
+.tabbar { display: flex; background: var(--white); border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabbar button { flex: 1 0 auto; background: none; color: var(--mist); border: none; border-bottom: 3px solid transparent; border-radius: 0; padding: 13px 14px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.tabbar button.active { color: var(--pine); border-bottom-color: var(--pine); }
+.content { padding: 18px; max-width: 640px; margin: 0 auto; }
+.card { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
+.card h4 { font-size: 13px; margin: 4px 0 10px; color: var(--mist); text-transform: uppercase; letter-spacing: 0.4px; }
+.photo-row { margin-bottom: 16px; }
+.photo-btn { background: var(--white); color: var(--pine); border: 1px dashed var(--pine); font-weight: 600; }
+.photo-preview { display: none; margin-top: 12px; position: relative; }
+.photo-preview img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.photo-remove { width: auto; padding: 6px 12px; font-size: 12px; background: var(--err); margin-top: 8px; }
+.log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.log-item:last-child { border-bottom: none; }
+.log-item .room { font-weight: 600; font-size: 15px; }
+.log-item .meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
+.log-item .notes { font-size: 14px; margin-top: 6px; }
+.log-item img.thumb { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid var(--line); }
+.badge { display: inline-block; background: var(--ok); color: var(--white); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+.empty { text-align: center; color: var(--mist); font-size: 14px; padding: 24px 0; }
+.loading-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--mist); font-size: 15px; }
+.rota-grid { display: flex; gap: 12px; }
+.rota-grid > div { flex: 1; }
+.shift-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.shift-item:last-child { border-bottom: none; }
+.shift-item .s-name { font-weight: 600; font-size: 14px; }
+.shift-item .s-time { font-size: 13px; color: var(--mist); }
+.shift-del { width: auto; padding: 6px 10px; font-size: 12px; background: none; color: var(--err); border: 1px solid var(--err); }
+.day-header { font-size: 12px; font-weight: 700; color: var(--pine); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.day-header:first-child { margin-top: 0; }
+.stat-row { display: flex; gap: 12px; margin-bottom: 16px; }
+.stat-card { flex: 1; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 16px 10px; text-align: center; }
+.stat-card .num { font-size: 26px; font-weight: 700; color: var(--pine); }
+.stat-card .lbl { font-size: 11px; color: var(--mist); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.bar-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.bar-row:last-child { border-bottom: none; }
+.bar-row .count { font-weight: 700; color: var(--pine); }
+/* Rooms */
+.room-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.room-item:last-child { border-bottom: none; }
+.room-item .r-name { font-weight: 600; font-size: 15px; }
+.room-item .r-meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
+.status-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; color: var(--white); }
+.status-dirty { background: var(--err); }
+.status-progress { background: var(--warn); }
+.status-clean { background: var(--ok); }
+.status-inspected { background: var(--blue); }
+.room-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.room-actions button { width: auto; padding: 6px 10px; font-size: 12px; background: var(--white); color: var(--pine); border: 1px solid var(--line); }
+.room-actions button.danger { color: var(--err); border-color: var(--err); }
+/* Audit checklist */
+.check-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 10px; }
+.check-item:last-child { border-bottom: none; }
+.check-item .c-label { font-size: 14px; flex: 1; }
+.check-toggle { display: flex; gap: 6px; }
+.check-toggle button { width: auto; padding: 6px 12px; font-size: 12px; font-weight: 600; background: var(--white); border: 1px solid var(--line); color: var(--mist); }
+.check-toggle button.pass-on { background: var(--ok); color: var(--white); border-color: var(--ok); }
+.check-toggle button.fail-on { background: var(--err); color: var(--white); border-color: var(--err); }
+.audit-score { font-size: 28px; font-weight: 700; color: var(--pine); text-align: center; margin: 4px 0; }
+.audit-score.low { color: var(--err); }
+.audit-score.mid { color: var(--warn); }
+.score-lbl { text-align: center; font-size: 12px; color: var(--mist); margin-bottom: 12px; }
+.hint { font-size: 12px; color: var(--mist); margin: -8px 0 14px; }
 </style>
 </head>
 <body>
+
 <!-- ============ LOADING ============ -->
 <div class="loading-screen" id="loadingScreen">Loading&hellip;</div>
+
 <!-- ============ LOGIN / SIGN UP ============ -->
 <div class="login-wrap" id="loginScreen" style="display:none;">
   <div class="login-card">
     <div class="brand">
       <h1>Housekeeping Hub</h1>
-      <p>Deep clean tracking for hotels</p>
+      <p>Cleans, rooms, rotas &amp; audits</p>
     </div>
     <div class="form-error" id="authError"></div>
     <div id="signInForm">
@@ -296,6 +165,7 @@
     </div>
   </div>
 </div>
+
 <!-- ============ APP ============ -->
 <div class="app" id="appScreen">
   <div class="topbar">
@@ -305,13 +175,32 @@
     </div>
     <button class="signout" onclick="doSignOut()">Sign out</button>
   </div>
+
   <div class="tabbar">
-    <button id="tabCleans" class="active" onclick="switchTab('cleans')">Cleans</button>
+    <button id="tabRooms" class="active" onclick="switchTab('rooms')">Rooms</button>
+    <button id="tabCleans" onclick="switchTab('cleans')">Cleans</button>
+    <button id="tabAudits" onclick="switchTab('audits')">Audits</button>
     <button id="tabRota" onclick="switchTab('rota')">Rota</button>
     <button id="tabDash" style="display:none;" onclick="switchTab('dash')">Dashboard</button>
   </div>
+
+  <!-- ---- Rooms tab ---- -->
+  <div class="content" id="roomsTab">
+    <div class="card" id="addRoomCard">
+      <h3>Add a room</h3>
+      <label for="newRoomName">Room / area name</label>
+      <input type="text" id="newRoomName" placeholder="e.g. Room 204">
+      <button id="addRoomBtn" onclick="addRoom()">Add room</button>
+      <p class="hint" style="margin-bottom:0;">Rooms start as "Dirty". Staff move them through Cleaning &rarr; Clean, managers mark Inspected.</p>
+    </div>
+    <div class="card">
+      <h3>Room board</h3>
+      <div id="roomsList"><div class="empty">Loading rooms&hellip;</div></div>
+    </div>
+  </div>
+
   <!-- ---- Cleans tab ---- -->
-  <div class="content" id="cleansTab">
+  <div class="content" id="cleansTab" style="display:none;">
     <div class="card">
       <h3>Log a deep clean</h3>
       <label for="roomInput">Room / area</label>
@@ -340,6 +229,27 @@
       <div id="logList"><div class="empty">Loading cleans&hellip;</div></div>
     </div>
   </div>
+
+  <!-- ---- Audits tab ---- -->
+  <div class="content" id="auditsTab" style="display:none;">
+    <div class="card">
+      <h3>New room audit</h3>
+      <label for="auditRoom">Room / area</label>
+      <input type="text" id="auditRoom" placeholder="e.g. Room 204">
+      <h4>Checklist</h4>
+      <div id="auditChecklist"></div>
+      <div class="audit-score" id="auditScore">&ndash;</div>
+      <div class="score-lbl" id="auditScoreLbl">Mark each item pass or fail</div>
+      <label for="auditNotes">Notes (optional)</label>
+      <textarea id="auditNotes" rows="2" placeholder="Follow-up actions, issues found&hellip;"></textarea>
+      <button id="auditSaveBtn" onclick="submitAudit()">Submit audit</button>
+    </div>
+    <div class="card">
+      <h3>Recent audits</h3>
+      <div id="auditList"><div class="empty">Loading audits&hellip;</div></div>
+    </div>
+  </div>
+
   <!-- ---- Rota tab ---- -->
   <div class="content" id="rotaTab" style="display:none;">
     <div class="card" id="addShiftCard">
@@ -348,13 +258,8 @@
       <input type="text" id="shiftName" placeholder="e.g. Sarah">
       <label for="shiftDay">Day</label>
       <select id="shiftDay">
-        <option>Monday</option>
-        <option>Tuesday</option>
-        <option>Wednesday</option>
-        <option>Thursday</option>
-        <option>Friday</option>
-        <option>Saturday</option>
-        <option>Sunday</option>
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
       </select>
       <div class="rota-grid">
         <div>
@@ -373,21 +278,22 @@
       <div id="rotaList"><div class="empty">Loading rota&hellip;</div></div>
     </div>
   </div>
+
   <!-- ---- Dashboard tab (managers only) ---- -->
   <div class="content" id="dashTab" style="display:none;">
     <div class="stat-row">
-      <div class="stat-card">
-        <div class="num" id="statWeek">&ndash;</div>
-        <div class="lbl">Cleans, last 7 days</div>
-      </div>
-      <div class="stat-card">
-        <div class="num" id="statDeep">&ndash;</div>
-        <div class="lbl">Deep cleans</div>
-      </div>
-      <div class="stat-card">
-        <div class="num" id="statPhotos">&ndash;</div>
-        <div class="lbl">With photos</div>
-      </div>
+      <div class="stat-card"><div class="num" id="statWeek">&ndash;</div><div class="lbl">Cleans, 7 days</div></div>
+      <div class="stat-card"><div class="num" id="statDeep">&ndash;</div><div class="lbl">Deep cleans</div></div>
+      <div class="stat-card"><div class="num" id="statPhotos">&ndash;</div><div class="lbl">With photos</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="num" id="statRoomsClean">&ndash;</div><div class="lbl">Rooms ready</div></div>
+      <div class="stat-card"><div class="num" id="statRoomsDirty">&ndash;</div><div class="lbl">Rooms dirty</div></div>
+      <div class="stat-card"><div class="num" id="statAuditAvg">&ndash;</div><div class="lbl">Avg audit %</div></div>
+    </div>
+    <div class="card">
+      <h3>Room status</h3>
+      <div id="roomStatusStats"><div class="empty">No rooms yet.</div></div>
     </div>
     <div class="card">
       <h3>Cleans by staff member (last 7 days)</h3>
@@ -397,449 +303,637 @@
       <h3>Cleans by type (last 7 days)</h3>
       <div id="typeStats"><div class="empty">No data yet.</div></div>
     </div>
+    <div class="card">
+      <h3>Recent audit results</h3>
+      <div id="auditStats"><div class="empty">No audits yet.</div></div>
+    </div>
   </div>
 </div>
+
 <!-- Firebase (loaded from Google's servers, nothing to install) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-  var firebaseConfig = {
-    apiKey: "AIzaSyB9oh9GOnrF7H65tOc6IkME7Fhj9D-wul8",
-    authDomain: "housekeeping-app-4684b.firebaseapp.com",
-    projectId: "housekeeping-app-4684b",
-    storageBucket: "housekeeping-app-4684b.firebasestorage.app",
-    messagingSenderId: "602260982732",
-    appId: "1:602260982732:web:bf41ed65b62ae02fcc6b69"
-  };
-  firebase.initializeApp(firebaseConfig);
-  var auth = firebase.auth();
-  var db = firebase.firestore();
-  var currentProfile = null;
-  var cleansUnsub = null;
-  var rotaUnsub = null;
-  var pendingPhoto = null;
-  var latestCleans = [];   // kept for dashboard stats
-  var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  /* ---------------- Screen switching ---------------- */
-  function show(screenId) {
-    document.getElementById("loadingScreen").style.display = "none";
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("appScreen").style.display = "none";
-    if (screenId === "login") {
-      document.getElementById("loginScreen").style.display = "flex";
-    } else if (screenId === "app") {
-      document.getElementById("appScreen").style.display = "block";
-    } else {
-      document.getElementById("loadingScreen").style.display = "flex";
-    }
-  }
-  function switchTab(tab) {
-    document.getElementById("cleansTab").style.display = (tab === "cleans") ? "block" : "none";
-    document.getElementById("rotaTab").style.display = (tab === "rota") ? "block" : "none";
-    document.getElementById("dashTab").style.display = (tab === "dash") ? "block" : "none";
-    document.getElementById("tabCleans").className = (tab === "cleans") ? "active" : "";
-    document.getElementById("tabRota").className = (tab === "rota") ? "active" : "";
-    document.getElementById("tabDash").className = (tab === "dash") ? "active" : "";
-    if (tab === "dash") { renderDashboard(); }
-  }
-  function isManager() {
-    return currentProfile && currentProfile.role === "manager";
-  }
-  function applyRoleUI() {
-    var manager = isManager();
-    document.getElementById("tabDash").style.display = manager ? "block" : "none";
-    document.getElementById("addShiftCard").style.display = manager ? "block" : "none";
-  }
-  function showSignUp() {
-    hideError();
-    document.getElementById("signInForm").style.display = "none";
-    document.getElementById("signUpForm").style.display = "block";
-  }
-  function showSignIn() {
-    hideError();
-    document.getElementById("signUpForm").style.display = "none";
-    document.getElementById("signInForm").style.display = "block";
-  }
-  function showError(msg) {
-    var box = document.getElementById("authError");
-    box.textContent = msg;
-    box.style.display = "block";
-  }
-  function hideError() {
-    document.getElementById("authError").style.display = "none";
-  }
-  function friendlyAuthError(err) {
-    var code = err && err.code ? err.code : "";
-    if (code === "auth/invalid-email") { return "That email address doesn't look right."; }
-    if (code === "auth/email-already-in-use") { return "There's already an account with that email. Try signing in instead."; }
-    if (code === "auth/weak-password") { return "Password needs to be at least 6 characters."; }
-    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
-      return "Email or password not recognised. Check them and try again.";
-    }
-    if (code === "auth/too-many-requests") { return "Too many attempts. Wait a minute and try again."; }
-    if (code === "auth/network-request-failed") { return "No connection. Check your internet and try again."; }
-    return "Something went wrong: " + (err && err.message ? err.message : "unknown error");
-  }
-  /* ---------------- Auth ---------------- */
-  function doSignUp() {
-    hideError();
-    var name = document.getElementById("suName").value.trim();
-    var hotel = document.getElementById("suHotel").value.trim();
-    var role = document.getElementById("suRole").value;
-    var email = document.getElementById("suEmail").value.trim();
-    var password = document.getElementById("suPassword").value;
-    if (!name || !hotel || !email || !password) {
-      showError("Fill in all the fields to create your account.");
-      return;
-    }
-    var btn = document.getElementById("signUpBtn");
-    btn.disabled = true;
-    btn.textContent = "Creating account\u2026";
-    auth.createUserWithEmailAndPassword(email, password)
-      .then(function(cred) {
-        return db.collection("users").doc(cred.user.uid).set({
-          name: name,
-          hotel: hotel,
-          hotelKey: hotel.toLowerCase(),
-          role: role,
-          created: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      })
-      .catch(function(err) {
-        showError(friendlyAuthError(err));
-      })
-      .finally(function() {
-        btn.disabled = false;
-        btn.textContent = "Create account";
-      });
-  }
-  function doSignIn() {
-    hideError();
-    var email = document.getElementById("siEmail").value.trim();
-    var password = document.getElementById("siPassword").value;
-    if (!email || !password) {
-      showError("Enter your email and password.");
-      return;
-    }
-    var btn = document.getElementById("signInBtn");
-    btn.disabled = true;
-    btn.textContent = "Signing in\u2026";
-    auth.signInWithEmailAndPassword(email, password)
-      .catch(function(err) {
-        showError(friendlyAuthError(err));
-      })
-      .finally(function() {
-        btn.disabled = false;
-        btn.textContent = "Sign in";
-      });
-  }
-  function doSignOut() {
-    auth.signOut();
-  }
-  auth.onAuthStateChanged(function(user) {
-    if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
-    if (rotaUnsub) { rotaUnsub(); rotaUnsub = null; }
-    if (!user) {
-      currentProfile = null;
-      latestCleans = [];
-      showSignIn();
-      show("login");
-      return;
-    }
-    show("loading");
-    db.collection("users").doc(user.uid).get()
-      .then(function(doc) {
-        if (!doc.exists) {
-          return new Promise(function(resolve) {
-            setTimeout(function() {
-              db.collection("users").doc(user.uid).get().then(resolve);
-            }, 1200);
-          });
-        }
-        return doc;
-      })
-      .then(function(doc) {
-        if (!doc || !doc.exists) {
-          showError("Couldn't load your profile. Sign in again.");
-          auth.signOut();
-          return;
-        }
-        var data = doc.data();
-        currentProfile = {
-          name: data.name,
-          hotel: data.hotel,
-          hotelKey: data.hotelKey || data.hotel.toLowerCase(),
-          role: data.role || "manager"   // accounts made before roles existed count as managers
-        };
-        document.getElementById("hotelTitle").textContent = currentProfile.hotel;
-        document.getElementById("whoLine").textContent =
-          "Signed in as " + currentProfile.name + (isManager() ? " (Manager)" : "");
-        applyRoleUI();
-        show("app");
-        switchTab("cleans");
-        watchCleans();
-        watchRota();
-      })
-      .catch(function(err) {
-        showError("Couldn't load your profile: " + err.message);
-        auth.signOut();
-      });
+var firebaseConfig = {
+  apiKey: "AIzaSyB9oh9GOnrF7H65tOc6IkME7Fhj9D-wul8",
+  authDomain: "housekeeping-app-4684b.firebaseapp.com",
+  projectId: "housekeeping-app-4684b",
+  storageBucket: "housekeeping-app-4684b.firebasestorage.app",
+  messagingSenderId: "602260982732",
+  appId: "1:602260982732:web:bf41ed65b62ae02fcc6b69"
+};
+firebase.initializeApp(firebaseConfig);
+var auth = firebase.auth();
+var db = firebase.firestore();
+
+var currentProfile = null;
+var cleansUnsub = null;
+var rotaUnsub = null;
+var roomsUnsub = null;
+var auditsUnsub = null;
+var pendingPhoto = null;
+var latestCleans = [];
+var latestRooms = [];
+var latestAudits = [];
+var auditState = {};
+var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+var AUDIT_ITEMS = [
+  "Bed made & linen fresh",
+  "Bathroom cleaned & sanitised",
+  "Floors vacuumed / mopped",
+  "Surfaces dusted",
+  "Bins emptied",
+  "Amenities restocked",
+  "Windows & mirrors clean",
+  "No maintenance issues"
+];
+var ROOM_STATUSES = {
+  dirty:     { label: "Dirty",     cls: "status-dirty" },
+  progress:  { label: "Cleaning",  cls: "status-progress" },
+  clean:     { label: "Clean",     cls: "status-clean" },
+  inspected: { label: "Inspected", cls: "status-inspected" }
+};
+
+
+/* ---------------- Screen switching ---------------- */
+function show(screenId) {
+  document.getElementById("loadingScreen").style.display = "none";
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appScreen").style.display = "none";
+  if (screenId === "login") document.getElementById("loginScreen").style.display = "flex";
+  else if (screenId === "app") document.getElementById("appScreen").style.display = "block";
+  else document.getElementById("loadingScreen").style.display = "flex";
+}
+
+function switchTab(tab) {
+  var tabs = ["rooms","cleans","audits","rota","dash"];
+  var panels = { rooms:"roomsTab", cleans:"cleansTab", audits:"auditsTab", rota:"rotaTab", dash:"dashTab" };
+  var btns   = { rooms:"tabRooms", cleans:"tabCleans", audits:"tabAudits", rota:"tabRota", dash:"tabDash" };
+  tabs.forEach(function(t){
+    document.getElementById(panels[t]).style.display = (t === tab) ? "block" : "none";
+    document.getElementById(btns[t]).className = (t === tab) ? "active" : "";
   });
-  /* ---------------- Photos ---------------- */
-  function photoChosen(input) {
-    if (!input.files || !input.files[0]) { return; }
-    var file = input.files[0];
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      compressImage(e.target.result, function(compressed) {
-        if (compressed.length > 750000) {
-          alert("That photo is too large even after compressing. Try a different one.");
-          input.value = "";
-          return;
-        }
-        pendingPhoto = compressed;
-        document.getElementById("photoPreviewImg").src = compressed;
-        document.getElementById("photoPreview").style.display = "block";
-      });
-    };
-    reader.readAsDataURL(file);
-  }
-  function compressImage(dataUrl, callback) {
-    var img = new Image();
-    img.onload = function() {
-      var maxSide = 900;
-      var w = img.width;
-      var h = img.height;
-      if (w > h && w > maxSide) { h = Math.round(h * maxSide / w); w = maxSide; }
-      else if (h >= w && h > maxSide) { w = Math.round(w * maxSide / h); h = maxSide; }
-      var canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      var ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, w, h);
-      callback(canvas.toDataURL("image/jpeg", 0.6));
-    };
-    img.src = dataUrl;
-  }
-  function removePhoto() {
-    pendingPhoto = null;
-    document.getElementById("photoInput").value = "";
-    document.getElementById("photoPreview").style.display = "none";
-  }
-  /* ---------------- Cleans ---------------- */
-  function logClean() {
-    if (!currentProfile) { return; }
-    var room = document.getElementById("roomInput").value.trim();
-    if (!room) {
-      alert("Enter a room or area.");
-      return;
-    }
-    var btn = document.getElementById("saveBtn");
-    btn.disabled = true;
-    btn.textContent = "Saving\u2026";
-    var record = {
-      hotelKey: currentProfile.hotelKey,
-      hotel: currentProfile.hotel,
-      room: room,
-      type: document.getElementById("typeInput").value,
-      notes: document.getElementById("notesInput").value.trim(),
-      by: currentProfile.name,
-      when: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (pendingPhoto) {
-      record.photo = pendingPhoto;
-    }
-    db.collection("cleans").add(record)
-      .then(function() {
-        document.getElementById("roomInput").value = "";
-        document.getElementById("notesInput").value = "";
-        removePhoto();
-      })
-      .catch(function(err) {
-        alert("Couldn't save: " + err.message);
-      })
-      .finally(function() {
-        btn.disabled = false;
-        btn.textContent = "Save clean";
-      });
-  }
-  function watchCleans() {
-    if (cleansUnsub) { cleansUnsub(); }
-    cleansUnsub = db.collection("cleans")
-      .where("hotelKey", "==", currentProfile.hotelKey)
-      .onSnapshot(function(snapshot) {
-        var cleans = [];
-        snapshot.forEach(function(doc) {
-          var d = doc.data();
-          d.whenMs = d.when && d.when.toMillis ? d.when.toMillis() : Date.now();
-          cleans.push(d);
-        });
-        cleans.sort(function(a, b) { return b.whenMs - a.whenMs; });
-        latestCleans = cleans;
-        renderLog(cleans.slice(0, 30));
-        if (document.getElementById("dashTab").style.display === "block") {
-          renderDashboard();
-        }
-      }, function(err) {
-        document.getElementById("logList").innerHTML =
-          '<div class="empty">Couldn\u2019t load cleans: ' + escapeHtml(err.message) + '</div>';
-      });
-  }
-  function renderLog(cleans) {
-    var list = document.getElementById("logList");
-    if (cleans.length === 0) {
-      list.innerHTML = '<div class="empty">No cleans logged yet. Your first one will show here.</div>';
-      return;
-    }
-    var html = "";
-    for (var i = 0; i < cleans.length; i++) {
-      var c = cleans[i];
-      var d = new Date(c.whenMs);
-      var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-      html += '<div class="log-item">';
-      html += '<span class="room">' + escapeHtml(c.room) + '</span>';
-      html += '<span class="badge">' + escapeHtml(c.type) + '</span>';
-      html += '<div class="meta">' + escapeHtml(c.by) + ' &middot; ' + dateStr + '</div>';
-      if (c.notes) {
-        html += '<div class="notes">' + escapeHtml(c.notes) + '</div>';
-      }
-      if (c.photo) {
-        html += '<img class="thumb" src="' + c.photo + '" alt="Clean photo">';
-      }
-      html += '</div>';
-    }
-    list.innerHTML = html;
-  }
-  /* ---------------- Rota ---------------- */
-  function addShift() {
-    if (!currentProfile || !isManager()) { return; }
-    var name = document.getElementById("shiftName").value.trim();
-    if (!name) {
-      alert("Enter the staff member's name.");
-      return;
-    }
-    var btn = document.getElementById("shiftBtn");
-    btn.disabled = true;
-    btn.textContent = "Adding\u2026";
-    db.collection("rota").add({
-      hotelKey: currentProfile.hotelKey,
-      staff: name,
-      day: document.getElementById("shiftDay").value,
-      start: document.getElementById("shiftStart").value,
-      end: document.getElementById("shiftEnd").value,
-      addedBy: currentProfile.name,
+  if (tab === "dash") renderDashboard();
+  if (tab === "audits") renderChecklist();
+}
+
+function isManager() {
+  return currentProfile && currentProfile.role === "manager";
+}
+
+function applyRoleUI() {
+  var manager = isManager();
+  document.getElementById("tabDash").style.display = manager ? "block" : "none";
+  document.getElementById("addShiftCard").style.display = manager ? "block" : "none";
+}
+
+
+function showSignUp(){ hideError(); document.getElementById("signInForm").style.display="none"; document.getElementById("signUpForm").style.display="block"; }
+function showSignIn(){ hideError(); document.getElementById("signUpForm").style.display="none"; document.getElementById("signInForm").style.display="block"; }
+function showError(msg){ var box=document.getElementById("authError"); box.textContent=msg; box.style.display="block"; }
+function hideError(){ document.getElementById("authError").style.display="none"; }
+
+function friendlyAuthError(err){
+  var code = (err && err.code) ? err.code : "";
+  if (code === "auth/invalid-email") return "That email address doesn't look right.";
+  if (code === "auth/email-already-in-use") return "There's already an account with that email. Try signing in instead.";
+  if (code === "auth/weak-password") return "Password needs to be at least 6 characters.";
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found")
+    return "Email or password not recognised. Check them and try again.";
+  if (code === "auth/too-many-requests") return "Too many attempts. Wait a minute and try again.";
+  if (code === "auth/network-request-failed") return "No connection. Check your internet and try again.";
+  return "Something went wrong: " + ((err && err.message) ? err.message : "unknown error");
+}
+
+/* ---------------- Auth ---------------- */
+function doSignUp(){
+  hideError();
+  var name = document.getElementById("suName").value.trim();
+  var hotel = document.getElementById("suHotel").value.trim();
+  var role = document.getElementById("suRole").value;
+  var email = document.getElementById("suEmail").value.trim();
+  var password = document.getElementById("suPassword").value;
+  if (!name || !hotel || !email || !password) { showError("Fill in all the fields to create your account."); return; }
+  var btn = document.getElementById("signUpBtn");
+  btn.disabled = true; btn.textContent = "Creating account\u2026";
+  auth.createUserWithEmailAndPassword(email, password).then(function(cred){
+    return db.collection("users").doc(cred.user.uid).set({
+      name: name, hotel: hotel, hotelKey: hotel.toLowerCase(), role: role,
       created: firebase.firestore.FieldValue.serverTimestamp()
-    })
-    .then(function() {
-      document.getElementById("shiftName").value = "";
-    })
-    .catch(function(err) {
-      alert("Couldn't add shift: " + err.message);
-    })
-    .finally(function() {
-      btn.disabled = false;
-      btn.textContent = "Add shift";
     });
+  }).catch(function(err){ showError(friendlyAuthError(err)); }).finally(function(){
+    btn.disabled = false; btn.textContent = "Create account";
+  });
+}
+
+function doSignIn(){
+  hideError();
+  var email = document.getElementById("siEmail").value.trim();
+  var password = document.getElementById("siPassword").value;
+  if (!email || !password) { showError("Enter your email and password."); return; }
+  var btn = document.getElementById("signInBtn");
+  btn.disabled = true; btn.textContent = "Signing in\u2026";
+  auth.signInWithEmailAndPassword(email, password).catch(function(err){ showError(friendlyAuthError(err)); }).finally(function(){
+    btn.disabled = false; btn.textContent = "Sign in";
+  });
+}
+
+function doSignOut(){ auth.signOut(); }
+
+function stopWatchers(){
+  if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
+  if (rotaUnsub) { rotaUnsub(); rotaUnsub = null; }
+  if (roomsUnsub) { roomsUnsub(); roomsUnsub = null; }
+  if (auditsUnsub) { auditsUnsub(); auditsUnsub = null; }
+}
+
+auth.onAuthStateChanged(function(user){
+  stopWatchers();
+  if (!user) {
+    currentProfile = null; latestCleans = []; latestRooms = []; latestAudits = [];
+    showSignIn(); show("login"); return;
   }
-  function deleteShift(id) {
-    if (!isManager()) { return; }
-    if (!confirm("Remove this shift?")) { return; }
-    db.collection("rota").doc(id).delete().catch(function(err) {
-      alert("Couldn't remove: " + err.message);
-    });
-  }
-  function watchRota() {
-    if (rotaUnsub) { rotaUnsub(); }
-    rotaUnsub = db.collection("rota")
-      .where("hotelKey", "==", currentProfile.hotelKey)
-      .onSnapshot(function(snapshot) {
-        var shifts = [];
-        snapshot.forEach(function(doc) {
-          var d = doc.data();
-          d.id = doc.id;
-          shifts.push(d);
-        });
-        renderRota(shifts);
-      }, function(err) {
-        document.getElementById("rotaList").innerHTML =
-          '<div class="empty">Couldn\u2019t load rota: ' + escapeHtml(err.message) + '</div>';
+  show("loading");
+  db.collection("users").doc(user.uid).get().then(function(doc){
+    if (!doc.exists) {
+      return new Promise(function(resolve){
+        setTimeout(function(){ db.collection("users").doc(user.uid).get().then(resolve); }, 1200);
       });
-  }
-  function renderRota(shifts) {
-    var list = document.getElementById("rotaList");
-    if (shifts.length === 0) {
-      list.innerHTML = '<div class="empty">No shifts yet.</div>';
-      return;
     }
-    shifts.sort(function(a, b) {
-      var dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
-      if (dayDiff !== 0) { return dayDiff; }
-      return (a.start || "").localeCompare(b.start || "");
+    return doc;
+  }).then(function(doc){
+    if (!doc || !doc.exists) { showError("Couldn't load your profile. Sign in again."); auth.signOut(); return; }
+    var data = doc.data();
+    currentProfile = {
+      name: data.name,
+      hotel: data.hotel,
+      hotelKey: data.hotelKey || (data.hotel || "").toLowerCase(),
+      role: data.role || "manager"
+    };
+    document.getElementById("hotelTitle").textContent = currentProfile.hotel;
+    document.getElementById("whoLine").textContent = "Signed in as " + currentProfile.name + (isManager() ? " (Manager)" : "");
+    applyRoleUI();
+    show("app");
+    switchTab("rooms");
+    watchRooms(); watchCleans(); watchRota(); watchAudits();
+  }).catch(function(err){ showError("Couldn't load your profile: " + err.message); auth.signOut(); });
+});
+
+
+/* ---------------- Photos ---------------- */
+function photoChosen(input){
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e){
+    compressImage(e.target.result, function(compressed){
+      if (compressed.length > 750000) {
+        alert("That photo is too large even after compressing. Try a different one.");
+        input.value = ""; return;
+      }
+      pendingPhoto = compressed;
+      document.getElementById("photoPreviewImg").src = compressed;
+      document.getElementById("photoPreview").style.display = "block";
     });
-    var manager = isManager();
-    var html = "";
-    var lastDay = "";
-    for (var i = 0; i < shifts.length; i++) {
-      var s = shifts[i];
-      if (s.day !== lastDay) {
-        html += '<div class="day-header">' + escapeHtml(s.day) + '</div>';
-        lastDay = s.day;
+  };
+  reader.readAsDataURL(file);
+}
+
+function compressImage(dataUrl, callback){
+  var img = new Image();
+  img.onload = function(){
+    var maxSide = 900;
+    var w = img.width, h = img.height;
+    if (w > h) { if (w > maxSide) { h = Math.round(h * maxSide / w); w = maxSide; } }
+    else { if (h > maxSide) { w = Math.round(w * maxSide / h); h = maxSide; } }
+    var canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL("image/jpeg", 0.6));
+  };
+  img.src = dataUrl;
+}
+
+function removePhoto(){
+  pendingPhoto = null;
+  document.getElementById("photoInput").value = "";
+  document.getElementById("photoPreview").style.display = "none";
+}
+
+/* ---------------- Cleans ---------------- */
+function logClean(){
+  if (!currentProfile) return;
+  var room = document.getElementById("roomInput").value.trim();
+  if (!room) { alert("Enter a room or area."); return; }
+  var btn = document.getElementById("saveBtn");
+  btn.disabled = true; btn.textContent = "Saving\u2026";
+  var record = {
+    hotelKey: currentProfile.hotelKey,
+    hotel: currentProfile.hotel,
+    room: room,
+    type: document.getElementById("typeInput").value,
+    notes: document.getElementById("notesInput").value.trim(),
+    by: currentProfile.name,
+    when: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (pendingPhoto) record.photo = pendingPhoto;
+  db.collection("cleans").add(record).then(function(){
+    document.getElementById("roomInput").value = "";
+    document.getElementById("notesInput").value = "";
+    removePhoto();
+  }).catch(function(err){ alert("Couldn't save: " + err.message); }).finally(function(){
+    btn.disabled = false; btn.textContent = "Save clean";
+  });
+}
+
+function watchCleans(){
+  cleansUnsub = db.collection("cleans").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
+    var cleans = [];
+    snapshot.forEach(function(doc){
+      var d = doc.data();
+      d.whenMs = (d.when && d.when.toMillis) ? d.when.toMillis() : Date.now();
+      cleans.push(d);
+    });
+    cleans.sort(function(a,b){ return b.whenMs - a.whenMs; });
+    latestCleans = cleans;
+    renderLog(cleans.slice(0, 30));
+    if (document.getElementById("dashTab").style.display === "block") renderDashboard();
+  }, function(err){
+    document.getElementById("logList").innerHTML = '<div class="empty">Couldn\u2019t load cleans: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function renderLog(cleans){
+  var list = document.getElementById("logList");
+  if (cleans.length === 0) { list.innerHTML = '<div class="empty">No cleans logged yet. Your first one will show here.</div>'; return; }
+  var html = "";
+  for (var i = 0; i < cleans.length; i++) {
+    var c = cleans[i];
+    var d = new Date(c.whenMs);
+    var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    html += '<div class="log-item">';
+    html += '<span class="room">' + escapeHtml(c.room) + '</span>';
+    html += '<span class="badge">' + escapeHtml(c.type) + '</span>';
+    html += '<div class="meta">' + escapeHtml(c.by) + ' &middot; ' + dateStr + '</div>';
+    if (c.notes) html += '<div class="notes">' + escapeHtml(c.notes) + '</div>';
+    if (c.photo) html += '<img class="thumb" src="' + c.photo + '" alt="Clean photo">';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+
+/* ---------------- Rooms ---------------- */
+function addRoom(){
+  if (!currentProfile) return;
+  var name = document.getElementById("newRoomName").value.trim();
+  if (!name) { alert("Enter a room name."); return; }
+  var btn = document.getElementById("addRoomBtn");
+  btn.disabled = true; btn.textContent = "Adding\u2026";
+  db.collection("rooms").add({
+    hotelKey: currentProfile.hotelKey,
+    name: name,
+    status: "dirty",
+    updatedBy: currentProfile.name,
+    updated: firebase.firestore.FieldValue.serverTimestamp(),
+    created: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById("newRoomName").value = "";
+  }).catch(function(err){ alert("Couldn't add room: " + err.message); }).finally(function(){
+    btn.disabled = false; btn.textContent = "Add room";
+  });
+}
+
+function setRoomStatus(id, status){
+  db.collection("rooms").doc(id).update({
+    status: status,
+    updatedBy: currentProfile.name,
+    updated: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(function(err){ alert("Couldn't update: " + err.message); });
+}
+
+function deleteRoom(id){
+  if (!isManager()) return;
+  if (!confirm("Remove this room from the board?")) return;
+  db.collection("rooms").doc(id).delete().catch(function(err){ alert("Couldn't remove: " + err.message); });
+}
+
+function watchRooms(){
+  roomsUnsub = db.collection("rooms").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
+    var rooms = [];
+    snapshot.forEach(function(doc){ var d = doc.data(); d.id = doc.id; rooms.push(d); });
+    rooms.sort(function(a,b){ return String(a.name).localeCompare(String(b.name), undefined, { numeric: true }); });
+    latestRooms = rooms;
+    renderRooms(rooms);
+    if (document.getElementById("dashTab").style.display === "block") renderDashboard();
+  }, function(err){
+    document.getElementById("roomsList").innerHTML = '<div class="empty">Couldn\u2019t load rooms: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function renderRooms(rooms){
+  var list = document.getElementById("roomsList");
+  if (rooms.length === 0) { list.innerHTML = '<div class="empty">No rooms yet. Add your first one above.</div>'; return; }
+  var manager = isManager();
+  var html = "";
+  for (var i = 0; i < rooms.length; i++) {
+    var r = rooms[i];
+    var st = ROOM_STATUSES[r.status] || ROOM_STATUSES.dirty;
+    var upd = "";
+    if (r.updatedBy) {
+      upd = "by " + escapeHtml(r.updatedBy);
+      if (r.updated && r.updated.toMillis) {
+        var d = new Date(r.updated.toMillis());
+        upd += " &middot; " + d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
       }
-      html += '<div class="shift-item">';
-      html += '<div><div class="s-name">' + escapeHtml(s.staff) + '</div>';
-      html += '<div class="s-time">' + escapeHtml(s.start) + ' \u2013 ' + escapeHtml(s.end) + '</div></div>';
-      if (manager) {
-        html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
-      }
-      html += '</div>';
     }
-    list.innerHTML = html;
+    html += '<div class="room-item"><div style="flex:1;">';
+    html += '<div><span class="r-name">' + escapeHtml(r.name) + '</span> <span class="status-pill ' + st.cls + '">' + st.label + '</span></div>';
+    if (upd) html += '<div class="r-meta">' + upd + '</div>';
+    html += '<div class="room-actions">';
+    if (r.status !== "progress") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'progress\')">Start clean</button>';
+    if (r.status !== "clean") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'clean\')">Mark clean</button>';
+    if (manager && r.status !== "inspected") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'inspected\')">Inspected</button>';
+    if (r.status !== "dirty") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'dirty\')">Reset dirty</button>';
+    if (manager) html += '<button class="danger" onclick="deleteRoom(\'' + r.id + '\')">Remove</button>';
+    html += '</div></div></div>';
   }
-  /* ---------------- Dashboard ---------------- */
-  function renderDashboard() {
-    var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    var weekCleans = [];
-    for (var i = 0; i < latestCleans.length; i++) {
-      if (latestCleans[i].whenMs >= weekAgo) {
-        weekCleans.push(latestCleans[i]);
-      }
-    }
-    var deepCount = 0;
-    var photoCount = 0;
-    var byStaff = {};
-    var byType = {};
-    for (var j = 0; j < weekCleans.length; j++) {
-      var c = weekCleans[j];
-      if (c.type === "Deep clean") { deepCount++; }
-      if (c.photo) { photoCount++; }
-      byStaff[c.by] = (byStaff[c.by] || 0) + 1;
-      byType[c.type] = (byType[c.type] || 0) + 1;
-    }
-    document.getElementById("statWeek").textContent = weekCleans.length;
-    document.getElementById("statDeep").textContent = deepCount;
-    document.getElementById("statPhotos").textContent = photoCount;
-    renderBars("staffStats", byStaff);
-    renderBars("typeStats", byType);
+  list.innerHTML = html;
+}
+
+
+/* ---------------- Audits ---------------- */
+function renderChecklist(){
+  var wrap = document.getElementById("auditChecklist");
+  var html = "";
+  for (var i = 0; i < AUDIT_ITEMS.length; i++) {
+    var state = auditState[i];
+    var passOn = state === "pass" ? " pass-on" : "";
+    var failOn = state === "fail" ? " fail-on" : "";
+    html += '<div class="check-item">';
+    html += '<span class="c-label">' + escapeHtml(AUDIT_ITEMS[i]) + '</span>';
+    html += '<span class="check-toggle">';
+    html += '<button class="pass' + passOn + '" onclick="setCheck(' + i + ',\'pass\')">Pass</button>';
+    html += '<button class="fail' + failOn + '" onclick="setCheck(' + i + ',\'fail\')">Fail</button>';
+    html += '</span></div>';
   }
-  function renderBars(elementId, counts) {
-    var el = document.getElementById(elementId);
-    var keys = Object.keys(counts);
-    if (keys.length === 0) {
-      el.innerHTML = '<div class="empty">Nothing logged in the last 7 days.</div>';
-      return;
-    }
-    keys.sort(function(a, b) { return counts[b] - counts[a]; });
-    var html = "";
-    for (var i = 0; i < keys.length; i++) {
-      html += '<div class="bar-row"><span>' + escapeHtml(keys[i]) + '</span>';
-      html += '<span class="count">' + counts[keys[i]] + '</span></div>';
-    }
-    el.innerHTML = html;
+  wrap.innerHTML = html;
+  updateScore();
+}
+
+function setCheck(i, val){
+  auditState[i] = (auditState[i] === val) ? null : val;
+  renderChecklist();
+}
+
+function auditResult(){
+  var pass = 0, marked = 0;
+  for (var i = 0; i < AUDIT_ITEMS.length; i++) {
+    if (auditState[i] === "pass") { pass++; marked++; }
+    else if (auditState[i] === "fail") { marked++; }
   }
-  function escapeHtml(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  var pct = marked === 0 ? null : Math.round((pass / marked) * 100);
+  return { pass: pass, marked: marked, total: AUDIT_ITEMS.length, pct: pct };
+}
+
+function updateScore(){
+  var r = auditResult();
+  var el = document.getElementById("auditScore");
+  var lbl = document.getElementById("auditScoreLbl");
+  if (r.pct === null) { el.textContent = "\u2013"; el.className = "audit-score"; lbl.textContent = "Mark each item pass or fail"; return; }
+  el.textContent = r.pct + "%";
+  el.className = "audit-score" + (r.pct < 60 ? " low" : (r.pct < 85 ? " mid" : ""));
+  lbl.textContent = r.pass + " of " + r.marked + " checks passed";
+}
+
+function submitAudit(){
+  if (!currentProfile) return;
+  var room = document.getElementById("auditRoom").value.trim();
+  if (!room) { alert("Enter the room being audited."); return; }
+  var r = auditResult();
+  if (r.marked === 0) { alert("Mark at least one checklist item."); return; }
+  var results = [];
+  for (var i = 0; i < AUDIT_ITEMS.length; i++) {
+    results.push({ item: AUDIT_ITEMS[i], result: auditState[i] || "n/a" });
   }
+  var btn = document.getElementById("auditSaveBtn");
+  btn.disabled = true; btn.textContent = "Submitting\u2026";
+  db.collection("audits").add({
+    hotelKey: currentProfile.hotelKey,
+    room: room,
+    score: r.pct,
+    passed: r.pass,
+    marked: r.marked,
+    results: results,
+    notes: document.getElementById("auditNotes").value.trim(),
+    by: currentProfile.name,
+    when: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById("auditRoom").value = "";
+    document.getElementById("auditNotes").value = "";
+    auditState = {};
+    renderChecklist();
+  }).catch(function(err){ alert("Couldn't submit audit: " + err.message); }).finally(function(){
+    btn.disabled = false; btn.textContent = "Submit audit";
+  });
+}
+
+function watchAudits(){
+  auditsUnsub = db.collection("audits").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
+    var audits = [];
+    snapshot.forEach(function(doc){
+      var d = doc.data();
+      d.whenMs = (d.when && d.when.toMillis) ? d.when.toMillis() : Date.now();
+      audits.push(d);
+    });
+    audits.sort(function(a,b){ return b.whenMs - a.whenMs; });
+    latestAudits = audits;
+    renderAuditList(audits.slice(0, 30));
+    if (document.getElementById("dashTab").style.display === "block") renderDashboard();
+  }, function(err){
+    document.getElementById("auditList").innerHTML = '<div class="empty">Couldn\u2019t load audits: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function renderAuditList(audits){
+  var list = document.getElementById("auditList");
+  if (audits.length === 0) { list.innerHTML = '<div class="empty">No audits yet.</div>'; return; }
+  var html = "";
+  for (var i = 0; i < audits.length; i++) {
+    var a = audits[i];
+    var d = new Date(a.whenMs);
+    var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+    var cls = a.score < 60 ? "status-dirty" : (a.score < 85 ? "status-progress" : "status-clean");
+    html += '<div class="log-item">';
+    html += '<span class="room">' + escapeHtml(a.room) + '</span>';
+    html += '<span class="status-pill ' + cls + '" style="margin-left:8px;">' + a.score + '%</span>';
+    html += '<div class="meta">' + escapeHtml(a.by) + ' &middot; ' + a.passed + '/' + a.marked + ' passed &middot; ' + dateStr + '</div>';
+    if (a.notes) html += '<div class="notes">' + escapeHtml(a.notes) + '</div>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+
+/* ---------------- Rota ---------------- */
+function addShift(){
+  if (!currentProfile || !isManager()) return;
+  var name = document.getElementById("shiftName").value.trim();
+  if (!name) { alert("Enter the staff member's name."); return; }
+  var btn = document.getElementById("shiftBtn");
+  btn.disabled = true; btn.textContent = "Adding\u2026";
+  db.collection("rota").add({
+    hotelKey: currentProfile.hotelKey,
+    staff: name,
+    day: document.getElementById("shiftDay").value,
+    start: document.getElementById("shiftStart").value,
+    end: document.getElementById("shiftEnd").value,
+    addedBy: currentProfile.name,
+    created: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById("shiftName").value = "";
+  }).catch(function(err){ alert("Couldn't add shift: " + err.message); }).finally(function(){
+    btn.disabled = false; btn.textContent = "Add shift";
+  });
+}
+
+function deleteShift(id){
+  if (!isManager()) return;
+  if (!confirm("Remove this shift?")) return;
+  db.collection("rota").doc(id).delete().catch(function(err){ alert("Couldn't remove: " + err.message); });
+}
+
+function watchRota(){
+  rotaUnsub = db.collection("rota").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
+    var shifts = [];
+    snapshot.forEach(function(doc){ var d = doc.data(); d.id = doc.id; shifts.push(d); });
+    renderRota(shifts);
+  }, function(err){
+    document.getElementById("rotaList").innerHTML = '<div class="empty">Couldn\u2019t load rota: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function renderRota(shifts){
+  var list = document.getElementById("rotaList");
+  if (shifts.length === 0) { list.innerHTML = '<div class="empty">No shifts yet.</div>'; return; }
+  shifts.sort(function(a,b){
+    var dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
+    if (dayDiff !== 0) return dayDiff;
+    return String(a.start).localeCompare(String(b.start));
+  });
+  var manager = isManager();
+  var html = "";
+  var lastDay = "";
+  for (var i = 0; i < shifts.length; i++) {
+    var s = shifts[i];
+    if (s.day !== lastDay) { html += '<div class="day-header">' + escapeHtml(s.day) + '</div>'; lastDay = s.day; }
+    html += '<div class="shift-item">';
+    html += '<div><div class="s-name">' + escapeHtml(s.staff) + '</div>';
+    html += '<div class="s-time">' + escapeHtml(s.start) + ' \u2013 ' + escapeHtml(s.end) + '</div></div>';
+    if (manager) html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+
+/* ---------------- Dashboard ---------------- */
+function renderDashboard(){
+  var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  // Cleans stats
+  var weekCleans = [];
+  for (var i = 0; i < latestCleans.length; i++) {
+    if (latestCleans[i].whenMs >= weekAgo) weekCleans.push(latestCleans[i]);
+  }
+  var deepCount = 0, photoCount = 0, byStaff = {}, byType = {};
+  for (var j = 0; j < weekCleans.length; j++) {
+    var c = weekCleans[j];
+    if (c.type === "Deep clean") deepCount++;
+    if (c.photo) photoCount++;
+    byStaff[c.by] = (byStaff[c.by] || 0) + 1;
+    byType[c.type] = (byType[c.type] || 0) + 1;
+  }
+  document.getElementById("statWeek").textContent = weekCleans.length;
+  document.getElementById("statDeep").textContent = deepCount;
+  document.getElementById("statPhotos").textContent = photoCount;
+
+  // Rooms stats
+  var roomCounts = { dirty: 0, progress: 0, clean: 0, inspected: 0 };
+  for (var k = 0; k < latestRooms.length; k++) {
+    var st = latestRooms[k].status || "dirty";
+    if (roomCounts[st] === undefined) roomCounts[st] = 0;
+    roomCounts[st]++;
+  }
+  document.getElementById("statRoomsClean").textContent = roomCounts.clean + roomCounts.inspected;
+  document.getElementById("statRoomsDirty").textContent = roomCounts.dirty;
+
+  // Audit stats (last 7 days average)
+  var weekAudits = [];
+  for (var m = 0; m < latestAudits.length; m++) {
+    if (latestAudits[m].whenMs >= weekAgo) weekAudits.push(latestAudits[m]);
+  }
+  if (weekAudits.length) {
+    var total = 0;
+    for (var n = 0; n < weekAudits.length; n++) total += (weekAudits[n].score || 0);
+    document.getElementById("statAuditAvg").textContent = Math.round(total / weekAudits.length) + "%";
+  } else {
+    document.getElementById("statAuditAvg").textContent = "\u2013";
+  }
+
+  // Room status breakdown
+  var statusEl = document.getElementById("roomStatusStats");
+  if (latestRooms.length === 0) {
+    statusEl.innerHTML = '<div class="empty">No rooms yet.</div>';
+  } else {
+    var order = ["dirty","progress","clean","inspected"];
+    var sh = "";
+    for (var o = 0; o < order.length; o++) {
+      var key = order[o];
+      var meta = ROOM_STATUSES[key];
+      sh += '<div class="bar-row"><span><span class="status-pill ' + meta.cls + '">' + meta.label + '</span></span>';
+      sh += '<span class="count">' + (roomCounts[key] || 0) + '</span></div>';
+    }
+    statusEl.innerHTML = sh;
+  }
+
+  renderBars("staffStats", byStaff);
+  renderBars("typeStats", byType);
+
+  // Recent audit results
+  var auditEl = document.getElementById("auditStats");
+  if (latestAudits.length === 0) {
+    auditEl.innerHTML = '<div class="empty">No audits yet.</div>';
+  } else {
+    var ah = "";
+    var recent = latestAudits.slice(0, 8);
+    for (var p = 0; p < recent.length; p++) {
+      var a = recent[p];
+      ah += '<div class="bar-row"><span>' + escapeHtml(a.room) + ' <span style="color:var(--mist);font-size:12px;">(' + escapeHtml(a.by) + ')</span></span>';
+      ah += '<span class="count">' + a.score + '%</span></div>';
+    }
+    auditEl.innerHTML = ah;
+  }
+}
+
+function renderBars(elementId, counts){
+  var el = document.getElementById(elementId);
+  var keys = Object.keys(counts);
+  if (keys.length === 0) { el.innerHTML = '<div class="empty">Nothing logged in the last 7 days.</div>'; return; }
+  keys.sort(function(a,b){ return counts[b] - counts[a]; });
+  var html = "";
+  for (var i = 0; i < keys.length; i++) {
+    html += '<div class="bar-row"><span>' + escapeHtml(keys[i]) + '</span>';
+    html += '<span class="count">' + counts[keys[i]] + '</span></div>';
+  }
+  el.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
 </script>
 </body>
 </html>
