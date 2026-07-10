@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inspect - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Inspections</h1><p class="muted small">Completed cleans awaiting inspection today</p></div></div>
+      <div id="skeleton"><div class="card"><div class="skeleton skel-line" style="width:40%"></div><div class="skeleton skel-card mt8"></div></div></div>
+      <div id="list"></div>
+      <div id="empty" class="empty hidden"><div class="empty-icon">\u25C9</div><div>Nothing to inspect right now. All caught up.</div></div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <div id="modal-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var queue = [];
+    HK.requireAuth(["admin", "supervisor"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      HK.mount("inspect"); load();
+    });
+    function load() {
+      HK.col("assignments").where("date", "==", HK.todayStr()).where("status", "==", "complete").get().then(function (snap) {
+        queue = []; snap.forEach(function (d) { var a = d.data(); a.id = d.id; queue.push(a); });
+        document.getElementById("skeleton").className = "hidden";
+        // Filter out any already inspected today
+        HK.col("inspections").where("createdAt", ">=", startOfToday()).get().then(function (isnap) {
+          var inspected = {}; isnap.forEach(function (i) { inspected[i.data().assignmentId] = true; });
+          queue = queue.filter(function (a) { return !inspected[a.id]; });
+          render();
+        }).catch(function () { render(); });
+      }).catch(function (err) { document.getElementById("skeleton").className = "hidden"; HK.toast("Could not load queue: " + err.message, "error"); });
+    }
+    function startOfToday() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+    function render() {
+      var list = document.getElementById("list"); list.innerHTML = "";
+      document.getElementById("empty").className = queue.length ? "empty hidden" : "empty";
+      queue.forEach(function (a) {
+        var card = document.createElement("div"); card.className = "card mb16";
+        card.innerHTML = "<div class=\"row\"><h2 class=\"grow\">Room " + HK.esc(a.roomNumber) + "</h2><span class=\"badge badge-green\">cleaned</span></div><p class=\"small muted\">By " + HK.esc(a.assignedToName) + " - " + HK.fmtDateTime(a.completedAt) + (a.durationMinutes ? " (" + a.durationMinutes + " min)" : "") + "</p>";
+        var acts = document.createElement("div"); acts.className = "row wrap mt16";
+        var pass = document.createElement("button"); pass.className = "btn btn-accent"; pass.textContent = "Pass";
+        var fail = document.createElement("button"); fail.className = "btn btn-danger"; fail.textContent = "Fail / re-clean";
+        pass.onclick = function () { resultModal(a, "pass"); };
+        fail.onclick = function () { resultModal(a, "reclean"); };
+        acts.appendChild(pass); acts.appendChild(fail); card.appendChild(acts); list.appendChild(card);
+      });
+    }
+    function resultModal(a, result) {
+      var host = document.getElementById("modal-host");
+      var back = document.createElement("div"); back.className = "modal-backdrop"; var box = document.createElement("div"); box.className = "modal";
+      box.innerHTML = "<h2>" + (result === "pass" ? "Pass" : "Fail / re-clean") + " - Room " + HK.esc(a.roomNumber) + "</h2>";
+      box.innerHTML += "<div class=\"field\"><label>Comments" + (result === "pass" ? " (optional)" : "") + "</label><textarea id=\"cmt\"></textarea></div>";
+      var acts = document.createElement("div"); acts.className = "modal-actions";
+      var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Cancel";
+      var ok = document.createElement("button"); ok.className = "btn " + (result === "pass" ? "btn-accent" : "btn-danger"); ok.textContent = (result === "pass" ? "Confirm pass" : "Confirm re-clean");
+      cancel.onclick = function () { host.innerHTML = ""; }; back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+      ok.onclick = function () {
+        var comments = document.getElementById("cmt").value.trim();
+        if (result !== "pass" && !comments) { HK.toast("Please add a comment explaining the re-clean.", "error"); return; }
+        ok.disabled = true; ok.textContent = "Saving...";
+        var insRef = HK.col("inspections").doc();
+        var b = db.batch();
+        b.set(insRef, { roomId: a.roomId, roomNumber: a.roomNumber, assignmentId: a.id, inspectorUid: HK.state.user.uid, inspectorName: HK.state.profile.displayName, result: result, comments: comments, photoUrls: [], createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        if (result === "pass") {
+          b.update(HK.col("rooms").doc(a.roomId), { status: "inspected", updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        } else {
+          b.update(HK.col("rooms").doc(a.roomId), { status: "dirty", updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+          var reRef = HK.col("assignments").doc();
+          b.set(reRef, { date: HK.todayStr(), roomId: a.roomId, roomNumber: a.roomNumber, assignedToUid: a.assignedToUid, assignedToName: a.assignedToName, type: "reclean", status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: (a.checklist || []).map(function (c) { return { item: c.item, done: false }; }), createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        }
+        b.commit().then(function () {
+          HK.history(a.roomId, a.roomNumber, "inspection", "Inspection " + result + (comments ? ": " + comments.slice(0, 50) : ""), insRef.id);
+          HK.audit(result === "pass" ? "inspection.pass" : "inspection.failed", "Room " + a.roomNumber + " " + result);
+          HK.toast("Room " + a.roomNumber + " - " + result + ".", "success");
+          host.innerHTML = ""; queue = queue.filter(function (x) { return x.id !== a.id; }); render();
+        }).catch(function (err) { ok.disabled = false; ok.textContent = "Confirm"; HK.toast("Save failed: " + err.message, "error"); });
+      };
+      acts.appendChild(cancel); acts.appendChild(ok); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+    }
+  })();
+  </script>
+</body>
+</html>
