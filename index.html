@@ -106,6 +106,39 @@ button:disabled { opacity: 0.6; }
 <body>
 <div class="loading-screen" id="loadingScreen">Loading&hellip;</div>
 
+<!-- ============ SETUP WIZARD (new managers) ============ -->
+<div class="login-wrap" id="wizardScreen" style="display:none;background:linear-gradient(160deg,var(--pine) 0%,var(--pine-dark) 100%);">
+  <div class="login-card" style="max-width:440px;">
+    <div class="brand"><h1>Set up your property</h1><p>Add your property details and rooms to get started</p></div>
+    <label for="wizHotel">Property name</label>
+    <input type="text" id="wizHotel" placeholder="e.g. The Grand, Blackpool">
+    <label for="wizType">Property type</label>
+    <select id="wizType">
+      <option value="Hotel">Hotel</option>
+      <option value="B&amp;B / Guest house">B&amp;B / Guest house</option>
+      <option value="Serviced apartments">Serviced apartments</option>
+      <option value="Holiday lets">Holiday lets</option>
+      <option value="Hostel">Hostel</option>
+      <option value="Other">Other</option>
+    </select>
+    <h4 style="margin-top:6px;">Add rooms</h4>
+    <div class="add-inline">
+      <input type="text" id="wizRoomName" placeholder="Room no. e.g. 210">
+      <select id="wizRoomType" style="max-width:140px;"></select>
+      <button type="button" onclick="wizAddRoom()">Add</button>
+    </div>
+    <p class="hint">Or add a numbered range:</p>
+    <div class="add-inline">
+      <input type="number" id="wizRangeFrom" placeholder="From" style="max-width:100px;">
+      <input type="number" id="wizRangeTo" placeholder="To" style="max-width:100px;">
+      <button type="button" onclick="wizAddRange()">Add range</button>
+    </div>
+    <div id="wizRoomList" style="margin:12px 0;max-height:180px;overflow-y:auto;"></div>
+    <button id="wizFinishBtn" onclick="wizFinish()">Finish setup &amp; open app</button>
+    <p class="switch-mode"><a onclick="wizSkip()">Skip for now</a></p>
+  </div>
+</div>
+
 <div class="login-wrap" id="loginScreen" style="display:none;">
   <div class="login-card">
     <div class="brand"><h1>Housekeeping Hub</h1><p>Rooms, cleans, audits &amp; reports</p></div>
@@ -267,9 +300,18 @@ button:disabled { opacity: 0.6; }
     </div>
     <div class="card">
       <h3>Rooms</h3>
+      <label for="setNewRoom">Room number / name</label>
       <div class="add-inline">
-        <input type="text" id="setNewRoom" placeholder="New room name, e.g. Room 210">
+        <input type="text" id="setNewRoom" placeholder="e.g. 210 or Room 210">
+        <select id="setNewRoomType" style="max-width:150px;"></select>
         <button onclick="addRoom()">Add</button>
+      </div>
+      <p class="hint">Or quick-add a numbered range of the same type:</p>
+      <div class="add-inline">
+        <input type="number" id="rangeFrom" placeholder="From e.g. 101" style="max-width:120px;">
+        <input type="number" id="rangeTo" placeholder="To e.g. 110" style="max-width:120px;">
+        <select id="rangeType" style="max-width:150px;"></select>
+        <button onclick="addRoomRange()">Add range</button>
       </div>
       <div id="setRoomsList" style="margin-top:12px;"><div class="empty">No rooms yet.</div></div>
     </div>
@@ -300,6 +342,15 @@ button:disabled { opacity: 0.6; }
       </div>
       <div id="setAuditItems" style="margin-top:12px;"></div>
     </div>
+    <div class="card">
+      <h3>Room types</h3>
+      <h4>Categories you can assign to rooms</h4>
+      <div class="add-inline">
+        <input type="text" id="setNewRoomType2" placeholder="New room type, e.g. Penthouse">
+        <button onclick="addTemplateTask('roomtype')">Add</button>
+      </div>
+      <div id="setRoomTypes" style="margin-top:12px;"></div>
+    </div>
   </div>
 </div>
 
@@ -324,13 +375,15 @@ var settingsUnsub = null, roomsUnsub = null, cleansUnsub = null, rotaUnsub = nul
 var pendingPhoto = null;
 var latestRooms = [], latestCleans = [], latestAudits = [];
 var reportRange = 7;
+var pendingWizardRooms = [];
 var auditState = {};
 var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 var DEFAULT_CLEAN_TASKS = ["Beds made & linen fresh","Bathroom cleaned & sanitised","Floors vacuumed / mopped","Surfaces dusted","Bins emptied","Amenities restocked","Windows & mirrors clean"];
 var DEFAULT_DEEP_TASKS = ["Move & clean under furniture","Wash curtains / blinds","Descale kettle & bathroom","Clean inside wardrobes & drawers","Mattress turned & checked","Deep clean carpets / upholstery","Skirting boards & vents"];
+var DEFAULT_ROOM_TYPES = ["Single","Double","Twin","Suite","Family","Accessible"];
 var DEFAULT_AUDIT_ITEMS = ["Beds made & linen fresh","Bathroom cleaned & sanitised","Floors vacuumed / mopped","Surfaces dusted","Bins emptied","Amenities restocked","Windows & mirrors clean","No maintenance issues"];
 // live config (falls back to defaults until settings doc loads)
-var config = { cleanTasks: DEFAULT_CLEAN_TASKS.slice(), deepTasks: DEFAULT_DEEP_TASKS.slice(), auditItems: DEFAULT_AUDIT_ITEMS.slice(), propType:"", floors:"", contact:"", setupComplete:false };
+var config = { roomTypes: DEFAULT_ROOM_TYPES.slice(), cleanTasks: DEFAULT_CLEAN_TASKS.slice(), deepTasks: DEFAULT_DEEP_TASKS.slice(), auditItems: DEFAULT_AUDIT_ITEMS.slice(), propType:"", floors:"", contact:"", setupComplete:false };
 var ROOM_STATUSES = { dirty:{label:"Dirty",cls:"status-dirty"}, progress:{label:"Cleaning",cls:"status-progress"}, clean:{label:"Clean",cls:"status-clean"}, inspected:{label:"Inspected",cls:"status-inspected"} };
 
 /* ---------------- Screen / tabs ---------------- */
@@ -338,8 +391,10 @@ function show(screenId){
   document.getElementById("loadingScreen").style.display="none";
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("appScreen").style.display="none";
+  document.getElementById("wizardScreen").style.display="none";
   if(screenId==="login") document.getElementById("loginScreen").style.display="flex";
   else if(screenId==="app") document.getElementById("appScreen").style.display="block";
+  else if(screenId==="wizard") document.getElementById("wizardScreen").style.display="flex";
   else document.getElementById("loadingScreen").style.display="flex";
 }
 function switchTab(tab){
@@ -360,6 +415,56 @@ function applyRoleUI(){
   document.getElementById("tabSettings").style.display=m?"block":"none";
   document.getElementById("addShiftCard").style.display=m?"block":"none";
 }
+/* ---------------- Setup wizard (new managers) ---------------- */
+function startWizard(){
+  pendingWizardRooms=[];
+  document.getElementById("wizHotel").value=currentProfile.hotel||"";
+  populateTypeDropdowns();
+  renderWizRooms();
+  show("wizard");
+}
+function renderWizRooms(){
+  var el=document.getElementById("wizRoomList");
+  if(pendingWizardRooms.length===0){ el.innerHTML='<div class="empty" style="padding:12px 0;">No rooms added yet.</div>'; return; }
+  var h="";
+  for(var i=0;i<pendingWizardRooms.length;i++){
+    var r=pendingWizardRooms[i];
+    h+='<div class="editable-item"><span>'+escapeHtml(r.name)+' <span style="color:var(--mist);font-size:12px;">('+escapeHtml(r.type)+')</span></span><button onclick="wizRemove('+i+')">Remove</button></div>';
+  }
+  el.innerHTML=h;
+}
+function wizRemove(i){ pendingWizardRooms.splice(i,1); renderWizRooms(); }
+function wizAddRoom(){
+  var name=document.getElementById("wizRoomName").value.trim();
+  if(!name){ alert("Enter a room number or name."); return; }
+  pendingWizardRooms.push({ name:name, type:document.getElementById("wizRoomType").value });
+  document.getElementById("wizRoomName").value=""; renderWizRooms();
+}
+function wizAddRange(){
+  var from=parseInt(document.getElementById("wizRangeFrom").value,10);
+  var to=parseInt(document.getElementById("wizRangeTo").value,10);
+  if(isNaN(from)||isNaN(to)){ alert("Enter a start and end number."); return; }
+  if(to<from){ var t=from; from=to; to=t; }
+  if(to-from>200){ alert("That range is too large (max 200 at once)."); return; }
+  var type=document.getElementById("wizRoomType").value;
+  for(var n=from;n<=to;n++){ pendingWizardRooms.push({ name:String(n), type:type }); }
+  document.getElementById("wizRangeFrom").value=""; document.getElementById("wizRangeTo").value=""; renderWizRooms();
+}
+function wizFinish(){
+  var name=document.getElementById("wizHotel").value.trim();
+  if(!name){ alert("Enter your property name."); return; }
+  var btn=document.getElementById("wizFinishBtn"); btn.disabled=true; btn.textContent="Saving\u2026";
+  var cfg={ hotelName:name, propType:document.getElementById("wizType").value, setupComplete:true };
+  saveConfig(cfg).then(function(){
+    if(pendingWizardRooms.length===0) return;
+    var batch=db.batch();
+    for(var i=0;i<pendingWizardRooms.length;i++){ batch.set(db.collection("rooms").doc(), roomDocData(pendingWizardRooms[i].name,pendingWizardRooms[i].type)); }
+    return batch.commit();
+  }).then(function(){ enterApp(); }).catch(function(err){ alert("Couldn't finish setup: "+err.message); btn.disabled=false; btn.textContent="Finish setup & open app"; });
+}
+function wizSkip(){ saveConfig({ setupComplete:true }); enterApp(); }
+function enterApp(){ show("app"); switchTab("rooms"); }
+
 
 
 /* ---------------- Auth ---------------- */
@@ -430,9 +535,10 @@ function watchSettings(){
     config.cleanTasks=(d.cleanTasks&&d.cleanTasks.length)?d.cleanTasks:DEFAULT_CLEAN_TASKS.slice();
     config.deepTasks=(d.deepTasks&&d.deepTasks.length)?d.deepTasks:DEFAULT_DEEP_TASKS.slice();
     config.auditItems=(d.auditItems&&d.auditItems.length)?d.auditItems:DEFAULT_AUDIT_ITEMS.slice();
+    config.roomTypes=(d.roomTypes&&d.roomTypes.length)?d.roomTypes:DEFAULT_ROOM_TYPES.slice();
     config.propType=d.propType||""; config.floors=(d.floors!==undefined&&d.floors!==null)?d.floors:""; config.contact=d.contact||"";
     config.setupComplete=!!d.setupComplete;
-    if(!window.__setupChecked){ window.__setupChecked=true; if(isManager() && !config.setupComplete){ switchTab("settings"); } }
+    if(!window.__setupChecked){ window.__setupChecked=true; if(isManager() && !config.setupComplete){ startWizard(); } }
     if(d.hotelName){ currentProfile.hotel=d.hotelName; document.getElementById("hotelTitle").textContent=d.hotelName; }
     renderRooms(latestRooms);
     if(document.getElementById("settingsTab").style.display==="block") renderSettings();
@@ -455,7 +561,7 @@ function saveHotelName(){
 function markSetupComplete(){ if(!isManager()) return; saveConfig({ setupComplete:true }); }
 function addTemplateTask(kind){
   if(!isManager()) return;
-  var map={clean:{id:"setNewCleanTask",key:"cleanTasks"},deep:{id:"setNewDeepTask",key:"deepTasks"},audit:{id:"setNewAuditItem",key:"auditItems"}};
+  var map={clean:{id:"setNewCleanTask",key:"cleanTasks"},deep:{id:"setNewDeepTask",key:"deepTasks"},audit:{id:"setNewAuditItem",key:"auditItems"},roomtype:{id:"setNewRoomType2",key:"roomTypes"}};
   var m=map[kind]; var input=document.getElementById(m.id); var val=input.value.trim();
   if(!val) return;
   var list=config[m.key].slice(); list.push(val);
@@ -478,10 +584,13 @@ function renderSettings(){
   else {
     var rh="";
     for(var i=0;i<latestRooms.length;i++){
-      rh+='<div class="editable-item"><span>'+escapeHtml(latestRooms[i].name)+'</span><button onclick="deleteRoom(\''+latestRooms[i].id+'\')">Remove</button></div>';
+      var rt=latestRooms[i].type?' <span style="color:var(--mist);font-size:12px;">('+escapeHtml(latestRooms[i].type)+')</span>':'';
+      rh+='<div class="editable-item"><span>'+escapeHtml(latestRooms[i].name)+rt+'</span><button onclick="deleteRoom(\''+latestRooms[i].id+'\')">Remove</button></div>';
     }
     rl.innerHTML=rh;
   }
+  populateTypeDropdowns();
+  renderTemplateList("setRoomTypes","roomTypes");
   renderTemplateList("setCleanTasks","cleanTasks");
   renderTemplateList("setDeepTasks","deepTasks");
   renderTemplateList("setAuditItems","auditItems");
@@ -514,17 +623,37 @@ function renderTemplateList(elId,key){
 
 
 /* ---------------- Rooms ---------------- */
+function roomDocData(name,type){
+  return { hotelKey:currentProfile.hotelKey, name:name, type:type||"", status:"dirty",
+    cleanTicks:{}, deepTicks:{}, deepCleanedAt:null,
+    updatedBy:currentProfile.name, updated:firebase.firestore.FieldValue.serverTimestamp(),
+    created:firebase.firestore.FieldValue.serverTimestamp() };
+}
+function populateTypeDropdowns(){
+  var ids=["setNewRoomType","rangeType","wizRoomType"];
+  var opts=config.roomTypes.map(function(t){ return '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>'; }).join("");
+  for(var i=0;i<ids.length;i++){ var el=document.getElementById(ids[i]); if(el){ var cur=el.value; el.innerHTML=opts; if(cur) el.value=cur; } }
+}
 function addRoom(){
   if(!currentProfile) return;
   var input=document.getElementById("setNewRoom");
   var name=input.value.trim();
-  if(!name){ alert("Enter a room name."); return; }
-  db.collection("rooms").add({
-    hotelKey:currentProfile.hotelKey, name:name, status:"dirty",
-    cleanTicks:{}, deepTicks:{}, deepCleanedAt:null,
-    updatedBy:currentProfile.name, updated:firebase.firestore.FieldValue.serverTimestamp(),
-    created:firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){ input.value=""; }).catch(function(err){ alert("Couldn't add room: "+err.message); });
+  if(!name){ alert("Enter a room number or name."); return; }
+  var typeEl=document.getElementById("setNewRoomType");
+  var type=typeEl?typeEl.value:"";
+  db.collection("rooms").add(roomDocData(name,type)).then(function(){ input.value=""; }).catch(function(err){ alert("Couldn't add room: "+err.message); });
+}
+function addRoomRange(){
+  if(!currentProfile) return;
+  var from=parseInt(document.getElementById("rangeFrom").value,10);
+  var to=parseInt(document.getElementById("rangeTo").value,10);
+  if(isNaN(from)||isNaN(to)){ alert("Enter a start and end number."); return; }
+  if(to<from){ var t=from; from=to; to=t; }
+  if(to-from>200){ alert("That range is too large (max 200 at once)."); return; }
+  var type=document.getElementById("rangeType").value;
+  var batch=db.batch();
+  for(var n=from;n<=to;n++){ batch.set(db.collection("rooms").doc(), roomDocData(String(n),type)); }
+  batch.commit().then(function(){ document.getElementById("rangeFrom").value=""; document.getElementById("rangeTo").value=""; }).catch(function(err){ alert("Couldn't add rooms: "+err.message); });
 }
 function deleteRoom(id){
   if(!isManager()) return;
@@ -595,7 +724,7 @@ function renderRooms(rooms){
     var pct=prog.total?Math.round(prog.done/prog.total*100):0;
     var cleanTicks=r.cleanTicks||{}, deepTicks=r.deepTicks||{};
     html+='<div class="room-card">';
-    html+='<div class="room-head"><span class="r-name">'+escapeHtml(r.name)+'</span><span class="status-pill '+st.cls+'">'+st.label+'</span></div>';
+    html+='<div class="room-head"><span class="r-name">'+escapeHtml(r.name)+(r.type?' <span style="font-size:12px;font-weight:500;color:var(--mist);">'+escapeHtml(r.type)+'</span>':'')+'</span><span class="status-pill '+st.cls+'">'+st.label+'</span></div>';
     // meta
     var meta=prog.done+'/'+prog.total+' tasks';
     if(r.deepCleanedAt&&r.deepCleanedAt.toMillis){ var dd=new Date(r.deepCleanedAt.toMillis()); meta+=' &middot; deep cleaned '+dd.toLocaleDateString("en-GB"); }
