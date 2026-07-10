@@ -120,19 +120,35 @@
   }
 
   function buildStats() {
+    var today = HK.todayStr();
     var counts = { checkout: 0, arrival: 0, refresh: 0, available: 0 };
-    for (var i = 0; i < rooms.length; i++) { var s = serviceFor(rooms[i]); if (counts[s.key] !== undefined) { counts[s.key]++; } }
+    var arrivalsToday = 0, departuresToday = 0, inHouse = 0;
+    for (var i = 0; i < rooms.length; i++) {
+      var room = rooms[i];
+      var s = serviceFor(room);
+      if (counts[s.key] !== undefined) { counts[s.key]++; }
+      if (room.arrival && room.arrival === today) { arrivalsToday++; }
+      if (room.departure && room.departure === today) { departuresToday++; }
+      if (room.occStatus === "occupied") { inHouse++; }
+    }
     var wrap = document.createElement("div"); wrap.className = "alloc-stats";
-    var defs = [["checkout", "Checkout cleans"], ["arrival", "Arrivals to prep"], ["refresh", "Stayover refresh"], ["available", "Available"]];
+    var defs = [
+      ["arrivals", arrivalsToday, "Arrivals today"],
+      ["departures", departuresToday, "Departures today"],
+      ["inhouse", inHouse, "In-house"],
+      ["checkout", counts.checkout, "Checkout cleans"],
+      ["arrival", counts.arrival, "Arrivals to prep"],
+      ["refresh", counts.refresh, "Stayover refresh"],
+      ["available", counts.available, "Available"]
+    ];
     for (var j = 0; j < defs.length; j++) {
       var box = document.createElement("div"); box.className = "alloc-stat";
-      var n = document.createElement("div"); n.className = "n"; n.textContent = String(counts[defs[j][0]]);
-      var l = document.createElement("div"); l.className = "l"; l.textContent = defs[j][1];
+      var n = document.createElement("div"); n.className = "n"; n.textContent = String(defs[j][1]);
+      var l = document.createElement("div"); l.className = "l"; l.textContent = defs[j][2];
       box.appendChild(n); box.appendChild(l); wrap.appendChild(box);
     }
     return wrap;
   }
-
   function buildFilter() {
     var wrap = document.createElement("div"); wrap.style.marginBottom = "12px";
     var sel = document.createElement("select"); sel.className = "input";
