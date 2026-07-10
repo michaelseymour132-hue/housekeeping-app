@@ -6,55 +6,26 @@
 <title>Housekeeping Hub</title>
 <style>
 :root {
-  --pine: #1d4e4a;
-  --pine-dark: #143835;
-  --linen: #f7f6f2;
-  --white: #ffffff;
-  --ink: #22302e;
-  --mist: #8aa3a0;
-  --line: #e3e1da;
-  --ok: #2e7d5b;
-  --warn: #b8862b;
-  --err: #b3403a;
-  --blue: #2a6f97;
+  --pine: #1d4e4a; --pine-dark: #143835; --linen: #f7f6f2; --white: #ffffff;
+  --ink: #22302e; --mist: #8aa3a0; --line: #e3e1da; --ok: #2e7d5b;
+  --warn: #b8862b; --err: #b3403a; --blue: #2a6f97;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: var(--linen);
-  color: var(--ink);
-  min-height: 100vh;
-}
-.login-wrap {
-  min-height: 100vh; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; padding: 24px;
-  background: linear-gradient(160deg, var(--pine) 0%, var(--pine-dark) 100%);
-}
-.login-card {
-  background: var(--white); border-radius: 14px; padding: 32px 26px;
-  width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-}
+body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--linen); color: var(--ink); min-height: 100vh; }
+.login-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(160deg, var(--pine) 0%, var(--pine-dark) 100%); }
+.login-card { background: var(--white); border-radius: 14px; padding: 32px 26px; width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
 .brand { text-align: center; margin-bottom: 26px; }
 .brand h1 { font-size: 22px; letter-spacing: 0.5px; color: var(--pine); }
 .brand p { font-size: 13px; color: var(--mist); margin-top: 4px; }
 label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
-input, select, textarea {
-  width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px;
-  font-size: 15px; margin-bottom: 16px; background: var(--white); color: var(--ink);
-}
+input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; margin-bottom: 16px; background: var(--white); color: var(--ink); }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--pine); border-color: var(--pine); }
-button {
-  width: 100%; padding: 13px; background: var(--pine); color: var(--white);
-  border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
-}
+button { width: 100%; padding: 13px; background: var(--pine); color: var(--white); border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
 button:active { background: var(--pine-dark); }
 button:disabled { opacity: 0.6; }
 .switch-mode { text-align: center; font-size: 13px; color: var(--mist); margin-top: 16px; }
 .switch-mode a { color: var(--pine); font-weight: 600; cursor: pointer; text-decoration: underline; }
-.form-error {
-  background: #fdf0ef; border: 1px solid var(--err); color: var(--err); font-size: 13px;
-  padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none;
-}
+.form-error { background: #fdf0ef; border: 1px solid var(--err); color: var(--err); font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none; }
 .app { display: none; min-height: 100vh; }
 .topbar { background: var(--pine); color: var(--white); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
 .topbar h2 { font-size: 17px; font-weight: 600; }
@@ -66,77 +37,78 @@ button:disabled { opacity: 0.6; }
 .content { padding: 18px; max-width: 640px; margin: 0 auto; }
 .card { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 .card h3 { font-size: 15px; margin-bottom: 14px; color: var(--pine); }
-.card h4 { font-size: 13px; margin: 4px 0 10px; color: var(--mist); text-transform: uppercase; letter-spacing: 0.4px; }
-.photo-row { margin-bottom: 16px; }
-.photo-btn { background: var(--white); color: var(--pine); border: 1px dashed var(--pine); font-weight: 600; }
-.photo-preview { display: none; margin-top: 12px; position: relative; }
-.photo-preview img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
-.photo-remove { width: auto; padding: 6px 12px; font-size: 12px; background: var(--err); margin-top: 8px; }
+.card h4 { font-size: 12px; margin: 4px 0 10px; color: var(--mist); text-transform: uppercase; letter-spacing: 0.4px; }
+.empty { text-align: center; color: var(--mist); font-size: 14px; padding: 24px 0; }
+.loading-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--mist); font-size: 15px; }
+.hint { font-size: 12px; color: var(--mist); margin: -8px 0 14px; }
+.badge { display: inline-block; background: var(--ok); color: var(--white); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+.status-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; color: var(--white); }
+.status-dirty { background: var(--err); } .status-progress { background: var(--warn); } .status-clean { background: var(--ok); } .status-inspected { background: var(--blue); }
+.btn-sec { width: auto; padding: 6px 10px; font-size: 12px; background: var(--white); color: var(--pine); border: 1px solid var(--line); }
+.btn-sec.danger { color: var(--err); border-color: var(--err); }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+/* Rooms */
+.room-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.room-head { display: flex; align-items: center; justify-content: space-between; }
+.room-head .r-name { font-weight: 700; font-size: 16px; }
+.room-meta { font-size: 12px; color: var(--mist); margin-top: 4px; }
+.progress-line { height: 6px; background: var(--line); border-radius: 4px; margin: 10px 0 6px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--ok); width: 0%; transition: width 0.2s; }
+.tick { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.tick:last-child { border-bottom: none; }
+.tick .box { width: 22px; height: 22px; border: 2px solid var(--mist); border-radius: 6px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--white); }
+.tick.done .box { background: var(--ok); border-color: var(--ok); }
+.tick .t-label { font-size: 14px; flex: 1; }
+.tick.done .t-label { color: var(--mist); text-decoration: line-through; }
+.tick.deep .box { border-radius: 50%; }
+.tick.deep.done .box { background: var(--blue); border-color: var(--blue); }
+.section-toggle { font-size: 13px; font-weight: 600; color: var(--pine); cursor: pointer; margin-top: 12px; display: inline-block; }
+/* Rota / shifts */
+.rota-grid { display: flex; gap: 12px; } .rota-grid > div { flex: 1; }
+.shift-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.shift-item:last-child { border-bottom: none; }
+.shift-item .s-name { font-weight: 600; font-size: 14px; } .shift-item .s-time { font-size: 13px; color: var(--mist); }
+.shift-del { width: auto; padding: 6px 10px; font-size: 12px; background: none; color: var(--err); border: 1px solid var(--err); }
+.day-header { font-size: 12px; font-weight: 700; color: var(--pine); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.day-header:first-child { margin-top: 0; }
+/* Logs */
 .log-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .log-item:last-child { border-bottom: none; }
 .log-item .room { font-weight: 600; font-size: 15px; }
 .log-item .meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
 .log-item .notes { font-size: 14px; margin-top: 6px; }
 .log-item img.thumb { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid var(--line); }
-.badge { display: inline-block; background: var(--ok); color: var(--white); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
-.empty { text-align: center; color: var(--mist); font-size: 14px; padding: 24px 0; }
-.loading-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--mist); font-size: 15px; }
-.rota-grid { display: flex; gap: 12px; }
-.rota-grid > div { flex: 1; }
-.shift-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
-.shift-item:last-child { border-bottom: none; }
-.shift-item .s-name { font-weight: 600; font-size: 14px; }
-.shift-item .s-time { font-size: 13px; color: var(--mist); }
-.shift-del { width: auto; padding: 6px 10px; font-size: 12px; background: none; color: var(--err); border: 1px solid var(--err); }
-.day-header { font-size: 12px; font-weight: 700; color: var(--pine); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-.day-header:first-child { margin-top: 0; }
+/* Dashboard / reports */
 .stat-row { display: flex; gap: 12px; margin-bottom: 16px; }
 .stat-card { flex: 1; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 16px 10px; text-align: center; }
-.stat-card .num { font-size: 26px; font-weight: 700; color: var(--pine); }
-.stat-card .lbl { font-size: 11px; color: var(--mist); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.stat-card .num { font-size: 24px; font-weight: 700; color: var(--pine); }
+.stat-card .lbl { font-size: 11px; color: var(--mist); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
 .bar-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .bar-row:last-child { border-bottom: none; }
 .bar-row .count { font-weight: 700; color: var(--pine); }
-/* Rooms */
-.room-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.room-item:last-child { border-bottom: none; }
-.room-item .r-name { font-weight: 600; font-size: 15px; }
-.room-item .r-meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
-.status-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; color: var(--white); }
-.status-dirty { background: var(--err); }
-.status-progress { background: var(--warn); }
-.status-clean { background: var(--ok); }
-.status-inspected { background: var(--blue); }
-.room-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.room-actions button { width: auto; padding: 6px 10px; font-size: 12px; background: var(--white); color: var(--pine); border: 1px solid var(--line); }
-.room-actions button.danger { color: var(--err); border-color: var(--err); }
-/* Audit checklist */
-.check-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 10px; }
-.check-item:last-child { border-bottom: none; }
-.check-item .c-label { font-size: 14px; flex: 1; }
-.check-toggle { display: flex; gap: 6px; }
-.check-toggle button { width: auto; padding: 6px 12px; font-size: 12px; font-weight: 600; background: var(--white); border: 1px solid var(--line); color: var(--mist); }
-.check-toggle button.pass-on { background: var(--ok); color: var(--white); border-color: var(--ok); }
-.check-toggle button.fail-on { background: var(--err); color: var(--white); border-color: var(--err); }
-.audit-score { font-size: 28px; font-weight: 700; color: var(--pine); text-align: center; margin: 4px 0; }
-.audit-score.low { color: var(--err); }
-.audit-score.mid { color: var(--warn); }
-.score-lbl { text-align: center; font-size: 12px; color: var(--mist); margin-bottom: 12px; }
-.hint { font-size: 12px; color: var(--mist); margin: -8px 0 14px; }
+.range-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.range-row button { background: var(--white); color: var(--mist); border: 1px solid var(--line); font-size: 13px; padding: 10px; }
+.range-row button.active { background: var(--pine); color: var(--white); border-color: var(--pine); }
+/* Settings */
+.editable-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.editable-item:last-child { border-bottom: none; }
+.editable-item span { font-size: 14px; }
+.editable-item button { width: auto; padding: 4px 10px; font-size: 12px; background: none; color: var(--err); border: 1px solid var(--err); }
+.add-inline { display: flex; gap: 8px; }
+.add-inline input { margin-bottom: 0; }
+.add-inline button { width: auto; padding: 0 16px; white-space: nowrap; }
+.photo-btn { background: var(--white); color: var(--pine); border: 1px dashed var(--pine); font-weight: 600; }
+.photo-preview { display: none; margin-top: 12px; position: relative; }
+.photo-preview img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.photo-remove { width: auto; padding: 6px 12px; font-size: 12px; background: var(--err); margin-top: 8px; }
 </style>
 </head>
 <body>
-
-<!-- ============ LOADING ============ -->
 <div class="loading-screen" id="loadingScreen">Loading&hellip;</div>
 
-<!-- ============ LOGIN / SIGN UP ============ -->
 <div class="login-wrap" id="loginScreen" style="display:none;">
   <div class="login-card">
-    <div class="brand">
-      <h1>Housekeeping Hub</h1>
-      <p>Cleans, rooms, rotas &amp; audits</p>
-    </div>
+    <div class="brand"><h1>Housekeeping Hub</h1><p>Rooms, cleans, audits &amp; reports</p></div>
     <div class="form-error" id="authError"></div>
     <div id="signInForm">
       <label for="siEmail">Email</label>
@@ -152,10 +124,7 @@ button:disabled { opacity: 0.6; }
       <label for="suHotel">Hotel name</label>
       <input type="text" id="suHotel" placeholder="e.g. The Grand, Blackpool">
       <label for="suRole">Your role</label>
-      <select id="suRole">
-        <option value="staff">Staff</option>
-        <option value="manager">Manager</option>
-      </select>
+      <select id="suRole"><option value="staff">Staff</option><option value="manager">Manager</option></select>
       <label for="suEmail">Email</label>
       <input type="email" id="suEmail" placeholder="you@example.com" autocomplete="email">
       <label for="suPassword">Password (6+ characters)</label>
@@ -166,55 +135,40 @@ button:disabled { opacity: 0.6; }
   </div>
 </div>
 
-<!-- ============ APP ============ -->
 <div class="app" id="appScreen">
   <div class="topbar">
-    <div>
-      <h2 id="hotelTitle">Housekeeping Hub</h2>
-      <div class="who" id="whoLine"></div>
-    </div>
+    <div><h2 id="hotelTitle">Housekeeping Hub</h2><div class="who" id="whoLine"></div></div>
     <button class="signout" onclick="doSignOut()">Sign out</button>
   </div>
-
   <div class="tabbar">
     <button id="tabRooms" class="active" onclick="switchTab('rooms')">Rooms</button>
     <button id="tabCleans" onclick="switchTab('cleans')">Cleans</button>
     <button id="tabAudits" onclick="switchTab('audits')">Audits</button>
     <button id="tabRota" onclick="switchTab('rota')">Rota</button>
-    <button id="tabDash" style="display:none;" onclick="switchTab('dash')">Dashboard</button>
+    <button id="tabReports" style="display:none;" onclick="switchTab('reports')">Reports</button>
+    <button id="tabSettings" style="display:none;" onclick="switchTab('settings')">Settings</button>
   </div>
 
-  <!-- ---- Rooms tab ---- -->
+  <!-- Rooms tab -->
   <div class="content" id="roomsTab">
-    <div class="card" id="addRoomCard">
-      <h3>Add a room</h3>
-      <label for="newRoomName">Room / area name</label>
-      <input type="text" id="newRoomName" placeholder="e.g. Room 204">
-      <button id="addRoomBtn" onclick="addRoom()">Add room</button>
-      <p class="hint" style="margin-bottom:0;">Rooms start as "Dirty". Staff move them through Cleaning &rarr; Clean, managers mark Inspected.</p>
-    </div>
     <div class="card">
       <h3>Room board</h3>
+      <p class="hint" style="margin-top:0;">Tick tasks as you clean. When every task is ticked, the room turns Clean. Managers mark rooms Inspected.</p>
       <div id="roomsList"><div class="empty">Loading rooms&hellip;</div></div>
     </div>
   </div>
 
-  <!-- ---- Cleans tab ---- -->
+  <!-- Cleans tab -->
   <div class="content" id="cleansTab" style="display:none;">
     <div class="card">
-      <h3>Log a deep clean</h3>
+      <h3>Log a clean</h3>
       <label for="roomInput">Room / area</label>
       <input type="text" id="roomInput" placeholder="e.g. Room 204 or Lobby toilets">
       <label for="typeInput">Clean type</label>
-      <select id="typeInput">
-        <option>Deep clean</option>
-        <option>Standard clean</option>
-        <option>Checkout clean</option>
-        <option>Periodic task</option>
-      </select>
+      <select id="typeInput"><option>Deep clean</option><option>Standard clean</option><option>Checkout clean</option><option>Periodic task</option></select>
       <label for="notesInput">Notes (optional)</label>
       <textarea id="notesInput" rows="2" placeholder="Anything worth flagging"></textarea>
-      <div class="photo-row">
+      <div class="photo-row" style="margin-bottom:16px;">
         <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="photoChosen(this)">
         <button type="button" class="photo-btn" onclick="document.getElementById('photoInput').click()">Add photo (optional)</button>
         <div class="photo-preview" id="photoPreview">
@@ -224,13 +178,10 @@ button:disabled { opacity: 0.6; }
       </div>
       <button id="saveBtn" onclick="logClean()">Save clean</button>
     </div>
-    <div class="card">
-      <h3>Recent cleans</h3>
-      <div id="logList"><div class="empty">Loading cleans&hellip;</div></div>
-    </div>
+    <div class="card"><h3>Recent cleans</h3><div id="logList"><div class="empty">Loading cleans&hellip;</div></div></div>
   </div>
 
-  <!-- ---- Audits tab ---- -->
+  <!-- Audits tab -->
   <div class="content" id="auditsTab" style="display:none;">
     <div class="card">
       <h3>New room audit</h3>
@@ -238,79 +189,103 @@ button:disabled { opacity: 0.6; }
       <input type="text" id="auditRoom" placeholder="e.g. Room 204">
       <h4>Checklist</h4>
       <div id="auditChecklist"></div>
-      <div class="audit-score" id="auditScore">&ndash;</div>
-      <div class="score-lbl" id="auditScoreLbl">Mark each item pass or fail</div>
+      <div style="font-size:28px;font-weight:700;color:var(--pine);text-align:center;margin:4px 0;" id="auditScore">&ndash;</div>
+      <div style="text-align:center;font-size:12px;color:var(--mist);margin-bottom:12px;" id="auditScoreLbl">Mark each item pass or fail</div>
       <label for="auditNotes">Notes (optional)</label>
       <textarea id="auditNotes" rows="2" placeholder="Follow-up actions, issues found&hellip;"></textarea>
       <button id="auditSaveBtn" onclick="submitAudit()">Submit audit</button>
     </div>
-    <div class="card">
-      <h3>Recent audits</h3>
-      <div id="auditList"><div class="empty">Loading audits&hellip;</div></div>
-    </div>
+    <div class="card"><h3>Recent audits</h3><div id="auditList"><div class="empty">Loading audits&hellip;</div></div></div>
   </div>
 
-  <!-- ---- Rota tab ---- -->
+  <!-- Rota tab -->
   <div class="content" id="rotaTab" style="display:none;">
     <div class="card" id="addShiftCard">
       <h3>Add a shift</h3>
       <label for="shiftName">Staff member</label>
       <input type="text" id="shiftName" placeholder="e.g. Sarah">
       <label for="shiftDay">Day</label>
-      <select id="shiftDay">
-        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-      </select>
+      <select id="shiftDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select>
       <div class="rota-grid">
-        <div>
-          <label for="shiftStart">Start</label>
-          <input type="time" id="shiftStart" value="09:00">
-        </div>
-        <div>
-          <label for="shiftEnd">Finish</label>
-          <input type="time" id="shiftEnd" value="17:00">
-        </div>
+        <div><label for="shiftStart">Start</label><input type="time" id="shiftStart" value="09:00"></div>
+        <div><label for="shiftEnd">Finish</label><input type="time" id="shiftEnd" value="17:00"></div>
       </div>
       <button id="shiftBtn" onclick="addShift()">Add shift</button>
     </div>
-    <div class="card">
-      <h3>This week's rota</h3>
-      <div id="rotaList"><div class="empty">Loading rota&hellip;</div></div>
-    </div>
+    <div class="card"><h3>This week's rota</h3><div id="rotaList"><div class="empty">Loading rota&hellip;</div></div></div>
   </div>
 
-  <!-- ---- Dashboard tab (managers only) ---- -->
-  <div class="content" id="dashTab" style="display:none;">
-    <div class="stat-row">
-      <div class="stat-card"><div class="num" id="statWeek">&ndash;</div><div class="lbl">Cleans, 7 days</div></div>
-      <div class="stat-card"><div class="num" id="statDeep">&ndash;</div><div class="lbl">Deep cleans</div></div>
-      <div class="stat-card"><div class="num" id="statPhotos">&ndash;</div><div class="lbl">With photos</div></div>
+  <!-- Reports tab (manager only) -->
+  <div class="content" id="reportsTab" style="display:none;">
+    <div class="range-row">
+      <button id="range1" onclick="setRange(1)">Today</button>
+      <button id="range7" class="active" onclick="setRange(7)">7 days</button>
+      <button id="range30" onclick="setRange(30)">30 days</button>
     </div>
     <div class="stat-row">
-      <div class="stat-card"><div class="num" id="statRoomsClean">&ndash;</div><div class="lbl">Rooms ready</div></div>
-      <div class="stat-card"><div class="num" id="statRoomsDirty">&ndash;</div><div class="lbl">Rooms dirty</div></div>
-      <div class="stat-card"><div class="num" id="statAuditAvg">&ndash;</div><div class="lbl">Avg audit %</div></div>
+      <div class="stat-card"><div class="num" id="repCleans">&ndash;</div><div class="lbl">Cleans</div></div>
+      <div class="stat-card"><div class="num" id="repDeep">&ndash;</div><div class="lbl">Deep cleans</div></div>
+      <div class="stat-card"><div class="num" id="repAudit">&ndash;</div><div class="lbl">Avg audit %</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="num" id="repRoomsReady">&ndash;</div><div class="lbl">Rooms ready</div></div>
+      <div class="stat-card"><div class="num" id="repRoomsDirty">&ndash;</div><div class="lbl">Rooms dirty</div></div>
+      <div class="stat-card"><div class="num" id="repRoomsDeep">&ndash;</div><div class="lbl">Deep cleaned</div></div>
+    </div>
+    <div class="card"><h3>Room status now</h3><div id="repRoomStatus"><div class="empty">No rooms yet.</div></div></div>
+    <div class="card"><h3>Cleans by staff</h3><div id="repByStaff"><div class="empty">No data.</div></div></div>
+    <div class="card"><h3>Cleans by room</h3><div id="repByRoom"><div class="empty">No data.</div></div></div>
+    <div class="card"><h3>Cleans by type</h3><div id="repByType"><div class="empty">No data.</div></div></div>
+    <div class="card"><h3>Recent audit results</h3><div id="repAudits"><div class="empty">No audits.</div></div></div>
+  </div>
+
+  <!-- Settings tab (manager only) -->
+  <div class="content" id="settingsTab" style="display:none;">
+    <div class="card">
+      <h3>Hotel</h3>
+      <label for="setHotelName">Hotel name</label>
+      <input type="text" id="setHotelName" placeholder="Hotel name">
+      <button id="setHotelBtn" onclick="saveHotelName()">Save hotel name</button>
+      <p class="hint" style="margin-bottom:0;">This changes the display name shown at the top of the app for everyone at this hotel.</p>
     </div>
     <div class="card">
-      <h3>Room status</h3>
-      <div id="roomStatusStats"><div class="empty">No rooms yet.</div></div>
+      <h3>Rooms</h3>
+      <div class="add-inline">
+        <input type="text" id="setNewRoom" placeholder="New room name, e.g. Room 210">
+        <button onclick="addRoom()">Add</button>
+      </div>
+      <div id="setRoomsList" style="margin-top:12px;"><div class="empty">No rooms yet.</div></div>
     </div>
     <div class="card">
-      <h3>Cleans by staff member (last 7 days)</h3>
-      <div id="staffStats"><div class="empty">No data yet.</div></div>
+      <h3>Cleaning checklist</h3>
+      <h4>Tasks staff tick when cleaning a room</h4>
+      <div class="add-inline">
+        <input type="text" id="setNewCleanTask" placeholder="New task, e.g. Replace towels">
+        <button onclick="addTemplateTask('clean')">Add</button>
+      </div>
+      <div id="setCleanTasks" style="margin-top:12px;"></div>
     </div>
     <div class="card">
-      <h3>Cleans by type (last 7 days)</h3>
-      <div id="typeStats"><div class="empty">No data yet.</div></div>
+      <h3>Deep clean checklist</h3>
+      <h4>Extra periodic tasks for a deep clean</h4>
+      <div class="add-inline">
+        <input type="text" id="setNewDeepTask" placeholder="New task, e.g. Descale kettle">
+        <button onclick="addTemplateTask('deep')">Add</button>
+      </div>
+      <div id="setDeepTasks" style="margin-top:12px;"></div>
     </div>
     <div class="card">
-      <h3>Recent audit results</h3>
-      <div id="auditStats"><div class="empty">No audits yet.</div></div>
+      <h3>Audit checklist</h3>
+      <h4>Items scored during a room audit</h4>
+      <div class="add-inline">
+        <input type="text" id="setNewAuditItem" placeholder="New audit item">
+        <button onclick="addTemplateTask('audit')">Add</button>
+      </div>
+      <div id="setAuditItems" style="margin-top:12px;"></div>
     </div>
   </div>
 </div>
 
-<!-- Firebase (loaded from Google's servers, nothing to install) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -328,612 +303,502 @@ var auth = firebase.auth();
 var db = firebase.firestore();
 
 var currentProfile = null;
-var cleansUnsub = null;
-var rotaUnsub = null;
-var roomsUnsub = null;
-var auditsUnsub = null;
+var settingsUnsub = null, roomsUnsub = null, cleansUnsub = null, rotaUnsub = null, auditsUnsub = null;
 var pendingPhoto = null;
-var latestCleans = [];
-var latestRooms = [];
-var latestAudits = [];
+var latestRooms = [], latestCleans = [], latestAudits = [];
+var reportRange = 7;
 var auditState = {};
 var DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-var AUDIT_ITEMS = [
-  "Bed made & linen fresh",
-  "Bathroom cleaned & sanitised",
-  "Floors vacuumed / mopped",
-  "Surfaces dusted",
-  "Bins emptied",
-  "Amenities restocked",
-  "Windows & mirrors clean",
-  "No maintenance issues"
-];
-var ROOM_STATUSES = {
-  dirty:     { label: "Dirty",     cls: "status-dirty" },
-  progress:  { label: "Cleaning",  cls: "status-progress" },
-  clean:     { label: "Clean",     cls: "status-clean" },
-  inspected: { label: "Inspected", cls: "status-inspected" }
-};
+var DEFAULT_CLEAN_TASKS = ["Beds made & linen fresh","Bathroom cleaned & sanitised","Floors vacuumed / mopped","Surfaces dusted","Bins emptied","Amenities restocked","Windows & mirrors clean"];
+var DEFAULT_DEEP_TASKS = ["Move & clean under furniture","Wash curtains / blinds","Descale kettle & bathroom","Clean inside wardrobes & drawers","Mattress turned & checked","Deep clean carpets / upholstery","Skirting boards & vents"];
+var DEFAULT_AUDIT_ITEMS = ["Beds made & linen fresh","Bathroom cleaned & sanitised","Floors vacuumed / mopped","Surfaces dusted","Bins emptied","Amenities restocked","Windows & mirrors clean","No maintenance issues"];
+// live config (falls back to defaults until settings doc loads)
+var config = { cleanTasks: DEFAULT_CLEAN_TASKS.slice(), deepTasks: DEFAULT_DEEP_TASKS.slice(), auditItems: DEFAULT_AUDIT_ITEMS.slice() };
+var ROOM_STATUSES = { dirty:{label:"Dirty",cls:"status-dirty"}, progress:{label:"Cleaning",cls:"status-progress"}, clean:{label:"Clean",cls:"status-clean"}, inspected:{label:"Inspected",cls:"status-inspected"} };
 
-
-/* ---------------- Screen switching ---------------- */
-function show(screenId) {
-  document.getElementById("loadingScreen").style.display = "none";
-  document.getElementById("loginScreen").style.display = "none";
-  document.getElementById("appScreen").style.display = "none";
-  if (screenId === "login") document.getElementById("loginScreen").style.display = "flex";
-  else if (screenId === "app") document.getElementById("appScreen").style.display = "block";
-  else document.getElementById("loadingScreen").style.display = "flex";
+/* ---------------- Screen / tabs ---------------- */
+function show(screenId){
+  document.getElementById("loadingScreen").style.display="none";
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("appScreen").style.display="none";
+  if(screenId==="login") document.getElementById("loginScreen").style.display="flex";
+  else if(screenId==="app") document.getElementById("appScreen").style.display="block";
+  else document.getElementById("loadingScreen").style.display="flex";
 }
-
-function switchTab(tab) {
-  var tabs = ["rooms","cleans","audits","rota","dash"];
-  var panels = { rooms:"roomsTab", cleans:"cleansTab", audits:"auditsTab", rota:"rotaTab", dash:"dashTab" };
-  var btns   = { rooms:"tabRooms", cleans:"tabCleans", audits:"tabAudits", rota:"tabRota", dash:"tabDash" };
-  tabs.forEach(function(t){
-    document.getElementById(panels[t]).style.display = (t === tab) ? "block" : "none";
-    document.getElementById(btns[t]).className = (t === tab) ? "active" : "";
+function switchTab(tab){
+  var panels={rooms:"roomsTab",cleans:"cleansTab",audits:"auditsTab",rota:"rotaTab",reports:"reportsTab",settings:"settingsTab"};
+  var btns={rooms:"tabRooms",cleans:"tabCleans",audits:"tabAudits",rota:"tabRota",reports:"tabReports",settings:"tabSettings"};
+  Object.keys(panels).forEach(function(t){
+    document.getElementById(panels[t]).style.display=(t===tab)?"block":"none";
+    document.getElementById(btns[t]).className=(t===tab)?"active":"";
   });
-  if (tab === "dash") renderDashboard();
-  if (tab === "audits") renderChecklist();
+  if(tab==="reports") renderReports();
+  if(tab==="audits") renderChecklist();
+  if(tab==="settings") renderSettings();
+}
+function isManager(){ return currentProfile && currentProfile.role==="manager"; }
+function applyRoleUI(){
+  var m=isManager();
+  document.getElementById("tabReports").style.display=m?"block":"none";
+  document.getElementById("tabSettings").style.display=m?"block":"none";
+  document.getElementById("addShiftCard").style.display=m?"block":"none";
 }
 
-function isManager() {
-  return currentProfile && currentProfile.role === "manager";
-}
-
-function applyRoleUI() {
-  var manager = isManager();
-  document.getElementById("tabDash").style.display = manager ? "block" : "none";
-  document.getElementById("addShiftCard").style.display = manager ? "block" : "none";
-}
-
-
-function showSignUp(){ hideError(); document.getElementById("signInForm").style.display="none"; document.getElementById("signUpForm").style.display="block"; }
-function showSignIn(){ hideError(); document.getElementById("signUpForm").style.display="none"; document.getElementById("signInForm").style.display="block"; }
-function showError(msg){ var box=document.getElementById("authError"); box.textContent=msg; box.style.display="block"; }
-function hideError(){ document.getElementById("authError").style.display="none"; }
-
-function friendlyAuthError(err){
-  var code = (err && err.code) ? err.code : "";
-  if (code === "auth/invalid-email") return "That email address doesn't look right.";
-  if (code === "auth/email-already-in-use") return "There's already an account with that email. Try signing in instead.";
-  if (code === "auth/weak-password") return "Password needs to be at least 6 characters.";
-  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found")
-    return "Email or password not recognised. Check them and try again.";
-  if (code === "auth/too-many-requests") return "Too many attempts. Wait a minute and try again.";
-  if (code === "auth/network-request-failed") return "No connection. Check your internet and try again.";
-  return "Something went wrong: " + ((err && err.message) ? err.message : "unknown error");
-}
 
 /* ---------------- Auth ---------------- */
+function showSignUp(){ hideError(); document.getElementById("signInForm").style.display="none"; document.getElementById("signUpForm").style.display="block"; }
+function showSignIn(){ hideError(); document.getElementById("signUpForm").style.display="none"; document.getElementById("signInForm").style.display="block"; }
+function showError(msg){ var b=document.getElementById("authError"); b.textContent=msg; b.style.display="block"; }
+function hideError(){ document.getElementById("authError").style.display="none"; }
+function friendlyAuthError(err){
+  var code=(err&&err.code)?err.code:"";
+  if(code==="auth/invalid-email") return "That email address doesn't look right.";
+  if(code==="auth/email-already-in-use") return "There's already an account with that email. Try signing in instead.";
+  if(code==="auth/weak-password") return "Password needs to be at least 6 characters.";
+  if(code==="auth/invalid-credential"||code==="auth/wrong-password"||code==="auth/user-not-found") return "Email or password not recognised. Check them and try again.";
+  if(code==="auth/too-many-requests") return "Too many attempts. Wait a minute and try again.";
+  if(code==="auth/network-request-failed") return "No connection. Check your internet and try again.";
+  return "Something went wrong: "+((err&&err.message)?err.message:"unknown error");
+}
 function doSignUp(){
   hideError();
-  var name = document.getElementById("suName").value.trim();
-  var hotel = document.getElementById("suHotel").value.trim();
-  var role = document.getElementById("suRole").value;
-  var email = document.getElementById("suEmail").value.trim();
-  var password = document.getElementById("suPassword").value;
-  if (!name || !hotel || !email || !password) { showError("Fill in all the fields to create your account."); return; }
-  var btn = document.getElementById("signUpBtn");
-  btn.disabled = true; btn.textContent = "Creating account\u2026";
-  auth.createUserWithEmailAndPassword(email, password).then(function(cred){
-    return db.collection("users").doc(cred.user.uid).set({
-      name: name, hotel: hotel, hotelKey: hotel.toLowerCase(), role: role,
-      created: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }).catch(function(err){ showError(friendlyAuthError(err)); }).finally(function(){
-    btn.disabled = false; btn.textContent = "Create account";
-  });
+  var name=document.getElementById("suName").value.trim();
+  var hotel=document.getElementById("suHotel").value.trim();
+  var role=document.getElementById("suRole").value;
+  var email=document.getElementById("suEmail").value.trim();
+  var password=document.getElementById("suPassword").value;
+  if(!name||!hotel||!email||!password){ showError("Fill in all the fields to create your account."); return; }
+  var btn=document.getElementById("signUpBtn"); btn.disabled=true; btn.textContent="Creating account\u2026";
+  auth.createUserWithEmailAndPassword(email,password).then(function(cred){
+    return db.collection("users").doc(cred.user.uid).set({ name:name, hotel:hotel, hotelKey:hotel.toLowerCase(), role:role, created:firebase.firestore.FieldValue.serverTimestamp() });
+  }).catch(function(err){ showError(friendlyAuthError(err)); }).finally(function(){ btn.disabled=false; btn.textContent="Create account"; });
 }
-
 function doSignIn(){
   hideError();
-  var email = document.getElementById("siEmail").value.trim();
-  var password = document.getElementById("siPassword").value;
-  if (!email || !password) { showError("Enter your email and password."); return; }
-  var btn = document.getElementById("signInBtn");
-  btn.disabled = true; btn.textContent = "Signing in\u2026";
-  auth.signInWithEmailAndPassword(email, password).catch(function(err){ showError(friendlyAuthError(err)); }).finally(function(){
-    btn.disabled = false; btn.textContent = "Sign in";
-  });
+  var email=document.getElementById("siEmail").value.trim();
+  var password=document.getElementById("siPassword").value;
+  if(!email||!password){ showError("Enter your email and password."); return; }
+  var btn=document.getElementById("signInBtn"); btn.disabled=true; btn.textContent="Signing in\u2026";
+  auth.signInWithEmailAndPassword(email,password).catch(function(err){ showError(friendlyAuthError(err)); }).finally(function(){ btn.disabled=false; btn.textContent="Sign in"; });
 }
-
 function doSignOut(){ auth.signOut(); }
-
 function stopWatchers(){
-  if (cleansUnsub) { cleansUnsub(); cleansUnsub = null; }
-  if (rotaUnsub) { rotaUnsub(); rotaUnsub = null; }
-  if (roomsUnsub) { roomsUnsub(); roomsUnsub = null; }
-  if (auditsUnsub) { auditsUnsub(); auditsUnsub = null; }
+  [settingsUnsub,roomsUnsub,cleansUnsub,rotaUnsub,auditsUnsub].forEach(function(u){ if(u) u(); });
+  settingsUnsub=roomsUnsub=cleansUnsub=rotaUnsub=auditsUnsub=null;
 }
-
 auth.onAuthStateChanged(function(user){
   stopWatchers();
-  if (!user) {
-    currentProfile = null; latestCleans = []; latestRooms = []; latestAudits = [];
-    showSignIn(); show("login"); return;
-  }
+  if(!user){ currentProfile=null; latestRooms=[]; latestCleans=[]; latestAudits=[]; showSignIn(); show("login"); return; }
   show("loading");
   db.collection("users").doc(user.uid).get().then(function(doc){
-    if (!doc.exists) {
-      return new Promise(function(resolve){
-        setTimeout(function(){ db.collection("users").doc(user.uid).get().then(resolve); }, 1200);
-      });
-    }
+    if(!doc.exists){ return new Promise(function(resolve){ setTimeout(function(){ db.collection("users").doc(user.uid).get().then(resolve); },1200); }); }
     return doc;
   }).then(function(doc){
-    if (!doc || !doc.exists) { showError("Couldn't load your profile. Sign in again."); auth.signOut(); return; }
-    var data = doc.data();
-    currentProfile = {
-      name: data.name,
-      hotel: data.hotel,
-      hotelKey: data.hotelKey || (data.hotel || "").toLowerCase(),
-      role: data.role || "manager"
-    };
-    document.getElementById("hotelTitle").textContent = currentProfile.hotel;
-    document.getElementById("whoLine").textContent = "Signed in as " + currentProfile.name + (isManager() ? " (Manager)" : "");
-    applyRoleUI();
-    show("app");
-    switchTab("rooms");
-    watchRooms(); watchCleans(); watchRota(); watchAudits();
-  }).catch(function(err){ showError("Couldn't load your profile: " + err.message); auth.signOut(); });
+    if(!doc||!doc.exists){ showError("Couldn't load your profile. Sign in again."); auth.signOut(); return; }
+    var data=doc.data();
+    currentProfile={ name:data.name, hotel:data.hotel, hotelKey:data.hotelKey||(data.hotel||"").toLowerCase(), role:data.role||"manager" };
+    document.getElementById("hotelTitle").textContent=currentProfile.hotel;
+    document.getElementById("whoLine").textContent="Signed in as "+currentProfile.name+(isManager()?" (Manager)":"");
+    applyRoleUI(); show("app"); switchTab("rooms");
+    watchSettings(); watchRooms(); watchCleans(); watchRota(); watchAudits();
+  }).catch(function(err){ showError("Couldn't load your profile: "+err.message); auth.signOut(); });
 });
 
 
-/* ---------------- Photos ---------------- */
-function photoChosen(input){
-  if (!input.files || !input.files[0]) return;
-  var file = input.files[0];
-  var reader = new FileReader();
-  reader.onload = function(e){
-    compressImage(e.target.result, function(compressed){
-      if (compressed.length > 750000) {
-        alert("That photo is too large even after compressing. Try a different one.");
-        input.value = ""; return;
-      }
-      pendingPhoto = compressed;
-      document.getElementById("photoPreviewImg").src = compressed;
-      document.getElementById("photoPreview").style.display = "block";
-    });
-  };
-  reader.readAsDataURL(file);
+/* ---------------- Settings / config ---------------- */
+function settingsRef(){ return db.collection("settings").doc(currentProfile.hotelKey); }
+function watchSettings(){
+  settingsUnsub=settingsRef().onSnapshot(function(doc){
+    var d=doc.exists?doc.data():{};
+    config.cleanTasks=(d.cleanTasks&&d.cleanTasks.length)?d.cleanTasks:DEFAULT_CLEAN_TASKS.slice();
+    config.deepTasks=(d.deepTasks&&d.deepTasks.length)?d.deepTasks:DEFAULT_DEEP_TASKS.slice();
+    config.auditItems=(d.auditItems&&d.auditItems.length)?d.auditItems:DEFAULT_AUDIT_ITEMS.slice();
+    if(d.hotelName){ currentProfile.hotel=d.hotelName; document.getElementById("hotelTitle").textContent=d.hotelName; }
+    renderRooms(latestRooms);
+    if(document.getElementById("settingsTab").style.display==="block") renderSettings();
+    if(document.getElementById("auditsTab").style.display==="block") renderChecklist();
+  }, function(){});
 }
-
-function compressImage(dataUrl, callback){
-  var img = new Image();
-  img.onload = function(){
-    var maxSide = 900;
-    var w = img.width, h = img.height;
-    if (w > h) { if (w > maxSide) { h = Math.round(h * maxSide / w); w = maxSide; } }
-    else { if (h > maxSide) { w = Math.round(w * maxSide / h); h = maxSide; } }
-    var canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, w, h);
-    callback(canvas.toDataURL("image/jpeg", 0.6));
-  };
-  img.src = dataUrl;
+function saveConfig(patch){
+  return settingsRef().set(patch,{merge:true}).catch(function(err){ alert("Couldn't save settings: "+err.message); });
 }
-
-function removePhoto(){
-  pendingPhoto = null;
-  document.getElementById("photoInput").value = "";
-  document.getElementById("photoPreview").style.display = "none";
+function saveHotelName(){
+  if(!isManager()) return;
+  var name=document.getElementById("setHotelName").value.trim();
+  if(!name){ alert("Enter a hotel name."); return; }
+  var btn=document.getElementById("setHotelBtn"); btn.disabled=true; btn.textContent="Saving\u2026";
+  saveConfig({ hotelName:name }).finally(function(){ btn.disabled=false; btn.textContent="Save hotel name"; });
 }
-
-/* ---------------- Cleans ---------------- */
-function logClean(){
-  if (!currentProfile) return;
-  var room = document.getElementById("roomInput").value.trim();
-  if (!room) { alert("Enter a room or area."); return; }
-  var btn = document.getElementById("saveBtn");
-  btn.disabled = true; btn.textContent = "Saving\u2026";
-  var record = {
-    hotelKey: currentProfile.hotelKey,
-    hotel: currentProfile.hotel,
-    room: room,
-    type: document.getElementById("typeInput").value,
-    notes: document.getElementById("notesInput").value.trim(),
-    by: currentProfile.name,
-    when: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  if (pendingPhoto) record.photo = pendingPhoto;
-  db.collection("cleans").add(record).then(function(){
-    document.getElementById("roomInput").value = "";
-    document.getElementById("notesInput").value = "";
-    removePhoto();
-  }).catch(function(err){ alert("Couldn't save: " + err.message); }).finally(function(){
-    btn.disabled = false; btn.textContent = "Save clean";
-  });
+function addTemplateTask(kind){
+  if(!isManager()) return;
+  var map={clean:{id:"setNewCleanTask",key:"cleanTasks"},deep:{id:"setNewDeepTask",key:"deepTasks"},audit:{id:"setNewAuditItem",key:"auditItems"}};
+  var m=map[kind]; var input=document.getElementById(m.id); var val=input.value.trim();
+  if(!val) return;
+  var list=config[m.key].slice(); list.push(val);
+  var patch={}; patch[m.key]=list; saveConfig(patch); input.value="";
 }
-
-function watchCleans(){
-  cleansUnsub = db.collection("cleans").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
-    var cleans = [];
-    snapshot.forEach(function(doc){
-      var d = doc.data();
-      d.whenMs = (d.when && d.when.toMillis) ? d.when.toMillis() : Date.now();
-      cleans.push(d);
-    });
-    cleans.sort(function(a,b){ return b.whenMs - a.whenMs; });
-    latestCleans = cleans;
-    renderLog(cleans.slice(0, 30));
-    if (document.getElementById("dashTab").style.display === "block") renderDashboard();
-  }, function(err){
-    document.getElementById("logList").innerHTML = '<div class="empty">Couldn\u2019t load cleans: ' + escapeHtml(err.message) + '</div>';
-  });
+function removeTemplateTask(key,index){
+  if(!isManager()) return;
+  var list=config[key].slice(); list.splice(index,1);
+  var patch={}; patch[key]=list; saveConfig(patch);
 }
-
-function renderLog(cleans){
-  var list = document.getElementById("logList");
-  if (cleans.length === 0) { list.innerHTML = '<div class="empty">No cleans logged yet. Your first one will show here.</div>'; return; }
-  var html = "";
-  for (var i = 0; i < cleans.length; i++) {
-    var c = cleans[i];
-    var d = new Date(c.whenMs);
-    var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    html += '<div class="log-item">';
-    html += '<span class="room">' + escapeHtml(c.room) + '</span>';
-    html += '<span class="badge">' + escapeHtml(c.type) + '</span>';
-    html += '<div class="meta">' + escapeHtml(c.by) + ' &middot; ' + dateStr + '</div>';
-    if (c.notes) html += '<div class="notes">' + escapeHtml(c.notes) + '</div>';
-    if (c.photo) html += '<img class="thumb" src="' + c.photo + '" alt="Clean photo">';
-    html += '</div>';
+function renderSettings(){
+  document.getElementById("setHotelName").value=currentProfile.hotel||"";
+  // rooms
+  var rl=document.getElementById("setRoomsList");
+  if(latestRooms.length===0){ rl.innerHTML='<div class="empty">No rooms yet.</div>'; }
+  else {
+    var rh="";
+    for(var i=0;i<latestRooms.length;i++){
+      rh+='<div class="editable-item"><span>'+escapeHtml(latestRooms[i].name)+'</span><button onclick="deleteRoom(\''+latestRooms[i].id+'\')">Remove</button></div>';
+    }
+    rl.innerHTML=rh;
   }
-  list.innerHTML = html;
+  renderTemplateList("setCleanTasks","cleanTasks");
+  renderTemplateList("setDeepTasks","deepTasks");
+  renderTemplateList("setAuditItems","auditItems");
+}
+function renderTemplateList(elId,key){
+  var el=document.getElementById(elId); var list=config[key];
+  if(!list||list.length===0){ el.innerHTML='<div class="empty">No items.</div>'; return; }
+  var h="";
+  for(var i=0;i<list.length;i++){ h+='<div class="editable-item"><span>'+escapeHtml(list[i])+'</span><button onclick="removeTemplateTask(\''+key+'\','+i+')">Remove</button></div>'; }
+  el.innerHTML=h;
 }
 
 
 /* ---------------- Rooms ---------------- */
 function addRoom(){
-  if (!currentProfile) return;
-  var name = document.getElementById("newRoomName").value.trim();
-  if (!name) { alert("Enter a room name."); return; }
-  var btn = document.getElementById("addRoomBtn");
-  btn.disabled = true; btn.textContent = "Adding\u2026";
+  if(!currentProfile) return;
+  var input=document.getElementById("setNewRoom");
+  var name=input.value.trim();
+  if(!name){ alert("Enter a room name."); return; }
   db.collection("rooms").add({
-    hotelKey: currentProfile.hotelKey,
-    name: name,
-    status: "dirty",
-    updatedBy: currentProfile.name,
-    updated: firebase.firestore.FieldValue.serverTimestamp(),
-    created: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){
-    document.getElementById("newRoomName").value = "";
-  }).catch(function(err){ alert("Couldn't add room: " + err.message); }).finally(function(){
-    btn.disabled = false; btn.textContent = "Add room";
-  });
+    hotelKey:currentProfile.hotelKey, name:name, status:"dirty",
+    cleanTicks:{}, deepTicks:{}, deepCleanedAt:null,
+    updatedBy:currentProfile.name, updated:firebase.firestore.FieldValue.serverTimestamp(),
+    created:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){ input.value=""; }).catch(function(err){ alert("Couldn't add room: "+err.message); });
 }
-
-function setRoomStatus(id, status){
-  db.collection("rooms").doc(id).update({
-    status: status,
-    updatedBy: currentProfile.name,
-    updated: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch(function(err){ alert("Couldn't update: " + err.message); });
-}
-
 function deleteRoom(id){
-  if (!isManager()) return;
-  if (!confirm("Remove this room from the board?")) return;
-  db.collection("rooms").doc(id).delete().catch(function(err){ alert("Couldn't remove: " + err.message); });
+  if(!isManager()) return;
+  if(!confirm("Remove this room?")) return;
+  db.collection("rooms").doc(id).delete().catch(function(err){ alert("Couldn't remove: "+err.message); });
+}
+function watchRooms(){
+  roomsUnsub=db.collection("rooms").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snap){
+    var rooms=[]; snap.forEach(function(doc){ var d=doc.data(); d.id=doc.id; rooms.push(d); });
+    rooms.sort(function(a,b){ return String(a.name).localeCompare(String(b.name),undefined,{numeric:true}); });
+    latestRooms=rooms; renderRooms(rooms);
+    if(document.getElementById("reportsTab").style.display==="block") renderReports();
+    if(document.getElementById("settingsTab").style.display==="block") renderSettings();
+  }, function(err){ document.getElementById("roomsList").innerHTML='<div class="empty">Couldn\u2019t load rooms: '+escapeHtml(err.message)+'</div>'; });
+}
+function roomCleanProgress(room){
+  var tasks=config.cleanTasks, ticks=room.cleanTicks||{}, done=0;
+  for(var i=0;i<tasks.length;i++){ if(ticks[String(i)]) done++; }
+  return { done:done, total:tasks.length };
+}
+function toggleTick(roomId,kind,index){
+  var room=null;
+  for(var i=0;i<latestRooms.length;i++){ if(latestRooms[i].id===roomId){ room=latestRooms[i]; break; } }
+  if(!room) return;
+  var field=(kind==="deep")?"deepTicks":"cleanTicks";
+  var ticks=Object.assign({},room[field]||{});
+  var k=String(index);
+  if(ticks[k]) delete ticks[k]; else ticks[k]=true;
+  var patch={}; patch[field]=ticks;
+  patch.updatedBy=currentProfile.name; patch.updated=firebase.firestore.FieldValue.serverTimestamp();
+  // auto status from cleaning ticks
+  if(kind==="clean"){
+    var total=config.cleanTasks.length, done=0;
+    for(var j=0;j<total;j++){ if(ticks[String(j)]) done++; }
+    if(done===0 && room.status!=="inspected") patch.status="dirty";
+    else if(done>=total && total>0) patch.status="clean";
+    else if(room.status!=="inspected") patch.status="progress";
+  }
+  // deep clean completion
+  if(kind==="deep"){
+    var dtotal=config.deepTasks.length, ddone=0;
+    for(var m=0;m<dtotal;m++){ if(ticks[String(m)]) ddone++; }
+    patch.deepCleanedAt=(dtotal>0 && ddone>=dtotal)?firebase.firestore.FieldValue.serverTimestamp():null;
+  }
+  db.collection("rooms").doc(roomId).update(patch).catch(function(err){ alert("Couldn't update: "+err.message); });
+}
+function setInspected(id,val){
+  db.collection("rooms").doc(id).update({ status:val?"inspected":"clean", updatedBy:currentProfile.name, updated:firebase.firestore.FieldValue.serverTimestamp() }).catch(function(err){ alert("Couldn't update: "+err.message); });
+}
+function resetRoom(id){
+  db.collection("rooms").doc(id).update({ status:"dirty", cleanTicks:{}, deepTicks:{}, deepCleanedAt:null, updatedBy:currentProfile.name, updated:firebase.firestore.FieldValue.serverTimestamp() }).catch(function(err){ alert("Couldn't reset: "+err.message); });
+}
+function toggleDeepSection(id){
+  var el=document.getElementById("deep-"+id);
+  if(el) el.style.display=(el.style.display==="none")?"block":"none";
 }
 
-function watchRooms(){
-  roomsUnsub = db.collection("rooms").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
-    var rooms = [];
-    snapshot.forEach(function(doc){ var d = doc.data(); d.id = doc.id; rooms.push(d); });
-    rooms.sort(function(a,b){ return String(a.name).localeCompare(String(b.name), undefined, { numeric: true }); });
-    latestRooms = rooms;
-    renderRooms(rooms);
-    if (document.getElementById("dashTab").style.display === "block") renderDashboard();
-  }, function(err){
-    document.getElementById("roomsList").innerHTML = '<div class="empty">Couldn\u2019t load rooms: ' + escapeHtml(err.message) + '</div>';
-  });
-}
 
 function renderRooms(rooms){
-  var list = document.getElementById("roomsList");
-  if (rooms.length === 0) { list.innerHTML = '<div class="empty">No rooms yet. Add your first one above.</div>'; return; }
-  var manager = isManager();
-  var html = "";
-  for (var i = 0; i < rooms.length; i++) {
-    var r = rooms[i];
-    var st = ROOM_STATUSES[r.status] || ROOM_STATUSES.dirty;
-    var upd = "";
-    if (r.updatedBy) {
-      upd = "by " + escapeHtml(r.updatedBy);
-      if (r.updated && r.updated.toMillis) {
-        var d = new Date(r.updated.toMillis());
-        upd += " &middot; " + d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
-      }
+  var list=document.getElementById("roomsList");
+  if(!rooms||rooms.length===0){ list.innerHTML='<div class="empty">No rooms yet.'+(isManager()?' Add rooms in Settings.':' Ask your manager to add rooms.')+'</div>'; return; }
+  var manager=isManager();
+  var html="";
+  for(var i=0;i<rooms.length;i++){
+    var r=rooms[i];
+    var st=ROOM_STATUSES[r.status]||ROOM_STATUSES.dirty;
+    var prog=roomCleanProgress(r);
+    var pct=prog.total?Math.round(prog.done/prog.total*100):0;
+    var cleanTicks=r.cleanTicks||{}, deepTicks=r.deepTicks||{};
+    html+='<div class="room-card">';
+    html+='<div class="room-head"><span class="r-name">'+escapeHtml(r.name)+'</span><span class="status-pill '+st.cls+'">'+st.label+'</span></div>';
+    // meta
+    var meta=prog.done+'/'+prog.total+' tasks';
+    if(r.deepCleanedAt&&r.deepCleanedAt.toMillis){ var dd=new Date(r.deepCleanedAt.toMillis()); meta+=' &middot; deep cleaned '+dd.toLocaleDateString("en-GB"); }
+    if(r.updatedBy) meta+=' &middot; '+escapeHtml(r.updatedBy);
+    html+='<div class="room-meta">'+meta+'</div>';
+    html+='<div class="progress-line"><div class="progress-fill" style="width:'+pct+'%;"></div></div>';
+    // cleaning ticks
+    for(var t=0;t<config.cleanTasks.length;t++){
+      var done=!!cleanTicks[String(t)];
+      html+='<div class="tick'+(done?' done':'')+'" onclick="toggleTick(\''+r.id+'\',\'clean\','+t+')">';
+      html+='<span class="box">'+(done?'\u2713':'')+'</span><span class="t-label">'+escapeHtml(config.cleanTasks[t])+'</span></div>';
     }
-    html += '<div class="room-item"><div style="flex:1;">';
-    html += '<div><span class="r-name">' + escapeHtml(r.name) + '</span> <span class="status-pill ' + st.cls + '">' + st.label + '</span></div>';
-    if (upd) html += '<div class="r-meta">' + upd + '</div>';
-    html += '<div class="room-actions">';
-    if (r.status !== "progress") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'progress\')">Start clean</button>';
-    if (r.status !== "clean") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'clean\')">Mark clean</button>';
-    if (manager && r.status !== "inspected") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'inspected\')">Inspected</button>';
-    if (r.status !== "dirty") html += '<button onclick="setRoomStatus(\'' + r.id + '\',\'dirty\')">Reset dirty</button>';
-    if (manager) html += '<button class="danger" onclick="deleteRoom(\'' + r.id + '\')">Remove</button>';
-    html += '</div></div></div>';
+    // deep clean collapsible
+    html+='<span class="section-toggle" onclick="toggleDeepSection(\''+r.id+'\')">Deep clean checklist \u25be</span>';
+    html+='<div id="deep-'+r.id+'" style="display:none;margin-top:8px;">';
+    for(var d2=0;d2<config.deepTasks.length;d2++){
+      var ddone=!!deepTicks[String(d2)];
+      html+='<div class="tick deep'+(ddone?' done':'')+'" onclick="toggleTick(\''+r.id+'\',\'deep\','+d2+')">';
+      html+='<span class="box">'+(ddone?'\u2713':'')+'</span><span class="t-label">'+escapeHtml(config.deepTasks[d2])+'</span></div>';
+    }
+    html+='</div>';
+    // actions
+    html+='<div class="btn-row">';
+    if(manager && r.status!=="inspected") html+='<button class="btn-sec" onclick="setInspected(\''+r.id+'\',true)">Mark inspected</button>';
+    if(manager && r.status==="inspected") html+='<button class="btn-sec" onclick="setInspected(\''+r.id+'\',false)">Un-inspect</button>';
+    html+='<button class="btn-sec" onclick="resetRoom(\''+r.id+'\')">Reset for next guest</button>';
+    html+='</div>';
+    html+='</div>';
   }
-  list.innerHTML = html;
+  list.innerHTML=html;
+}
+
+
+/* ---------------- Photos ---------------- */
+function photoChosen(input){
+  if(!input.files||!input.files[0]) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    compressImage(e.target.result,function(compressed){
+      if(compressed.length>750000){ alert("That photo is too large even after compressing. Try a different one."); input.value=""; return; }
+      pendingPhoto=compressed;
+      document.getElementById("photoPreviewImg").src=compressed;
+      document.getElementById("photoPreview").style.display="block";
+    });
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function compressImage(dataUrl,callback){
+  var img=new Image();
+  img.onload=function(){
+    var maxSide=900, w=img.width, h=img.height;
+    if(w>h){ if(w>maxSide){ h=Math.round(h*maxSide/w); w=maxSide; } } else { if(h>maxSide){ w=Math.round(w*maxSide/h); h=maxSide; } }
+    var canvas=document.createElement("canvas"); canvas.width=w; canvas.height=h;
+    canvas.getContext("2d").drawImage(img,0,0,w,h);
+    callback(canvas.toDataURL("image/jpeg",0.6));
+  };
+  img.src=dataUrl;
+}
+function removePhoto(){ pendingPhoto=null; document.getElementById("photoInput").value=""; document.getElementById("photoPreview").style.display="none"; }
+
+/* ---------------- Cleans log ---------------- */
+function logClean(){
+  if(!currentProfile) return;
+  var room=document.getElementById("roomInput").value.trim();
+  if(!room){ alert("Enter a room or area."); return; }
+  var btn=document.getElementById("saveBtn"); btn.disabled=true; btn.textContent="Saving\u2026";
+  var record={ hotelKey:currentProfile.hotelKey, hotel:currentProfile.hotel, room:room,
+    type:document.getElementById("typeInput").value, notes:document.getElementById("notesInput").value.trim(),
+    by:currentProfile.name, when:firebase.firestore.FieldValue.serverTimestamp() };
+  if(pendingPhoto) record.photo=pendingPhoto;
+  db.collection("cleans").add(record).then(function(){
+    document.getElementById("roomInput").value=""; document.getElementById("notesInput").value=""; removePhoto();
+  }).catch(function(err){ alert("Couldn't save: "+err.message); }).finally(function(){ btn.disabled=false; btn.textContent="Save clean"; });
+}
+function watchCleans(){
+  cleansUnsub=db.collection("cleans").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snap){
+    var cleans=[]; snap.forEach(function(doc){ var d=doc.data(); d.whenMs=(d.when&&d.when.toMillis)?d.when.toMillis():Date.now(); cleans.push(d); });
+    cleans.sort(function(a,b){ return b.whenMs-a.whenMs; });
+    latestCleans=cleans; renderLog(cleans.slice(0,30));
+    if(document.getElementById("reportsTab").style.display==="block") renderReports();
+  }, function(err){ document.getElementById("logList").innerHTML='<div class="empty">Couldn\u2019t load cleans: '+escapeHtml(err.message)+'</div>'; });
+}
+function renderLog(cleans){
+  var list=document.getElementById("logList");
+  if(cleans.length===0){ list.innerHTML='<div class="empty">No cleans logged yet.</div>'; return; }
+  var html="";
+  for(var i=0;i<cleans.length;i++){
+    var c=cleans[i]; var d=new Date(c.whenMs);
+    var dateStr=d.toLocaleDateString("en-GB")+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+    html+='<div class="log-item"><span class="room">'+escapeHtml(c.room)+'</span><span class="badge">'+escapeHtml(c.type)+'</span>';
+    html+='<div class="meta">'+escapeHtml(c.by)+' &middot; '+dateStr+'</div>';
+    if(c.notes) html+='<div class="notes">'+escapeHtml(c.notes)+'</div>';
+    if(c.photo) html+='<img class="thumb" src="'+c.photo+'" alt="Clean photo">';
+    html+='</div>';
+  }
+  list.innerHTML=html;
 }
 
 
 /* ---------------- Audits ---------------- */
 function renderChecklist(){
-  var wrap = document.getElementById("auditChecklist");
-  var html = "";
-  for (var i = 0; i < AUDIT_ITEMS.length; i++) {
-    var state = auditState[i];
-    var passOn = state === "pass" ? " pass-on" : "";
-    var failOn = state === "fail" ? " fail-on" : "";
-    html += '<div class="check-item">';
-    html += '<span class="c-label">' + escapeHtml(AUDIT_ITEMS[i]) + '</span>';
-    html += '<span class="check-toggle">';
-    html += '<button class="pass' + passOn + '" onclick="setCheck(' + i + ',\'pass\')">Pass</button>';
-    html += '<button class="fail' + failOn + '" onclick="setCheck(' + i + ',\'fail\')">Fail</button>';
-    html += '</span></div>';
+  var wrap=document.getElementById("auditChecklist"); var items=config.auditItems; var html="";
+  for(var i=0;i<items.length;i++){
+    var state=auditState[i];
+    html+='<div class="tick" style="cursor:default;"><span class="t-label">'+escapeHtml(items[i])+'</span>';
+    html+='<span style="display:flex;gap:6px;">';
+    html+='<button class="btn-sec" style="'+(state==="pass"?"background:var(--ok);color:#fff;border-color:var(--ok);":"")+'" onclick="setCheck('+i+',\'pass\')">Pass</button>';
+    html+='<button class="btn-sec" style="'+(state==="fail"?"background:var(--err);color:#fff;border-color:var(--err);":"")+'" onclick="setCheck('+i+',\'fail\')">Fail</button>';
+    html+='</span></div>';
   }
-  wrap.innerHTML = html;
-  updateScore();
+  wrap.innerHTML=html; updateScore();
 }
-
-function setCheck(i, val){
-  auditState[i] = (auditState[i] === val) ? null : val;
-  renderChecklist();
-}
-
+function setCheck(i,val){ auditState[i]=(auditState[i]===val)?null:val; renderChecklist(); }
 function auditResult(){
-  var pass = 0, marked = 0;
-  for (var i = 0; i < AUDIT_ITEMS.length; i++) {
-    if (auditState[i] === "pass") { pass++; marked++; }
-    else if (auditState[i] === "fail") { marked++; }
-  }
-  var pct = marked === 0 ? null : Math.round((pass / marked) * 100);
-  return { pass: pass, marked: marked, total: AUDIT_ITEMS.length, pct: pct };
+  var pass=0,marked=0,items=config.auditItems;
+  for(var i=0;i<items.length;i++){ if(auditState[i]==="pass"){pass++;marked++;} else if(auditState[i]==="fail"){marked++;} }
+  return { pass:pass, marked:marked, total:items.length, pct: marked===0?null:Math.round(pass/marked*100) };
 }
-
 function updateScore(){
-  var r = auditResult();
-  var el = document.getElementById("auditScore");
-  var lbl = document.getElementById("auditScoreLbl");
-  if (r.pct === null) { el.textContent = "\u2013"; el.className = "audit-score"; lbl.textContent = "Mark each item pass or fail"; return; }
-  el.textContent = r.pct + "%";
-  el.className = "audit-score" + (r.pct < 60 ? " low" : (r.pct < 85 ? " mid" : ""));
-  lbl.textContent = r.pass + " of " + r.marked + " checks passed";
+  var r=auditResult(); var el=document.getElementById("auditScore"); var lbl=document.getElementById("auditScoreLbl");
+  if(r.pct===null){ el.textContent="\u2013"; el.style.color="var(--pine)"; lbl.textContent="Mark each item pass or fail"; return; }
+  el.textContent=r.pct+"%"; el.style.color=(r.pct<60)?"var(--err)":(r.pct<85?"var(--warn)":"var(--pine)");
+  lbl.textContent=r.pass+" of "+r.marked+" checks passed";
 }
-
 function submitAudit(){
-  if (!currentProfile) return;
-  var room = document.getElementById("auditRoom").value.trim();
-  if (!room) { alert("Enter the room being audited."); return; }
-  var r = auditResult();
-  if (r.marked === 0) { alert("Mark at least one checklist item."); return; }
-  var results = [];
-  for (var i = 0; i < AUDIT_ITEMS.length; i++) {
-    results.push({ item: AUDIT_ITEMS[i], result: auditState[i] || "n/a" });
-  }
-  var btn = document.getElementById("auditSaveBtn");
-  btn.disabled = true; btn.textContent = "Submitting\u2026";
-  db.collection("audits").add({
-    hotelKey: currentProfile.hotelKey,
-    room: room,
-    score: r.pct,
-    passed: r.pass,
-    marked: r.marked,
-    results: results,
-    notes: document.getElementById("auditNotes").value.trim(),
-    by: currentProfile.name,
-    when: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){
-    document.getElementById("auditRoom").value = "";
-    document.getElementById("auditNotes").value = "";
-    auditState = {};
-    renderChecklist();
-  }).catch(function(err){ alert("Couldn't submit audit: " + err.message); }).finally(function(){
-    btn.disabled = false; btn.textContent = "Submit audit";
-  });
+  if(!currentProfile) return;
+  var room=document.getElementById("auditRoom").value.trim();
+  if(!room){ alert("Enter the room being audited."); return; }
+  var r=auditResult(); if(r.marked===0){ alert("Mark at least one checklist item."); return; }
+  var results=[]; for(var i=0;i<config.auditItems.length;i++){ results.push({ item:config.auditItems[i], result:auditState[i]||"n/a" }); }
+  var btn=document.getElementById("auditSaveBtn"); btn.disabled=true; btn.textContent="Submitting\u2026";
+  db.collection("audits").add({ hotelKey:currentProfile.hotelKey, room:room, score:r.pct, passed:r.pass, marked:r.marked, results:results,
+    notes:document.getElementById("auditNotes").value.trim(), by:currentProfile.name, when:firebase.firestore.FieldValue.serverTimestamp() })
+  .then(function(){ document.getElementById("auditRoom").value=""; document.getElementById("auditNotes").value=""; auditState={}; renderChecklist(); })
+  .catch(function(err){ alert("Couldn't submit audit: "+err.message); }).finally(function(){ btn.disabled=false; btn.textContent="Submit audit"; });
 }
-
 function watchAudits(){
-  auditsUnsub = db.collection("audits").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
-    var audits = [];
-    snapshot.forEach(function(doc){
-      var d = doc.data();
-      d.whenMs = (d.when && d.when.toMillis) ? d.when.toMillis() : Date.now();
-      audits.push(d);
-    });
-    audits.sort(function(a,b){ return b.whenMs - a.whenMs; });
-    latestAudits = audits;
-    renderAuditList(audits.slice(0, 30));
-    if (document.getElementById("dashTab").style.display === "block") renderDashboard();
-  }, function(err){
-    document.getElementById("auditList").innerHTML = '<div class="empty">Couldn\u2019t load audits: ' + escapeHtml(err.message) + '</div>';
-  });
+  auditsUnsub=db.collection("audits").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snap){
+    var audits=[]; snap.forEach(function(doc){ var d=doc.data(); d.whenMs=(d.when&&d.when.toMillis)?d.when.toMillis():Date.now(); audits.push(d); });
+    audits.sort(function(a,b){ return b.whenMs-a.whenMs; });
+    latestAudits=audits; renderAuditList(audits.slice(0,30));
+    if(document.getElementById("reportsTab").style.display==="block") renderReports();
+  }, function(err){ document.getElementById("auditList").innerHTML='<div class="empty">Couldn\u2019t load audits: '+escapeHtml(err.message)+'</div>'; });
 }
-
 function renderAuditList(audits){
-  var list = document.getElementById("auditList");
-  if (audits.length === 0) { list.innerHTML = '<div class="empty">No audits yet.</div>'; return; }
-  var html = "";
-  for (var i = 0; i < audits.length; i++) {
-    var a = audits[i];
-    var d = new Date(a.whenMs);
-    var dateStr = d.toLocaleDateString("en-GB") + " " + d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
-    var cls = a.score < 60 ? "status-dirty" : (a.score < 85 ? "status-progress" : "status-clean");
-    html += '<div class="log-item">';
-    html += '<span class="room">' + escapeHtml(a.room) + '</span>';
-    html += '<span class="status-pill ' + cls + '" style="margin-left:8px;">' + a.score + '%</span>';
-    html += '<div class="meta">' + escapeHtml(a.by) + ' &middot; ' + a.passed + '/' + a.marked + ' passed &middot; ' + dateStr + '</div>';
-    if (a.notes) html += '<div class="notes">' + escapeHtml(a.notes) + '</div>';
-    html += '</div>';
+  var list=document.getElementById("auditList");
+  if(audits.length===0){ list.innerHTML='<div class="empty">No audits yet.</div>'; return; }
+  var html="";
+  for(var i=0;i<audits.length;i++){
+    var a=audits[i]; var d=new Date(a.whenMs);
+    var dateStr=d.toLocaleDateString("en-GB")+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+    var cls=a.score<60?"status-dirty":(a.score<85?"status-progress":"status-clean");
+    html+='<div class="log-item"><span class="room">'+escapeHtml(a.room)+'</span><span class="status-pill '+cls+'" style="margin-left:8px;">'+a.score+'%</span>';
+    html+='<div class="meta">'+escapeHtml(a.by)+' &middot; '+a.passed+'/'+a.marked+' passed &middot; '+dateStr+'</div>';
+    if(a.notes) html+='<div class="notes">'+escapeHtml(a.notes)+'</div>';
+    html+='</div>';
   }
-  list.innerHTML = html;
+  list.innerHTML=html;
 }
-
 
 /* ---------------- Rota ---------------- */
 function addShift(){
-  if (!currentProfile || !isManager()) return;
-  var name = document.getElementById("shiftName").value.trim();
-  if (!name) { alert("Enter the staff member's name."); return; }
-  var btn = document.getElementById("shiftBtn");
-  btn.disabled = true; btn.textContent = "Adding\u2026";
-  db.collection("rota").add({
-    hotelKey: currentProfile.hotelKey,
-    staff: name,
-    day: document.getElementById("shiftDay").value,
-    start: document.getElementById("shiftStart").value,
-    end: document.getElementById("shiftEnd").value,
-    addedBy: currentProfile.name,
-    created: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){
-    document.getElementById("shiftName").value = "";
-  }).catch(function(err){ alert("Couldn't add shift: " + err.message); }).finally(function(){
-    btn.disabled = false; btn.textContent = "Add shift";
-  });
+  if(!currentProfile||!isManager()) return;
+  var name=document.getElementById("shiftName").value.trim();
+  if(!name){ alert("Enter the staff member's name."); return; }
+  var btn=document.getElementById("shiftBtn"); btn.disabled=true; btn.textContent="Adding\u2026";
+  db.collection("rota").add({ hotelKey:currentProfile.hotelKey, staff:name, day:document.getElementById("shiftDay").value,
+    start:document.getElementById("shiftStart").value, end:document.getElementById("shiftEnd").value,
+    addedBy:currentProfile.name, created:firebase.firestore.FieldValue.serverTimestamp() })
+  .then(function(){ document.getElementById("shiftName").value=""; }).catch(function(err){ alert("Couldn't add shift: "+err.message); }).finally(function(){ btn.disabled=false; btn.textContent="Add shift"; });
 }
-
-function deleteShift(id){
-  if (!isManager()) return;
-  if (!confirm("Remove this shift?")) return;
-  db.collection("rota").doc(id).delete().catch(function(err){ alert("Couldn't remove: " + err.message); });
-}
-
+function deleteShift(id){ if(!isManager()) return; if(!confirm("Remove this shift?")) return; db.collection("rota").doc(id).delete().catch(function(err){ alert("Couldn't remove: "+err.message); }); }
 function watchRota(){
-  rotaUnsub = db.collection("rota").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snapshot){
-    var shifts = [];
-    snapshot.forEach(function(doc){ var d = doc.data(); d.id = doc.id; shifts.push(d); });
-    renderRota(shifts);
-  }, function(err){
-    document.getElementById("rotaList").innerHTML = '<div class="empty">Couldn\u2019t load rota: ' + escapeHtml(err.message) + '</div>';
-  });
+  rotaUnsub=db.collection("rota").where("hotelKey","==",currentProfile.hotelKey).onSnapshot(function(snap){
+    var shifts=[]; snap.forEach(function(doc){ var d=doc.data(); d.id=doc.id; shifts.push(d); }); renderRota(shifts);
+  }, function(err){ document.getElementById("rotaList").innerHTML='<div class="empty">Couldn\u2019t load rota: '+escapeHtml(err.message)+'</div>'; });
 }
-
 function renderRota(shifts){
-  var list = document.getElementById("rotaList");
-  if (shifts.length === 0) { list.innerHTML = '<div class="empty">No shifts yet.</div>'; return; }
-  shifts.sort(function(a,b){
-    var dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
-    if (dayDiff !== 0) return dayDiff;
-    return String(a.start).localeCompare(String(b.start));
-  });
-  var manager = isManager();
-  var html = "";
-  var lastDay = "";
-  for (var i = 0; i < shifts.length; i++) {
-    var s = shifts[i];
-    if (s.day !== lastDay) { html += '<div class="day-header">' + escapeHtml(s.day) + '</div>'; lastDay = s.day; }
-    html += '<div class="shift-item">';
-    html += '<div><div class="s-name">' + escapeHtml(s.staff) + '</div>';
-    html += '<div class="s-time">' + escapeHtml(s.start) + ' \u2013 ' + escapeHtml(s.end) + '</div></div>';
-    if (manager) html += '<button class="shift-del" onclick="deleteShift(\'' + s.id + '\')">Remove</button>';
-    html += '</div>';
+  var list=document.getElementById("rotaList");
+  if(shifts.length===0){ list.innerHTML='<div class="empty">No shifts yet.</div>'; return; }
+  shifts.sort(function(a,b){ var dd=DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day); if(dd!==0) return dd; return String(a.start).localeCompare(String(b.start)); });
+  var manager=isManager(); var html=""; var lastDay="";
+  for(var i=0;i<shifts.length;i++){
+    var s=shifts[i];
+    if(s.day!==lastDay){ html+='<div class="day-header">'+escapeHtml(s.day)+'</div>'; lastDay=s.day; }
+    html+='<div class="shift-item"><div><div class="s-name">'+escapeHtml(s.staff)+'</div><div class="s-time">'+escapeHtml(s.start)+' \u2013 '+escapeHtml(s.end)+'</div></div>';
+    if(manager) html+='<button class="shift-del" onclick="deleteShift(\''+s.id+'\')">Remove</button>';
+    html+='</div>';
   }
-  list.innerHTML = html;
+  list.innerHTML=html;
 }
 
 
-/* ---------------- Dashboard ---------------- */
-function renderDashboard(){
-  var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-  // Cleans stats
-  var weekCleans = [];
-  for (var i = 0; i < latestCleans.length; i++) {
-    if (latestCleans[i].whenMs >= weekAgo) weekCleans.push(latestCleans[i]);
-  }
-  var deepCount = 0, photoCount = 0, byStaff = {}, byType = {};
-  for (var j = 0; j < weekCleans.length; j++) {
-    var c = weekCleans[j];
-    if (c.type === "Deep clean") deepCount++;
-    if (c.photo) photoCount++;
-    byStaff[c.by] = (byStaff[c.by] || 0) + 1;
-    byType[c.type] = (byType[c.type] || 0) + 1;
-  }
-  document.getElementById("statWeek").textContent = weekCleans.length;
-  document.getElementById("statDeep").textContent = deepCount;
-  document.getElementById("statPhotos").textContent = photoCount;
-
-  // Rooms stats
-  var roomCounts = { dirty: 0, progress: 0, clean: 0, inspected: 0 };
-  for (var k = 0; k < latestRooms.length; k++) {
-    var st = latestRooms[k].status || "dirty";
-    if (roomCounts[st] === undefined) roomCounts[st] = 0;
-    roomCounts[st]++;
-  }
-  document.getElementById("statRoomsClean").textContent = roomCounts.clean + roomCounts.inspected;
-  document.getElementById("statRoomsDirty").textContent = roomCounts.dirty;
-
-  // Audit stats (last 7 days average)
-  var weekAudits = [];
-  for (var m = 0; m < latestAudits.length; m++) {
-    if (latestAudits[m].whenMs >= weekAgo) weekAudits.push(latestAudits[m]);
-  }
-  if (weekAudits.length) {
-    var total = 0;
-    for (var n = 0; n < weekAudits.length; n++) total += (weekAudits[n].score || 0);
-    document.getElementById("statAuditAvg").textContent = Math.round(total / weekAudits.length) + "%";
-  } else {
-    document.getElementById("statAuditAvg").textContent = "\u2013";
-  }
-
-  // Room status breakdown
-  var statusEl = document.getElementById("roomStatusStats");
-  if (latestRooms.length === 0) {
-    statusEl.innerHTML = '<div class="empty">No rooms yet.</div>';
-  } else {
-    var order = ["dirty","progress","clean","inspected"];
-    var sh = "";
-    for (var o = 0; o < order.length; o++) {
-      var key = order[o];
-      var meta = ROOM_STATUSES[key];
-      sh += '<div class="bar-row"><span><span class="status-pill ' + meta.cls + '">' + meta.label + '</span></span>';
-      sh += '<span class="count">' + (roomCounts[key] || 0) + '</span></div>';
-    }
-    statusEl.innerHTML = sh;
-  }
-
-  renderBars("staffStats", byStaff);
-  renderBars("typeStats", byType);
-
-  // Recent audit results
-  var auditEl = document.getElementById("auditStats");
-  if (latestAudits.length === 0) {
-    auditEl.innerHTML = '<div class="empty">No audits yet.</div>';
-  } else {
-    var ah = "";
-    var recent = latestAudits.slice(0, 8);
-    for (var p = 0; p < recent.length; p++) {
-      var a = recent[p];
-      ah += '<div class="bar-row"><span>' + escapeHtml(a.room) + ' <span style="color:var(--mist);font-size:12px;">(' + escapeHtml(a.by) + ')</span></span>';
-      ah += '<span class="count">' + a.score + '%</span></div>';
-    }
-    auditEl.innerHTML = ah;
-  }
+/* ---------------- Reports ---------------- */
+function setRange(days){
+  reportRange=days;
+  ["range1","range7","range30"].forEach(function(id){ document.getElementById(id).className=""; });
+  document.getElementById("range"+days).className="active";
+  renderReports();
 }
-
-function renderBars(elementId, counts){
-  var el = document.getElementById(elementId);
-  var keys = Object.keys(counts);
-  if (keys.length === 0) { el.innerHTML = '<div class="empty">Nothing logged in the last 7 days.</div>'; return; }
-  keys.sort(function(a,b){ return counts[b] - counts[a]; });
-  var html = "";
-  for (var i = 0; i < keys.length; i++) {
-    html += '<div class="bar-row"><span>' + escapeHtml(keys[i]) + '</span>';
-    html += '<span class="count">' + counts[keys[i]] + '</span></div>';
+function renderReports(){
+  var since=Date.now()-reportRange*24*60*60*1000;
+  var cleans=latestCleans.filter(function(c){ return c.whenMs>=since; });
+  var audits=latestAudits.filter(function(a){ return a.whenMs>=since; });
+  var deep=0, byStaff={}, byRoom={}, byType={};
+  for(var i=0;i<cleans.length;i++){
+    var c=cleans[i];
+    if(c.type==="Deep clean") deep++;
+    byStaff[c.by]=(byStaff[c.by]||0)+1;
+    byRoom[c.room]=(byRoom[c.room]||0)+1;
+    byType[c.type]=(byType[c.type]||0)+1;
   }
-  el.innerHTML = html;
+  document.getElementById("repCleans").textContent=cleans.length;
+  document.getElementById("repDeep").textContent=deep;
+  if(audits.length){ var t=0; for(var a=0;a<audits.length;a++) t+=(audits[a].score||0); document.getElementById("repAudit").textContent=Math.round(t/audits.length)+"%"; }
+  else document.getElementById("repAudit").textContent="\u2013";
+  // rooms now
+  var rc={dirty:0,progress:0,clean:0,inspected:0}, deepRooms=0;
+  for(var r=0;r<latestRooms.length;r++){
+    var st=latestRooms[r].status||"dirty"; if(rc[st]===undefined) rc[st]=0; rc[st]++;
+    if(latestRooms[r].deepCleanedAt) deepRooms++;
+  }
+  document.getElementById("repRoomsReady").textContent=rc.clean+rc.inspected;
+  document.getElementById("repRoomsDirty").textContent=rc.dirty;
+  document.getElementById("repRoomsDeep").textContent=deepRooms;
+  // room status breakdown
+  var rsEl=document.getElementById("repRoomStatus");
+  if(latestRooms.length===0){ rsEl.innerHTML='<div class="empty">No rooms yet.</div>'; }
+  else { var order=["dirty","progress","clean","inspected"],sh="";
+    for(var o=0;o<order.length;o++){ var mt=ROOM_STATUSES[order[o]]; sh+='<div class="bar-row"><span><span class="status-pill '+mt.cls+'">'+mt.label+'</span></span><span class="count">'+(rc[order[o]]||0)+'</span></div>'; }
+    rsEl.innerHTML=sh; }
+  renderBars("repByStaff",byStaff);
+  renderBars("repByRoom",byRoom);
+  renderBars("repByType",byType);
+  // recent audits
+  var aEl=document.getElementById("repAudits");
+  if(audits.length===0){ aEl.innerHTML='<div class="empty">No audits in this range.</div>'; }
+  else { var ah="", rec=audits.slice(0,10);
+    for(var p=0;p<rec.length;p++){ ah+='<div class="bar-row"><span>'+escapeHtml(rec[p].room)+' <span style="color:var(--mist);font-size:12px;">('+escapeHtml(rec[p].by)+')</span></span><span class="count">'+rec[p].score+'%</span></div>'; }
+    aEl.innerHTML=ah; }
 }
-
-function escapeHtml(s){
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function renderBars(elId,counts){
+  var el=document.getElementById(elId); var keys=Object.keys(counts);
+  if(keys.length===0){ el.innerHTML='<div class="empty">No data in this range.</div>'; return; }
+  keys.sort(function(a,b){ return counts[b]-counts[a]; });
+  var html=""; for(var i=0;i<keys.length;i++){ html+='<div class="bar-row"><span>'+escapeHtml(keys[i])+'</span><span class="count">'+counts[keys[i]]+'</span></div>'; }
+  el.innerHTML=html;
 }
+function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 </script>
 </body>
 </html>
