@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allocation - Housekeeping Hub</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+.alloc-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.alloc-toolbar .grow { flex: 1; }
+.alloc-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.alloc-stat { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; min-width: 110px; }
+.alloc-stat .n { font-size: 22px; font-weight: 700; color: #1a2332; }
+.alloc-stat .l { font-size: 12px; color: #64748b; }
+.svc-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+.svc-checkout { background: #dc2626; }
+.svc-arrival { background: #2563eb; }
+.svc-refresh { background: #d97706; }
+.svc-available { background: #16a34a; }
+.svc-deep { background: #7c3aed; }
+.svc-blocked { background: #64748b; }
+.can-yes { color: #16a34a; font-weight: 600; }
+.can-no { color: #dc2626; font-weight: 600; }
+.alloc-table { width: 100%; border-collapse: collapse; }
+.alloc-table th { position: sticky; top: 0; background: #f8fafc; text-align: left; font-size: 12px; color: #64748b; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+.alloc-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+.alloc-table tr:hover td { background: #f8fafc; }
+.file-hidden { position: absolute; left: -9999px; }
+.alloc-help { font-size: 12px; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+.alloc-help code { background: #eef2ff; padding: 1px 5px; border-radius: 4px; }
+@media (max-width: 640px) { .alloc-table .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<div class="app"></div>
+<div id="toast-host"></div>
+<script src="js/firebase-config.js"></script>
+<script src="js/common.js"></script>
+<script>
+(function () {
+  var rooms = [];
+  var loaded = false;
+  var filterSvc = "all";
+
+  HK.requireAuth(["admin", "supervisor"], function (state) {
+    if (!state.hotelId) { HK.toast("No hotel selected.", "error"); return; }
+    render();
+    loadRooms();
+  });
+
+  function loadRooms() {
+    loaded = false;
+    HK.col("rooms").get().then(function (snap) {
+      rooms = [];
+      snap.forEach(function (doc) { var d = doc.data(); d._id = doc.id; rooms.push(d); });
+      rooms.sort(function (a, b) { return String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true }); });
+      loaded = true; render();
+    }).catch(function (e) { HK.toast("Could not load rooms: " + e.message, "error"); });
+  }
+
+  // Derive the service type a room needs today from its occupancy data.
+  function serviceFor(room) {
+    var today = HK.todayStr();
+    var arr = room.arrival || null;
+    var dep = room.departure || null;
+    var occ = room.occStatus || "vacant";
+    // Departure today -> checkout clean (full turnover after checkout).
+    if (dep && dep === today) { return { key: "checkout", label: "Checkout clean", canClean: true, note: "After guest checks out" }; }
+    // Occupied and staying beyond today -> stayover refresh, do not turn over.
+    if (occ === "occupied" && dep && dep > today) { return { key: "refresh", label: "Stayover refresh", canClean: true, note: "Occupied until " + dep }; }
+    // Vacant with an arrival today -> prep for arrival.
+    if (occ !== "occupied" && arr && arr === today) { return { key: "arrival", label: "Prep for arrival", canClean: true, note: "Arriving today" }; }
+    // Occupied but no departure info -> treat as occupied, refresh.
+    if (occ === "occupied") { return { key: "refresh", label: "Stayover refresh", canClean: true, note: "Occupied" }; }
+    // Vacant, no arrival -> available (optional deep clean).
+    return { key: "available", label: "Available", canClean: true, note: "Vacant" };
+  }
+
+  function statusChip(svc) {
+    var cls = "svc-" + (svc.key === "checkout" ? "checkout" : svc.key === "arrival" ? "arrival" : svc.key === "refresh" ? "refresh" : svc.key === "available" ? "available" : "blocked");
+    return "<span class=\"svc-badge " + cls + "\">" + HK.esc(svc.label) + "</span>";
+  }
+
+  function render() {
+    var app = document.querySelector(".app");
+    if (!app) { return; }
+    HK.mount("allocation");
+    var main = app.querySelector(".content") || app.querySelector("main") || app;
+    var host = document.createElement("div"); host.className = "card"; host.style.padding = "16px";
+
+    var bar = document.createElement("div"); bar.className = "alloc-toolbar";
+    var h = document.createElement("div"); h.style.fontSize = "20px"; h.style.fontWeight = "600"; h.textContent = "Room allocation - " + HK.todayStr();
+    var grow = document.createElement("div"); grow.className = "grow";
+    var importBtn = document.createElement("button"); importBtn.className = "btn btn-accent"; importBtn.textContent = "Import occupancy (CSV)";
+    var refreshBtn = document.createElement("button"); refreshBtn.className = "btn btn-secondary"; refreshBtn.textContent = "Refresh";
+    var fileInput = document.createElement("input"); fileInput.type = "file"; fileInput.accept = ".csv,text/csv"; fileInput.className = "file-hidden";
+    importBtn.onclick = function () { fileInput.click(); };
+    fileInput.addEventListener("change", function () { if (fileInput.files && fileInput.files[0]) { handleCsv(fileInput.files[0]); fileInput.value = ""; } });
+    refreshBtn.onclick = function () { loadRooms(); };
+    bar.appendChild(h); bar.appendChild(grow); bar.appendChild(refreshBtn); bar.appendChild(importBtn); bar.appendChild(fileInput);
+    host.appendChild(bar);
+
+    var help = document.createElement("div"); help.className = "alloc-help";
+    help.innerHTML = "CSV columns (header row required): <code>Room, Guest, Arrival, Departure, Status</code>. Dates as YYYY-MM-DD. Status is <code>occupied</code> or <code>vacant</code>. Rooms are matched by room number; unmatched rows are skipped.";
+    host.appendChild(help);
+
+    if (!loaded) {
+      var sk = document.createElement("div"); sk.className = "muted"; sk.textContent = "Loading rooms..."; host.appendChild(sk);
+      main.appendChild(host); return;
+    }
+
+    host.appendChild(buildStats());
+    host.appendChild(buildFilter());
+    host.appendChild(buildTable());
+    main.appendChild(host);
+  }
+
+  function buildStats() {
+    var counts = { checkout: 0, arrival: 0, refresh: 0, available: 0 };
+    for (var i = 0; i < rooms.length; i++) { var s = serviceFor(rooms[i]); if (counts[s.key] !== undefined) { counts[s.key]++; } }
+    var wrap = document.createElement("div"); wrap.className = "alloc-stats";
+    var defs = [["checkout", "Checkout cleans"], ["arrival", "Arrivals to prep"], ["refresh", "Stayover refresh"], ["available", "Available"]];
+    for (var j = 0; j < defs.length; j++) {
+      var box = document.createElement("div"); box.className = "alloc-stat";
+      var n = document.createElement("div"); n.className = "n"; n.textContent = String(counts[defs[j][0]]);
+      var l = document.createElement("div"); l.className = "l"; l.textContent = defs[j][1];
+      box.appendChild(n); box.appendChild(l); wrap.appendChild(box);
+    }
+    return wrap;
+  }
+
+  function buildFilter() {
+    var wrap = document.createElement("div"); wrap.style.marginBottom = "12px";
+    var sel = document.createElement("select"); sel.className = "input";
+    var opts = [["all", "All rooms"], ["checkout", "Checkout cleans"], ["arrival", "Arrivals"], ["refresh", "Stayovers"], ["available", "Available"]];
+    for (var i = 0; i < opts.length; i++) { var o = document.createElement("option"); o.value = opts[i][0]; o.textContent = opts[i][1]; if (opts[i][0] === filterSvc) { o.selected = true; } sel.appendChild(o); }
+    sel.onchange = function () { filterSvc = sel.value; render(); };
+    wrap.appendChild(sel);
+    return wrap;
+  }
+
+  function buildTable() {
+    var table = document.createElement("table"); table.className = "alloc-table";
+    table.innerHTML = "<thead><tr><th>Room</th><th class=\"hide-sm\">Floor</th><th>Service needed</th><th class=\"hide-sm\">Guest</th><th class=\"hide-sm\">Departure</th><th>Cleanable now</th><th>HK status</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    var shown = 0;
+    for (var i = 0; i < rooms.length; i++) {
+      var r = rooms[i];
+      var svc = serviceFor(r);
+      if (filterSvc !== "all" && svc.key !== filterSvc) { continue; }
+      shown++;
+      (function (room, service) {
+        var tr = document.createElement("tr");
+        var can = service.canClean;
+        var canTxt = can ? "Yes" : "No";
+        var canCls = can ? "can-yes" : "can-no";
+        tr.innerHTML =
+          "<td><a href=\"room.html?id=" + encodeURIComponent(room._id) + "\">" + HK.esc(String(room.roomNumber || "?")) + "</a></td>" +
+          "<td class=\"hide-sm\">" + HK.esc(String(room.floor || "-")) + "</td>" +
+          "<td>" + statusChip(service) + "<div class=\"muted\" style=\"font-size:11px;margin-top:2px\">" + HK.esc(service.note) + "</div></td>" +
+          "<td class=\"hide-sm\">" + HK.esc(room.guestName || "-") + "</td>" +
+          "<td class=\"hide-sm\">" + HK.esc(room.departure || "-") + "</td>" +
+          "<td class=\"" + canCls + "\">" + canTxt + "</td>" +
+          "<td>" + HK.esc(room.status || "-") + "</td>";
+        tbody.appendChild(tr);
+      })(r, svc);
+    }
+    if (shown === 0) {
+      var tr = document.createElement("tr"); tr.innerHTML = "<td colspan=\"7\" class=\"muted\" style=\"padding:24px;text-align:center\">No rooms match. Import occupancy or add rooms in Settings.</td>"; tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    return table;
+  }
+
+  // ---- CSV import ----
+  function parseCsv(text) {
+    var lines = text.split(/\r\n|\n|\r/);
+    var rowsOut = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line || !line.trim()) { continue; }
+      rowsOut.push(splitCsvLine(line));
+    }
+    return rowsOut;
+  }
+  function splitCsvLine(line) {
+    var out = []; var cur = ""; var inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line.charAt(i);
+      if (inQ) {
+        if (ch === "\"") { if (line.charAt(i + 1) === "\"") { cur += "\""; i++; } else { inQ = false; } }
+        else { cur += ch; }
+      } else {
+        if (ch === "\"") { inQ = true; }
+        else if (ch === ",") { out.push(cur); cur = ""; }
+        else { cur += ch; }
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+  function idx(header, names) {
+    for (var i = 0; i < header.length; i++) {
+      var h = String(header[i]).trim().toLowerCase();
+      for (var j = 0; j < names.length; j++) { if (h === names[j]) { return i; } }
+    }
+    return -1;
+  }
+  function handleCsv(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      try { applyRows(parseCsv(String(reader.result))); }
+      catch (e) { HK.toast("Could not read CSV: " + e.message, "error"); }
+    };
+    reader.onerror = function () { HK.toast("Could not read the file.", "error"); };
+    reader.readAsText(file);
+  }
+  function applyRows(matrix) {
+    if (!matrix.length) { HK.toast("The CSV was empty.", "error"); return; }
+    var header = matrix[0];
+    var iRoom = idx(header, ["room", "room number", "roomnumber", "no", "number"]);
+    var iGuest = idx(header, ["guest", "guest name", "name"]);
+    var iArr = idx(header, ["arrival", "arrive", "checkin", "check-in", "check in"]);
+    var iDep = idx(header, ["departure", "depart", "checkout", "check-out", "check out"]);
+    var iStatus = idx(header, ["status", "occupancy", "state"]);
+    if (iRoom === -1) { HK.toast("CSV needs a Room column.", "error"); return; }
+    var byNum = {};
+    for (var i = 0; i < rooms.length; i++) { byNum[String(rooms[i].roomNumber).trim()] = rooms[i]; }
+    var updates = []; var matched = 0; var skipped = 0;
+    for (var r = 1; r < matrix.length; r++) {
+      var row = matrix[r];
+      var num = String(row[iRoom] || "").trim();
+      if (!num) { continue; }
+      var room = byNum[num];
+      if (!room) { skipped++; continue; }
+      var arr = iArr !== -1 ? String(row[iArr] || "").trim().substring(0, 10) : "";
+      var dep = iDep !== -1 ? String(row[iDep] || "").trim().substring(0, 10) : "";
+      var st = iStatus !== -1 ? String(row[iStatus] || "").trim().toLowerCase() : "";
+      var occ = (st.indexOf("occ") !== -1 || st === "in" || st === "in-house" || st === "inhouse" || (!!arr && !dep)) ? "occupied" : (st.indexOf("vac") !== -1 ? "vacant" : (dep ? "occupied" : "vacant"));
+      var payload = { occStatus: occ, guestName: iGuest !== -1 ? String(row[iGuest] || "").trim() : "", arrival: arr, departure: dep, occUpdatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      updates.push({ id: room._id, data: payload });
+      matched++;
+    }
+    if (!matched) { HK.toast("No CSV rows matched your room numbers.", "error"); return; }
+    HK.confirm("Import occupancy", "Update " + matched + " room(s) from this file? " + (skipped ? (skipped + " row(s) had no matching room and will be skipped.") : ""), "Import").then(function (ok) {
+      if (!ok) { return; }
+      var batchJobs = [];
+      for (var i = 0; i < updates.length; i++) {
+        (function (u) { batchJobs.push(HK.col("rooms").doc(u.id).update(u.data).catch(function () { return false; })); })(updates[i]);
+      }
+      Promise.all(batchJobs).then(function () {
+        HK.toast("Occupancy updated for " + matched + " room(s).", "success");
+        if (HK.audit) { HK.audit("occupancy_import", matched + " rooms updated from CSV"); }
+        loadRooms();
+      }).catch(function (e) { HK.toast("Some updates failed: " + e.message, "error"); loadRooms(); });
+    });
+  }
+})();
+</script>
+</body>
+</html>
