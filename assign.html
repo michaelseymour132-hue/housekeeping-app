@@ -36,6 +36,14 @@
   <script>
   (function () {
     var rooms = [], users = [], picked = {}, assignmentsForDate = [];
+      function occupiedNoClean(r) {
+        var today = HK.todayStr();
+        var occ = (r.occStatus || "").toString().toLowerCase();
+        var inHouse = (occ === "inhouse" || occ === "in-house" || occ === "occupied" || occ === "stayover");
+        if (!inHouse) { return false; }
+        if (r.departure && r.departure === today) { return false; }
+        return true;
+      }
     HK.requireAuth(["admin", "supervisor"], function (state) {
       if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
       HK.mount("assign");
@@ -44,7 +52,7 @@
     });
     document.getElementById("date").onchange = function () { loadAssignmentsForDate(); };
     document.getElementById("copyYest").onclick = copyYesterday;
-    document.getElementById("selectAll").onclick = function () { rooms.forEach(function (r) { if (r.status === "dirty") { picked[r.id] = true; } }); renderGrid(); updateCount(); };
+    document.getElementById("selectAll").onclick = function () { rooms.forEach(function (r) { if (r.status === "dirty" && !occupiedNoClean(r)) { picked[r.id] = true; } }); renderGrid(); updateCount(); };
     document.getElementById("clearSel").onclick = function () { picked = {}; renderGrid(); updateCount(); };
     document.getElementById("assignBtn").onclick = doAssign;
     function loadUsers() {
@@ -77,7 +85,19 @@
       var assignedRoomIds = {}; assignmentsForDate.forEach(function (a) { assignedRoomIds[a.roomId] = a.assignedToName; });
       var grid = document.getElementById("grid"); grid.innerHTML = "";
       rooms.forEach(function (r) {
-        var t = document.createElement("div"); t.className = "room-tile sel-room st-" + r.status + (picked[r.id] ? " picked" : "");
+        var occ = occupiedNoClean(r);
+        var t = document.createElement("div");
+        if (occ) {
+          if (picked[r.id]) { delete picked[r.id]; }
+          t.className = "room-tile sel-room st-occupied occ-locked";
+          t.style.opacity = "0.55"; t.style.cursor = "not-allowed";
+          var until = r.departure ? (" until " + HK.esc(r.departure)) : "";
+          t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span><span class=\"tiny\">Occupied" + until + " - no clean</span>";
+          t.title = "Guest in-house" + until + " - room does not need cleaning";
+          t.onclick = function () { HK.toast("Room " + r.roomNumber + " is occupied" + until + " - no clean needed.", "info"); };
+          grid.appendChild(t); return;
+        }
+        t.className = "room-tile sel-room st-" + r.status + (picked[r.id] ? " picked" : "");
         var tag = assignedRoomIds[r.id] ? "<span class=\"tiny\">" + HK.esc(assignedRoomIds[r.id]) + "</span>" : "<span class=\"rt\">" + HK.esc(r.type) + "</span>";
         t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span>" + tag;
         t.onclick = function () { picked[r.id] = !picked[r.id]; if (!picked[r.id]) { delete picked[r.id]; } t.className = "room-tile sel-room st-" + r.status + (picked[r.id] ? " picked" : ""); updateCount(); };
@@ -87,6 +107,8 @@
     function updateCount() { document.getElementById("selCount").textContent = Object.keys(picked).length + " rooms selected"; }
     function doAssign() {
       var ids = Object.keys(picked); if (!ids.length) { HK.toast("Select at least one room.", "error"); return; }
+      ids = ids.filter(function (id) { var rr = rooms.filter(function (x) { return x.id === id; })[0]; return rr && !occupiedNoClean(rr); });
+      if (!ids.length) { HK.toast("Selected rooms are occupied - no clean needed.", "info"); return; }
       var hkUid = document.getElementById("hk").value; if (!hkUid) { HK.toast("Choose a staff member.", "error"); return; }
       var hkUser = users.filter(function (u) { return u.uid === hkUid; })[0]; var date = document.getElementById("date").value; var type = document.getElementById("type").value;
       var dupes = ids.filter(function (id) { return assignmentsForDate.some(function (a) { return a.roomId === id; }); });
