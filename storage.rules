@@ -1,0 +1,27 @@
+rules_version = "2";
+// Storage security rules for Housekeeping Hub.
+// DEPLOY: Firebase Console > Storage > Rules > paste all > Publish.
+// Authenticated org members only; images and PDFs; max 10MB.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() { return request.auth != null; }
+    function member(orgId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/orgs/$(orgId)/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/orgs/$(orgId)/users/$(request.auth.uid)).data.active == true;
+    }
+    function okUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches("image/.*")
+            || request.resource.contentType == "application/pdf");
+    }
+
+    // All app files live under orgs/{orgId}/...
+    match /orgs/{orgId}/{allPaths=**} {
+      allow read: if member(orgId);
+      allow write: if member(orgId) && okUpload();
+    }
+  }
+}
