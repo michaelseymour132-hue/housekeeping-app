@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seed demo data - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="main" style="max-width:640px;">
+    <div class="card" style="background:var(--amber-soft);border-color:var(--amber);"><strong>Developer tool.</strong> Populates your CURRENT hotel with demo rooms, staff profiles, and a week of activity so you can demo instantly. It refuses to run if the hotel already has rooms. The demo staff are Firestore profiles only - to sign in as them you must also create matching Auth users in Firebase Console.</div>
+    <h1 class="mt16">Seed demo data</h1>
+    <p class="muted" id="ctx">Checking...</p>
+    <button class="btn btn-accent btn-lg" id="seedBtn" disabled>Seed this hotel</button>
+    <div id="log" class="card mt16 small" style="white-space:pre-wrap;display:none;"></div>
+  </div>
+  <div id="toast-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var log = document.getElementById("log");
+    function say(m) { log.style.display = "block"; log.textContent += m + "\n"; }
+    HK.requireAuth(["admin"], function (state) {
+      if (!state.hotelId) { document.getElementById("ctx").textContent = "No hotel. Complete onboarding first."; return; }
+      HK.col("rooms").limit(1).get().then(function (snap) {
+        if (!snap.empty) { document.getElementById("ctx").textContent = "This hotel already has data. Seeding is disabled to protect it."; return; }
+        document.getElementById("ctx").textContent = "Hotel is empty and ready to seed.";
+        document.getElementById("seedBtn").disabled = false;
+      }).catch(function (err) { document.getElementById("ctx").textContent = "Could not check: " + err.message; });
+    });
+    document.getElementById("seedBtn").onclick = function () {
+      var btn = this; btn.disabled = true; btn.textContent = "Seeding...";
+      var daily = ["Strip and remake beds", "Clean bathroom", "Replenish towels", "Dust surfaces", "Vacuum / mop", "Empty bins", "Final check"];
+      var deep = ["Move furniture", "Wash windows", "Descale bathroom", "Turn mattress", "Skirting boards", "Shampoo carpet"];
+      HK.hotelRef().update({ "settings.dailyChecklist": daily, "settings.deepCleanChecklist": deep }).catch(function () {});
+      var demoUsers = [ { uid: "demo-sup-1", displayName: "Sam Rivera", email: "sam.demo@example.com", role: "supervisor" }, { uid: "demo-hk-1", displayName: "Alex Chen", email: "alex.demo@example.com", role: "housekeeper" }, { uid: "demo-hk-2", displayName: "Priya Patel", email: "priya.demo@example.com", role: "housekeeper" } ];
+      var types = ["single", "double", "twin", "suite", "family", "accessible"];
+      var statuses = ["clean", "dirty", "inprogress", "inspected"];
+      var b1 = db.batch();
+      demoUsers.forEach(function (u) { b1.set(HK.orgRef().collection("users").doc(u.uid), { uid: u.uid, displayName: u.displayName, email: u.email, role: u.role, hotelIds: [HK.state.hotelId], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastLoginAt: null }); });
+      var roomRefs = [];
+      var f, n;
+      for (f = 1; f <= 3; f++) { for (n = 1; n <= 10; n++) { var num = String(f) + ("0" + n).slice(-2); var ref = HK.col("rooms").doc(); roomRefs.push({ ref: ref, num: num, floor: f }); var st = statuses[(f + n) % statuses.length]; var due = HK.addDays(new Date(), ((f + n) % 5) * 20 - 20); b1.set(ref, { roomNumber: num, floor: f, type: types[(f + n) % types.length], status: st, occupancy: ["vacant", "occupied", "checkout", "stayover"][(n) % 4], bedConfig: "", notes: "", quirks: "", lastCleanedAt: null, lastDeepCleanAt: null, nextDeepCleanDue: firebase.firestore.Timestamp.fromDate(due), photoUrls: [], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }); } }
+      say("Writing " + roomRefs.length + " rooms and " + demoUsers.length + " staff...");
+      b1.commit().then(function () {
+        say("Rooms and staff created.");
+        var b2 = db.batch(); var hks = ["demo-hk-1", "demo-hk-2"]; var hkNames = { "demo-hk-1": "Alex Chen", "demo-hk-2": "Priya Patel" }; var count = 0;
+        var d;
+        for (d = 6; d >= 0; d--) { var date = HK.dateStr(HK.addDays(new Date(), -d)); roomRefs.forEach(function (r, idx) { if (idx % 2 !== (d % 2)) { return; } var uid = hks[idx % 2]; var status = d === 0 ? (idx % 3 === 0 ? "pending" : "complete") : "complete"; var mins = 20 + (idx % 25); var a = HK.col("assignments").doc(); count++; b2.set(a, { date: date, roomId: r.ref.id, roomNumber: r.num, assignedToUid: uid, assignedToName: hkNames[uid], type: "daily", status: status, startedAt: null, completedAt: status === "complete" ? firebase.firestore.Timestamp.fromDate(HK.addDays(new Date(), -d)) : null, durationMinutes: status === "complete" ? mins : null, checklist: daily.map(function (i) { return { item: i, done: status === "complete" }; }), createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() }); }); }
+        say("Writing " + count + " assignments across 7 days...");
+        return b2.commit();
+      }).then(function () {
+        say("Assignments created.");
+        var b3 = db.batch();
+        b3.set(HK.col("roomnotes").doc(), { roomId: roomRefs[3].ref.id, roomNumber: roomRefs[3].num, text: "Dripping tap in bathroom", category: "damage", isMaintenanceIssue: true, maintenanceStatus: "open", photoUrls: [], createdByUid: "demo-hk-1", createdByName: "Alex Chen", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        b3.set(HK.col("roomnotes").doc(), { roomId: roomRefs[7].ref.id, roomNumber: roomRefs[7].num, text: "Guest left phone charger", category: "lostproperty", isMaintenanceIssue: false, photoUrls: [], createdByUid: "demo-hk-2", createdByName: "Priya Patel", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        b3.set(HK.col("roomnotes").doc(), { roomId: roomRefs[12].ref.id, roomNumber: roomRefs[12].num, text: "TV remote not working", category: "damage", isMaintenanceIssue: true, maintenanceStatus: "inprogress", photoUrls: [], createdByUid: "demo-hk-1", createdByName: "Alex Chen", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        say("Writing notes and maintenance issues...");
+        return b3.commit();
+      }).then(function () {
+        say("Done! Demo data is ready.");
+        HK.audit("seed.run", "Demo data seeded");
+        HK.toast("Demo data seeded. Open the dashboard.", "success");
+        btn.textContent = "Seeded"; setTimeout(function () { window.location.href = "dashboard.html"; }, 1500);
+      }).catch(function (err) { btn.disabled = false; btn.textContent = "Seed this hotel"; say("ERROR: " + err.message); HK.toast("Seeding failed: " + err.message, "error"); });
+    };
+  })();
+  </script>
+</body>
+</html>
