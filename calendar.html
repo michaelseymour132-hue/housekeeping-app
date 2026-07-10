@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar - Housekeeping Hub</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+.cal-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.cal-toolbar .cal-title { font-size: 20px; font-weight: 600; min-width: 200px; }
+.cal-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; font-size: 12px; color: var(--muted, #64748b); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.cal-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.cal-dot.assign { background: #2563eb; }
+.cal-dot.deep { background: #7c3aed; }
+.cal-dot.maint { background: #d97706; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e2e8f0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.cal-dow { background: #f8fafc; padding: 8px 6px; font-size: 12px; font-weight: 600; color: #64748b; text-align: center; }
+.cal-cell { background: #fff; min-height: 104px; padding: 6px; position: relative; vertical-align: top; }
+.cal-cell.other { background: #f8fafc; color: #cbd5e1; }
+.cal-cell.today { background: #f0fdfa; }
+.cal-cell.today .cal-daynum { background: #0d9488; color: #fff; border-radius: 999px; padding: 1px 7px; }
+.cal-daynum { font-size: 12px; font-weight: 600; color: #334155; }
+.cal-event { display: block; width: 100%; text-align: left; border: 0; margin-top: 4px; padding: 3px 6px; border-radius: 4px; font-size: 11px; line-height: 1.25; color: #fff; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-event.assign { background: #2563eb; }
+.cal-event.deep { background: #7c3aed; }
+.cal-event.maint { background: #d97706; }
+.cal-more { display: block; margin-top: 4px; font-size: 11px; color: #0d9488; background: none; border: 0; cursor: pointer; padding: 2px; }
+.cal-week .cal-cell { min-height: 320px; }
+@media (max-width: 640px) {
+  .cal-cell { min-height: 72px; padding: 3px; }
+  .cal-event { font-size: 10px; padding: 2px 4px; }
+  .cal-dow { font-size: 10px; padding: 6px 2px; }
+}
+</style>
+</head>
+<body>
+<div class="app"></div>
+<div id="toast-host"></div>
+<script src="js/firebase-config.js"></script>
+<script src="js/common.js"></script>
+<script>
+(function () {
+  var VIEW = "month";
+  var cursor = new Date();
+  var events = [];
+  var loaded = false;
+
+  HK.requireAuth(["admin", "supervisor"], function (state) {
+    if (!state.hotelId) { HK.toast("No hotel selected.", "error"); return; }
+    render();
+    loadEvents();
+  });
+
+  function monthName(d) {
+    var names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return names[d.getMonth()] + " " + d.getFullYear();
+  }
+
+  function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function startOfWeek(d) { var x = new Date(d.getTime()); var day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x; }
+
+  function toDateStr(val) {
+    if (!val) { return null; }
+    if (typeof val === "string") { return val.substring(0, 10); }
+    if (val.toDate) { return HK.dateStr(val.toDate()); }
+    if (val instanceof Date) { return HK.dateStr(val); }
+    return null;
+  }
+
+  function loadEvents() {
+    events = [];
+    loaded = false;
+    var jobs = [];
+    jobs.push(HK.col("assignments").get().then(function (snap) {
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var ds = toDateStr(d.date);
+        if (!ds) { return; }
+        events.push({ type: "assign", date: ds, roomId: d.roomId || null,
+          label: "Room " + (d.roomNumber || "?") + (d.type ? " - " + d.type : ""),
+          status: d.status || "" });
+      });
+    }).catch(function () {}));
+    jobs.push(HK.col("deepcleans").get().then(function (snap) {
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var ds = toDateStr(d.scheduled);
+        if (!ds) { return; }
+        events.push({ type: "deep", date: ds, roomId: d.roomId || null,
+          label: "Deep clean - Room " + (d.roomNumber || "?"),
+          status: d.status || "" });
+      });
+    }).catch(function () {}));
+    jobs.push(HK.col("maintenance").get().then(function (snap) {
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var ds = toDateStr(d.dueDate || d.date || d.createdAt);
+        if (!ds) { return; }
+        events.push({ type: "maint", date: ds, roomId: d.roomId || null,
+          label: "Maintenance - Room " + (d.roomNumber || "?"),
+          status: d.status || "" });
+      });
+    }).catch(function () {}));
+    Promise.all(jobs).then(function () { loaded = true; render(); }).catch(function () { loaded = true; render(); });
+  }
+
+  function eventsFor(ds) {
+    var out = [];
+    for (var i = 0; i < events.length; i++) { if (events[i].date === ds) { out.push(events[i]); } }
+    return out;
+  }
+
+  function openDay(ds) {
+    var list = eventsFor(ds);
+    var msg = list.length ? (list.length + " item(s) on " + ds) : ("Nothing scheduled on " + ds);
+    HK.toast(msg, "info");
+  }
+
+  function goRoom(roomId) {
+    if (roomId) { window.location.href = "room.html?id=" + encodeURIComponent(roomId); }
+  }
+
+  function render() {
+    var app = document.querySelector(".app");
+    if (!app) { return; }
+    HK.mount("calendar");
+    var main = app.querySelector(".content") || app.querySelector("main") || app;
+    var host = document.createElement("div");
+    host.className = "card";
+    host.style.padding = "16px";
+
+    var bar = document.createElement("div");
+    bar.className = "cal-toolbar";
+    var prev = document.createElement("button"); prev.className = "btn btn-secondary"; prev.textContent = "<";
+    var next = document.createElement("button"); next.className = "btn btn-secondary"; next.textContent = ">";
+    var today = document.createElement("button"); today.className = "btn btn-secondary"; today.textContent = "Today";
+    var title = document.createElement("div"); title.className = "cal-title";
+    var spacer = document.createElement("div"); spacer.style.flex = "1";
+    var monthBtn = document.createElement("button"); monthBtn.className = "btn " + (VIEW === "month" ? "btn-accent" : "btn-secondary"); monthBtn.textContent = "Month";
+    var weekBtn = document.createElement("button"); weekBtn.className = "btn " + (VIEW === "week" ? "btn-accent" : "btn-secondary"); weekBtn.textContent = "Week";
+    if (VIEW === "month") { title.textContent = monthName(cursor); }
+    else { var sw = startOfWeek(cursor); var ew = new Date(sw.getTime()); ew.setDate(ew.getDate() + 6); title.textContent = HK.dateStr(sw) + " to " + HK.dateStr(ew); }
+    prev.onclick = function () { if (VIEW === "month") { cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); } else { cursor = new Date(cursor.getTime()); cursor.setDate(cursor.getDate() - 7); } render(); };
+    next.onclick = function () { if (VIEW === "month") { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); } else { cursor = new Date(cursor.getTime()); cursor.setDate(cursor.getDate() + 7); } render(); };
+    today.onclick = function () { cursor = new Date(); render(); };
+    monthBtn.onclick = function () { VIEW = "month"; render(); };
+    weekBtn.onclick = function () { VIEW = "week"; render(); };
+    bar.appendChild(prev); bar.appendChild(next); bar.appendChild(today); bar.appendChild(title); bar.appendChild(spacer); bar.appendChild(monthBtn); bar.appendChild(weekBtn);
+    host.appendChild(bar);
+
+    var legend = document.createElement("div"); legend.className = "cal-legend";
+    legend.innerHTML = "<span><i class=\"cal-dot assign\"></i>Assignments</span><span><i class=\"cal-dot deep\"></i>Deep cleans</span><span><i class=\"cal-dot maint\"></i>Maintenance</span>";
+    host.appendChild(legend);
+
+    if (!loaded) {
+      var sk = document.createElement("div"); sk.className = "muted"; sk.textContent = "Loading calendar...";
+      host.appendChild(sk);
+    } else {
+      host.appendChild(buildGrid());
+    }
+    main.appendChild(host);
+  }
+
+  function buildGrid() {
+    var wrap = document.createElement("div");
+    wrap.className = "cal-grid" + (VIEW === "week" ? " cal-week" : "");
+    var dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    var i;
+    for (i = 0; i < 7; i++) { var h = document.createElement("div"); h.className = "cal-dow"; h.textContent = dow[i]; wrap.appendChild(h); }
+    var days = [];
+    if (VIEW === "month") {
+      var first = startOfMonth(cursor);
+      var gridStart = startOfWeek(first);
+      for (i = 0; i < 42; i++) { var dd = new Date(gridStart.getTime()); dd.setDate(dd.getDate() + i); days.push(dd); }
+    } else {
+      var ws = startOfWeek(cursor);
+      for (i = 0; i < 7; i++) { var dw = new Date(ws.getTime()); dw.setDate(dw.getDate() + i); days.push(dw); }
+    }
+    var todayStr = HK.todayStr();
+    for (i = 0; i < days.length; i++) {
+      (function (day) {
+        var ds = HK.dateStr(day);
+        var cell = document.createElement("div");
+        var isOther = (VIEW === "month" && day.getMonth() !== cursor.getMonth());
+        cell.className = "cal-cell" + (isOther ? " other" : "") + (ds === todayStr ? " today" : "");
+        var num = document.createElement("div"); num.className = "cal-daynum"; num.textContent = String(day.getDate());
+        cell.appendChild(num);
+        var list = eventsFor(ds);
+        var cap = (VIEW === "week") ? list.length : Math.min(list.length, 3);
+        var j;
+        for (j = 0; j < cap; j++) {
+          (function (ev) {
+            var b = document.createElement("button");
+            b.className = "cal-event " + ev.type;
+            b.textContent = ev.label;
+            b.title = ev.label + (ev.status ? " (" + ev.status + ")" : "");
+            b.onclick = function () { goRoom(ev.roomId); };
+            cell.appendChild(b);
+          })(list[j]);
+        }
+        if (VIEW === "month" && list.length > 3) {
+          var more = document.createElement("button"); more.className = "cal-more"; more.textContent = "+" + (list.length - 3) + " more";
+          more.onclick = function () { openDay(ds); };
+          cell.appendChild(more);
+        }
+        cell.addEventListener("dblclick", function () { openDay(ds); });
+        wrap.appendChild(cell);
+      })(days[i]);
+    }
+    return wrap;
+  }
+})();
+</script>
+</body>
+</html>
