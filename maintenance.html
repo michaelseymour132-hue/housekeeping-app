@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maintenance - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+  <style> .tabs-nav{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto} .tabs-nav button{min-height:40px;background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-weight:600;color:var(--slate);cursor:pointer;white-space:nowrap} .tabs-nav button.active{color:var(--accent-dark);border-bottom-color:var(--accent)} .gallery img{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin:4px} </style>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Maintenance</h1></div></div>
+      <div class="tabs-nav"><button data-t="open" class="active">Open</button><button data-t="inprogress">In progress</button><button data-t="resolved">Resolved</button></div>
+      <div id="pane">Loading...</div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var issues = [], cur = "open";
+    HK.requireAuth(["admin", "supervisor"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      HK.mount("maintenance"); load();
+    });
+    var btns = document.querySelectorAll(".tabs-nav button");
+    for (var i = 0; i < btns.length; i++) { btns[i].onclick = (function (b) { return function () { cur = b.getAttribute("data-t"); setActive(); render(); }; })(btns[i]); }
+    function setActive() { var bs = document.querySelectorAll(".tabs-nav button"); for (var j = 0; j < bs.length; j++) { bs[j].className = (bs[j].getAttribute("data-t") === cur) ? "active" : ""; } }
+    function load() {
+      HK.col("roomnotes").where("isMaintenanceIssue", "==", true).get().then(function (snap) {
+        issues = []; snap.forEach(function (d) { var n = d.data(); n.id = d.id; issues.push(n); }); render();
+      }).catch(function (err) { document.getElementById("pane").innerHTML = "<p class=\"muted\">Could not load: " + HK.esc(err.message) + "</p>"; });
+    }
+    function ageDays(n) { if (!n.createdAt || !n.createdAt.toDate) { return 0; } return HK.daysBetween(n.createdAt.toDate(), new Date()); }
+    function render() {
+      var list = issues.filter(function (n) { return (n.maintenanceStatus || "open") === cur; });
+      list.sort(function (a, b) { return ageDays(b) - ageDays(a); });
+      var pane = document.getElementById("pane"); pane.innerHTML = "";
+      var card = document.createElement("div"); card.className = "card"; card.innerHTML = "<div class=\"card-title\">" + cur + " issues (" + list.length + ")</div>";
+      if (!list.length) { card.innerHTML += "<div class=\"empty\"><div class=\"empty-icon\">\u2692</div><div>No " + cur + " issues.</div></div>"; pane.appendChild(card); return; }
+      list.forEach(function (n) {
+        var row = document.createElement("div"); row.style.borderBottom = "1px solid var(--border)"; row.style.padding = "12px 0";
+        var stB = { open:"badge-red", inprogress:"badge-amber", resolved:"badge-green" }[n.maintenanceStatus || "open"];
+        row.innerHTML = "<div class=\"row\"><strong class=\"grow\">Room " + HK.esc(n.roomNumber) + "</strong><span class=\"badge " + stB + "\">" + HK.esc(n.maintenanceStatus || "open") + "</span></div>";
+        row.innerHTML += "<p class=\"small\">" + HK.esc(n.text) + "</p><p class=\"tiny muted\">" + HK.esc(n.category) + " - reported by " + HK.esc(n.createdByName) + " - " + ageDays(n) + " days ago</p>";
+        var acts = document.createElement("div"); acts.className = "row wrap mt8";
+        if ((n.maintenanceStatus || "open") === "open") { acts.appendChild(mkBtn("Start work", "btn-secondary", function () { setStatus(n, "inprogress"); })); }
+        if ((n.maintenanceStatus || "open") !== "resolved") { acts.appendChild(mkBtn("Mark resolved", "btn-accent", function () { setStatus(n, "resolved"); })); }
+        row.appendChild(acts); card.appendChild(row);
+      });
+      pane.appendChild(card);
+    }
+    function mkBtn(label, cls, fn) { var b = document.createElement("button"); b.className = "btn btn-sm " + cls; b.textContent = label; b.onclick = fn; return b; }
+    function setStatus(n, status) {
+      var upd = { maintenanceStatus: status }; if (status === "resolved") { upd.resolvedAt = firebase.firestore.FieldValue.serverTimestamp(); upd.resolvedByUid = HK.state.user.uid; }
+      HK.col("roomnotes").doc(n.id).update(upd).then(function () {
+        HK.history(n.roomId, n.roomNumber, "maintenance", "Maintenance " + status + ": " + (n.text || "").slice(0, 40), n.id);
+        HK.audit("maintenance.statuschange", "Room " + n.roomNumber + " -> " + status);
+        HK.toast("Marked " + status + ".", "success"); n.maintenanceStatus = status; render();
+      }).catch(function (err) { HK.toast("Update failed: " + err.message, "error"); });
+    }
+  })();
+  </script>
+</body>
+</html>
