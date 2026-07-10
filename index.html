@@ -146,7 +146,7 @@ button:disabled { opacity: 0.6; }
     <button id="tabAudits" onclick="switchTab('audits')">Audits</button>
     <button id="tabRota" onclick="switchTab('rota')">Rota</button>
     <button id="tabReports" style="display:none;" onclick="switchTab('reports')">Reports</button>
-    <button id="tabSettings" style="display:none;" onclick="switchTab('settings')">Settings</button>
+    <button id="tabSettings" style="display:none;" onclick="switchTab('settings')">Setup</button>
   </div>
 
   <!-- Rooms tab -->
@@ -241,12 +241,29 @@ button:disabled { opacity: 0.6; }
 
   <!-- Settings tab (manager only) -->
   <div class="content" id="settingsTab" style="display:none;">
+    <div class="card" id="setupBanner" style="display:none;border-color:var(--warn);background:#fdf7ec;">
+      <h3 style="color:var(--warn);">Welcome &mdash; let's set up your property</h3>
+      <div id="setupSteps"></div>
+    </div>
     <div class="card">
-      <h3>Hotel</h3>
-      <label for="setHotelName">Hotel name</label>
-      <input type="text" id="setHotelName" placeholder="Hotel name">
-      <button id="setHotelBtn" onclick="saveHotelName()">Save hotel name</button>
-      <p class="hint" style="margin-bottom:0;">This changes the display name shown at the top of the app for everyone at this hotel.</p>
+      <h3>Property details</h3>
+      <label for="setHotelName">Property name</label>
+      <input type="text" id="setHotelName" placeholder="e.g. The Grand, Blackpool">
+      <label for="setPropType">Property type</label>
+      <select id="setPropType">
+        <option value="Hotel">Hotel</option>
+        <option value="B&amp;B / Guest house">B&amp;B / Guest house</option>
+        <option value="Serviced apartments">Serviced apartments</option>
+        <option value="Holiday lets">Holiday lets</option>
+        <option value="Hostel">Hostel</option>
+        <option value="Other">Other</option>
+      </select>
+      <div class="rota-grid">
+        <div><label for="setFloors">Floors</label><input type="number" id="setFloors" min="0" placeholder="e.g. 4"></div>
+        <div><label for="setContact">Contact / phone</label><input type="text" id="setContact" placeholder="Optional"></div>
+      </div>
+      <button id="setHotelBtn" onclick="saveHotelName()">Save property details</button>
+      <p class="hint" style="margin-bottom:0;">The property name shows at the top of the app for everyone at this property.</p>
     </div>
     <div class="card">
       <h3>Rooms</h3>
@@ -313,7 +330,7 @@ var DEFAULT_CLEAN_TASKS = ["Beds made & linen fresh","Bathroom cleaned & sanitis
 var DEFAULT_DEEP_TASKS = ["Move & clean under furniture","Wash curtains / blinds","Descale kettle & bathroom","Clean inside wardrobes & drawers","Mattress turned & checked","Deep clean carpets / upholstery","Skirting boards & vents"];
 var DEFAULT_AUDIT_ITEMS = ["Beds made & linen fresh","Bathroom cleaned & sanitised","Floors vacuumed / mopped","Surfaces dusted","Bins emptied","Amenities restocked","Windows & mirrors clean","No maintenance issues"];
 // live config (falls back to defaults until settings doc loads)
-var config = { cleanTasks: DEFAULT_CLEAN_TASKS.slice(), deepTasks: DEFAULT_DEEP_TASKS.slice(), auditItems: DEFAULT_AUDIT_ITEMS.slice() };
+var config = { cleanTasks: DEFAULT_CLEAN_TASKS.slice(), deepTasks: DEFAULT_DEEP_TASKS.slice(), auditItems: DEFAULT_AUDIT_ITEMS.slice(), propType:"", floors:"", contact:"", setupComplete:false };
 var ROOM_STATUSES = { dirty:{label:"Dirty",cls:"status-dirty"}, progress:{label:"Cleaning",cls:"status-progress"}, clean:{label:"Clean",cls:"status-clean"}, inspected:{label:"Inspected",cls:"status-inspected"} };
 
 /* ---------------- Screen / tabs ---------------- */
@@ -388,7 +405,7 @@ function stopWatchers(){
 }
 auth.onAuthStateChanged(function(user){
   stopWatchers();
-  if(!user){ currentProfile=null; latestRooms=[]; latestCleans=[]; latestAudits=[]; showSignIn(); show("login"); return; }
+  if(!user){ currentProfile=null; latestRooms=[]; latestCleans=[]; latestAudits=[]; window.__setupChecked=false; showSignIn(); show("login"); return; }
   show("loading");
   db.collection("users").doc(user.uid).get().then(function(doc){
     if(!doc.exists){ return new Promise(function(resolve){ setTimeout(function(){ db.collection("users").doc(user.uid).get().then(resolve); },1200); }); }
@@ -413,6 +430,9 @@ function watchSettings(){
     config.cleanTasks=(d.cleanTasks&&d.cleanTasks.length)?d.cleanTasks:DEFAULT_CLEAN_TASKS.slice();
     config.deepTasks=(d.deepTasks&&d.deepTasks.length)?d.deepTasks:DEFAULT_DEEP_TASKS.slice();
     config.auditItems=(d.auditItems&&d.auditItems.length)?d.auditItems:DEFAULT_AUDIT_ITEMS.slice();
+    config.propType=d.propType||""; config.floors=(d.floors!==undefined&&d.floors!==null)?d.floors:""; config.contact=d.contact||"";
+    config.setupComplete=!!d.setupComplete;
+    if(!window.__setupChecked){ window.__setupChecked=true; if(isManager() && !config.setupComplete){ switchTab("settings"); } }
     if(d.hotelName){ currentProfile.hotel=d.hotelName; document.getElementById("hotelTitle").textContent=d.hotelName; }
     renderRooms(latestRooms);
     if(document.getElementById("settingsTab").style.display==="block") renderSettings();
@@ -425,10 +445,14 @@ function saveConfig(patch){
 function saveHotelName(){
   if(!isManager()) return;
   var name=document.getElementById("setHotelName").value.trim();
-  if(!name){ alert("Enter a hotel name."); return; }
+  if(!name){ alert("Enter a property name."); return; }
+  var floorsVal=document.getElementById("setFloors").value;
+  var patch={ hotelName:name, propType:document.getElementById("setPropType").value,
+    floors: floorsVal===""?null:Number(floorsVal), contact:document.getElementById("setContact").value.trim() };
   var btn=document.getElementById("setHotelBtn"); btn.disabled=true; btn.textContent="Saving\u2026";
-  saveConfig({ hotelName:name }).finally(function(){ btn.disabled=false; btn.textContent="Save hotel name"; });
+  saveConfig(patch).finally(function(){ btn.disabled=false; btn.textContent="Save property details"; });
 }
+function markSetupComplete(){ if(!isManager()) return; saveConfig({ setupComplete:true }); }
 function addTemplateTask(kind){
   if(!isManager()) return;
   var map={clean:{id:"setNewCleanTask",key:"cleanTasks"},deep:{id:"setNewDeepTask",key:"deepTasks"},audit:{id:"setNewAuditItem",key:"auditItems"}};
@@ -444,6 +468,10 @@ function removeTemplateTask(key,index){
 }
 function renderSettings(){
   document.getElementById("setHotelName").value=currentProfile.hotel||"";
+  if(config.propType) document.getElementById("setPropType").value=config.propType;
+  document.getElementById("setFloors").value=(config.floors===0||config.floors)?config.floors:"";
+  document.getElementById("setContact").value=config.contact||"";
+  renderSetupBanner();
   // rooms
   var rl=document.getElementById("setRoomsList");
   if(latestRooms.length===0){ rl.innerHTML='<div class="empty">No rooms yet.</div>'; }
@@ -457,6 +485,24 @@ function renderSettings(){
   renderTemplateList("setCleanTasks","cleanTasks");
   renderTemplateList("setDeepTasks","deepTasks");
   renderTemplateList("setAuditItems","auditItems");
+}
+function renderSetupBanner(){
+  var banner=document.getElementById("setupBanner");
+  if(config.setupComplete){ banner.style.display="none"; return; }
+  var haveName=!!(currentProfile.hotel && currentProfile.hotel.trim());
+  var haveRooms=latestRooms.length>0;
+  var steps=[
+    { done:haveName, label:"Name your property (above)" },
+    { done:haveRooms, label:"Add your rooms" },
+    { done:true, label:"Review the cleaning, deep clean & audit checklists below" }
+  ];
+  var h="<p class=\"hint\" style=\"margin:0 0 10px;\">Complete these steps so the app matches your property. Staff only see the Rooms, Cleans, Audits and Rota tabs.</p>";
+  for(var i=0;i<steps.length;i++){
+    h+='<div class="editable-item" style="border:none;padding:4px 0;"><span>'+(steps[i].done?"\u2705 ":"\u2b1c ")+escapeHtml(steps[i].label)+"</span></div>";
+  }
+  h+='<div class="btn-row"><button class="btn-sec" onclick="markSetupComplete()">Hide this &mdash; setup done</button></div>';
+  document.getElementById("setupSteps").innerHTML=h;
+  banner.style.display="block";
 }
 function renderTemplateList(elId,key){
   var el=document.getElementById(elId); var list=config[key];
