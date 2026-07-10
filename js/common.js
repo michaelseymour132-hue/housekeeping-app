@@ -166,6 +166,7 @@ HK.navItems = function (role) {
     { key: "assign", label: "Assign", href: "assign.html", ic: "list", roles: ["admin", "supervisor"] },
     { key: "inspect", label: "Inspect", href: "inspect.html", ic: "eye", roles: ["admin", "supervisor"] },
     { key: "deepcleans", label: "Deep Cleans", href: "deepcleans.html", ic: "star", roles: ["admin", "supervisor"] },
+    { key: "calendar", label: "Calendar", href: "calendar.html", ic: "cal", roles: ["admin", "supervisor"] },
     { key: "maintenance", label: "Maintenance", href: "maintenance.html", ic: "wrench", roles: ["admin", "supervisor"] },
     { key: "documents", label: "Documents", href: "documents.html", ic: "doc", roles: ["admin", "supervisor", "housekeeper"] },
     { key: "reports", label: "Reports", href: "reports.html", ic: "chart", roles: ["admin", "supervisor"] },
@@ -175,7 +176,7 @@ HK.navItems = function (role) {
 };
 
 HK.icon = function (name) {
-  var m = { grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
+  var m = { cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
   return m[name] || "\u2022";
 };
 
