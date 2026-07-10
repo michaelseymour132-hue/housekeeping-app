@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+  <style>
+    .tabs-nav { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:16px; overflow-x:auto; }
+    .tabs-nav button { min-height:40px; background:none; border:none; border-bottom:2px solid transparent; padding:8px 14px; font-weight:600; color:var(--slate); cursor:pointer; white-space:nowrap; }
+    .tabs-nav button.active { color:var(--accent-dark); border-bottom-color:var(--accent); }
+    .gallery { display:flex; gap:8px; flex-wrap:wrap; } .gallery img { width:96px; height:96px; object-fit:cover; border-radius:6px; border:1px solid var(--border); }
+    .photo-input { position:absolute; left:-9999px; }
+    .timeline-item { border-left:2px solid var(--border); padding:0 0 16px 16px; position:relative; }
+    .timeline-item:before { content:""; position:absolute; left:-5px; top:4px; width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb"><a href="dashboard.html">Dashboard</a> / Room</div><h1 id="rTitle">Room</h1><p class="muted small" id="rSub"></p></div><span id="ddBadge"></span></div>
+      <div class="tabs-nav">
+        <button data-t="overview" class="active">Overview</button>
+        <button data-t="history">History</button>
+        <button data-t="documents">Documents</button>
+        <button data-t="maintenance">Maintenance</button>
+      </div>
+      <div id="pane-overview"></div>
+      <div id="pane-history" class="hidden"></div>
+      <div id="pane-documents" class="hidden"></div>
+      <div id="pane-maintenance" class="hidden"></div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <div id="modal-host"></div>
+  <input type="file" accept="image/*" capture="environment" id="photoInput" class="photo-input">
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var roomId = HK.qs("id"), room = null, role = null, canEdit = false;
+    var histDocs = [], histLast = null;
+    HK.requireAuth(["admin", "supervisor", "housekeeper"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      role = state.profile.role; canEdit = (role === "admin" || role === "supervisor");
+      HK.mount("dashboard");
+      if (!roomId) { HK.toast("No room specified.", "error"); return; }
+      loadRoom();
+    });
+    var btns = document.querySelectorAll(".tabs-nav button");
+    for (var i = 0; i < btns.length; i++) { btns[i].onclick = (function (b) { return function () { switchTab(b.getAttribute("data-t")); }; })(btns[i]); }
+    function switchTab(t) {
+      ["overview", "history", "documents", "maintenance"].forEach(function (k) { document.getElementById("pane-" + k).className = (k === t) ? "" : "hidden"; });
+      var bs = document.querySelectorAll(".tabs-nav button"); for (var j = 0; j < bs.length; j++) { bs[j].className = (bs[j].getAttribute("data-t") === t) ? "active" : ""; }
+      if (t === "history") { loadHistory(true); } if (t === "documents") { loadDocs(); } if (t === "maintenance") { loadMaint(); }
+    }
+    function loadRoom() {
+      HK.col("rooms").doc(roomId).get().then(function (d) {
+        if (!d.exists) { HK.toast("Room not found.", "error"); return; }
+        room = d.data(); room.id = d.id;
+        document.getElementById("rTitle").textContent = "Room " + room.roomNumber;
+        document.getElementById("rSub").textContent = room.type + " - floor " + room.floor;
+        if (room.nextDeepCleanDue && room.nextDeepCleanDue.toDate && room.nextDeepCleanDue.toDate() <= new Date()) { document.getElementById("ddBadge").innerHTML = "<span class=\"badge badge-purple\">Deep clean overdue</span>"; }
+        renderOverview();
+      }).catch(function (err) { HK.toast("Could not load room: " + err.message, "error"); });
+    }
+    function renderOverview() {
+      var p = document.getElementById("pane-overview");
+      var statusBadge = { clean:"badge-green", dirty:"badge-red", inprogress:"badge-amber", inspected:"badge-blue", ooo:"badge-grey", dnd:"badge-purple" }[room.status] || "badge-grey";
+      var html = "<div class=\"card\"><div class=\"card-title\">Details</div>";
+      html += "<div class=\"row wrap mb16\"><span class=\"badge " + statusBadge + "\">" + HK.esc(room.status) + "</span><span class=\"badge badge-grey\">" + HK.esc(room.occupancy) + "</span></div>";
+      html += "<div class=\"field\"><label>Type</label>" + (canEdit ? "<select id=\"eType\"></select>" : "<div>" + HK.esc(room.type) + "</div>") + "</div>";
+      html += "<div class=\"field\"><label>Bed configuration</label>" + (canEdit ? "<input id=\"eBed\" value=\"" + HK.esc(room.bedConfig) + "\">" : "<div>" + HK.esc(room.bedConfig || "-") + "</div>") + "</div>";
+      html += "<div class=\"field\"><label>Notes</label>" + (canEdit ? "<textarea id=\"eNotes\">" + HK.esc(room.notes) + "</textarea>" : "<div>" + HK.esc(room.notes || "-") + "</div>") + "</div>";
+      html += "<div class=\"field\"><label>Quirks</label>" + (canEdit ? "<textarea id=\"eQuirks\">" + HK.esc(room.quirks) + "</textarea>" : "<div>" + HK.esc(room.quirks || "-") + "</div>") + "</div>";
+      html += "<p class=\"small muted\">Last cleaned: " + HK.fmtDateTime(room.lastCleanedAt) + " - Last deep clean: " + HK.fmtDateTime(room.lastDeepCleanAt) + "</p>";
+      if (canEdit) { html += "<button class=\"btn btn-accent\" id=\"saveRoom\">Save changes</button>"; }
+      html += "</div>";
+      html += "<div class=\"card\"><div class=\"card-title\">Photos</div><div class=\"gallery\" id=\"gallery\"></div><button class=\"btn btn-secondary btn-sm mt16\" id=\"addPhoto\">Add photo</button><div id=\"upProg\" class=\"small muted mt8\"></div></div>";
+      html += "<div class=\"card\"><div class=\"card-title\">Actions</div><div class=\"row wrap\"><button class=\"btn btn-secondary\" id=\"aNote\">Add note</button><button class=\"btn btn-secondary\" id=\"aIssue\">Report issue</button></div></div>";
+      p.innerHTML = html;
+      if (canEdit) {
+        var sel = document.getElementById("eType"); ["single","double","twin","suite","accessible","family"].forEach(function (t) { var o = document.createElement("option"); o.value = t; o.textContent = t; if (t === room.type) { o.selected = true; } sel.appendChild(o); });
+        document.getElementById("saveRoom").onclick = saveRoom;
+      }
+      renderGallery();
+      document.getElementById("addPhoto").onclick = function () { pickPhoto(); };
+      document.getElementById("aNote").onclick = function () { noteModal("general", false); };
+      document.getElementById("aIssue").onclick = function () { noteModal("damage", true); };
+    }
+    function renderGallery() {
+      var g = document.getElementById("gallery"); g.innerHTML = "";
+      (room.photoUrls || []).forEach(function (u) { var im = document.createElement("img"); im.src = u; g.appendChild(im); });
+      if (!(room.photoUrls || []).length) { g.innerHTML = "<span class=\"muted small\">No photos yet.</span>"; }
+    }
+    function saveRoom() {
+      var btn = document.getElementById("saveRoom"); btn.disabled = true; btn.textContent = "Saving...";
+      var upd = { type: document.getElementById("eType").value, bedConfig: document.getElementById("eBed").value, notes: document.getElementById("eNotes").value, quirks: document.getElementById("eQuirks").value, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      HK.col("rooms").doc(roomId).update(upd).then(function () { room.type = upd.type; room.bedConfig = upd.bedConfig; room.notes = upd.notes; room.quirks = upd.quirks; HK.audit("room.updated", "Room " + room.roomNumber + " details edited"); HK.toast("Room saved.", "success"); btn.disabled = false; btn.textContent = "Save changes"; }).catch(function (err) { btn.disabled = false; btn.textContent = "Save changes"; HK.toast("Save failed: " + err.message, "error"); });
+    }
+    function pickPhoto() {
+      var input = document.getElementById("photoInput"); input.value = "";
+      input.onchange = function () { if (!input.files || !input.files[0]) { return; } var f = input.files[0]; var prog = document.getElementById("upProg"); prog.textContent = "Uploading 0%";
+        var path = "orgs/" + HK.state.orgId + "/hotels/" + HK.state.hotelId + "/rooms/" + roomId + "/" + Date.now() + ".jpg";
+        HK.uploadPhoto(f, path, function (pct) { prog.textContent = "Uploading " + pct + "%"; }).then(function (url) {
+          return HK.col("rooms").doc(roomId).update({ photoUrls: firebase.firestore.FieldValue.arrayUnion(url), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () { room.photoUrls = (room.photoUrls || []).concat([url]); renderGallery(); prog.textContent = ""; HK.toast("Photo added.", "success"); });
+        }).catch(function (err) { prog.textContent = ""; HK.toast("Upload failed: " + err.message, "error"); });
+      };
+      input.click();
+    }
+    function noteModal(defCat, isIssue) {
+      var host = document.getElementById("modal-host");
+      var back = document.createElement("div"); back.className = "modal-backdrop"; var box = document.createElement("div"); box.className = "modal";
+      box.innerHTML = "<h2>" + (isIssue ? "Report an issue" : "Add a note") + "</h2>";
+      var cats = isIssue ? ["damage","stock","guestrequest","general"] : ["general","lostproperty","stock","guestrequest"];
+      var selHtml = "<div class=\"field\"><label>Category</label><select id=\"nCat\">" + cats.map(function (c) { return "<option value=\"" + c + "\">" + c + "</option>"; }).join("") + "</select></div>";
+      box.innerHTML += selHtml + "<div class=\"field\"><label>Details</label><textarea id=\"nText\"></textarea></div>";
+      var acts = document.createElement("div"); acts.className = "modal-actions";
+      var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Cancel";
+      var save = document.createElement("button"); save.className = "btn btn-accent"; save.textContent = "Save";
+      cancel.onclick = function () { host.innerHTML = ""; }; back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+      save.onclick = function () {
+        var text = document.getElementById("nText").value.trim(); if (!text) { HK.toast("Enter some details.", "error"); return; }
+        save.disabled = true; save.textContent = "Saving...";
+        var doc = { roomId: roomId, roomNumber: room.roomNumber, text: text, category: document.getElementById("nCat").value, isMaintenanceIssue: !!isIssue, photoUrls: [], createdByUid: HK.state.user.uid, createdByName: HK.state.profile.displayName, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (isIssue) { doc.maintenanceStatus = "open"; }
+        HK.col("roomnotes").add(doc).then(function () { HK.history(roomId, room.roomNumber, isIssue ? "maintenance" : "note", (isIssue ? "Issue reported: " : "Note: ") + text.slice(0, 60), null); HK.toast("Saved.", "success"); host.innerHTML = ""; }).catch(function (err) { save.disabled = false; save.textContent = "Save"; HK.toast("Save failed: " + err.message, "error"); });
+      };
+      acts.appendChild(cancel); acts.appendChild(save); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+    }
+    function loadHistory(reset) {
+      var pane = document.getElementById("pane-history");
+      if (reset) { histDocs = []; histLast = null; pane.innerHTML = "<div class=\"card\"><div class=\"card-title\">Timeline</div><div id=\"tl\"></div><button class=\"btn btn-secondary btn-sm mt16 hidden\" id=\"moreHist\">Load more</button></div>"; }
+      var q = HK.col("roomhistory").where("roomId", "==", roomId).orderBy("createdAt", "desc").limit(15);
+      if (histLast) { q = q.startAfter(histLast); }
+      q.get().then(function (snap) {
+        if (snap.empty && !histDocs.length) { document.getElementById("tl").innerHTML = "<div class=\"empty\"><div class=\"empty-icon\">\u2637</div><div>No history yet.</div></div>"; return; }
+        snap.forEach(function (d) { histDocs.push(d.data()); histLast = d; });
+        var tl = document.getElementById("tl"); tl.innerHTML = "";
+        histDocs.forEach(function (h) { var it = document.createElement("div"); it.className = "timeline-item"; it.innerHTML = "<strong class=\"small\">" + HK.esc(h.eventType) + "</strong> <span class=\"tiny muted\">" + HK.fmtDateTime(h.createdAt) + "</span><div class=\"small\">" + HK.esc(h.summary) + "</div><div class=\"tiny muted\">" + HK.esc(h.actorName) + "</div>"; tl.appendChild(it); });
+        var more = document.getElementById("moreHist"); more.className = (snap.size === 15) ? "btn btn-secondary btn-sm mt16" : "btn btn-secondary btn-sm mt16 hidden"; more.onclick = function () { loadHistory(false); };
+      }).catch(function (err) { document.getElementById("tl").innerHTML = "<p class=\"muted small\">Could not load history: " + HK.esc(err.message) + "</p>"; });
+    }
+    function loadDocs() {
+      var pane = document.getElementById("pane-documents"); pane.innerHTML = "<div class=\"card\"><div class=\"card-title\">Documents for this room</div><div id=\"docList\">Loading...</div></div>";
+      HK.col("documents").where("roomId", "==", roomId).get().then(function (snap) {
+        var el = document.getElementById("docList"); if (snap.empty) { el.innerHTML = "<div class=\"empty\"><div class=\"empty-icon\">\u25A4</div><div>No documents linked to this room.</div></div>"; return; }
+        el.innerHTML = ""; snap.forEach(function (d) { var doc = d.data(); var a = document.createElement("a"); a.href = doc.fileUrl; a.target = "_blank"; a.className = "row"; a.style.padding = "10px 0"; a.innerHTML = "<span>\u25A4 " + HK.esc(doc.title) + " <span class=\"tiny muted\">(" + HK.esc(doc.category) + ")</span></span>"; el.appendChild(a); });
+      }).catch(function (err) { document.getElementById("docList").innerHTML = "<p class=\"muted small\">" + HK.esc(err.message) + "</p>"; });
+    }
+    function loadMaint() {
+      var pane = document.getElementById("pane-maintenance"); pane.innerHTML = "<div class=\"card\"><div class=\"card-title\">Maintenance issues</div><div id=\"mList\">Loading...</div></div>";
+      HK.col("roomnotes").where("roomId", "==", roomId).where("isMaintenanceIssue", "==", true).get().then(function (snap) {
+        var el = document.getElementById("mList"); if (snap.empty) { el.innerHTML = "<div class=\"empty\"><div class=\"empty-icon\">\u2692</div><div>No maintenance issues.</div></div>"; return; }
+        el.innerHTML = ""; snap.forEach(function (d) { var n = d.data(); var stB = { open:"badge-red", inprogress:"badge-amber", resolved:"badge-green" }[n.maintenanceStatus] || "badge-grey"; var div = document.createElement("div"); div.className = "checkitem"; div.innerHTML = "<span class=\"grow\">" + HK.esc(n.text) + "<div class=\"tiny muted\">" + HK.esc(n.category) + " - " + HK.fmtDateTime(n.createdAt) + "</div></span><span class=\"badge " + stB + "\">" + HK.esc(n.maintenanceStatus || "open") + "</span>"; el.appendChild(div); });
+      }).catch(function (err) { document.getElementById("mList").innerHTML = "<p class=\"muted small\">" + HK.esc(err.message) + "</p>"; });
+    }
+  })();
+  </script>
+</body>
+</html>
