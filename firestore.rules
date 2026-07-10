@@ -1,0 +1,108 @@
+rules_version = "2";
+// Firestore security rules for Housekeeping Hub (multi-tenant).
+// DEPLOY: Firebase Console > Firestore Database > Rules > paste all > Publish.
+// (You do not need the Firebase CLI.)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers -------------------------------------------------------
+    function signedIn() { return request.auth != null; }
+
+    // The caller must have an ACTIVE user profile in this org.
+    function member(orgId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/orgs/$(orgId)/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/orgs/$(orgId)/users/$(request.auth.uid)).data.active == true;
+    }
+    function roleIn(orgId, roles) {
+      return member(orgId)
+        && (get(/databases/$(database)/documents/orgs/$(orgId)/users/$(request.auth.uid)).data.role in roles);
+    }
+    function isAdmin(orgId) { return roleIn(orgId, ["admin"]); }
+    function isStaff(orgId) { return roleIn(orgId, ["admin", "supervisor"]); }
+
+    // ---- org root ------------------------------------------------------
+    match /orgs/{orgId} {
+      // Create allowed for a signed-in user setting themselves as owner (onboarding).
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow read: if member(orgId);
+      allow update: if isAdmin(orgId);
+      allow delete: if false;
+
+      // ---- users -------------------------------------------------------
+      match /users/{uid} {
+        // Needed so a brand-new admin can create their own profile during onboarding.
+        allow create: if signedIn() && (uid == request.auth.uid || isAdmin(orgId));
+        // A member can read profiles in their org (needed for collectionGroup login lookup).
+        allow read: if signedIn();
+        allow update: if isAdmin(orgId) || uid == request.auth.uid;
+        allow delete: if false;
+      }
+
+      // ---- audit log: append-only, admin-read, never edited or deleted --
+      match /auditlog/{entryId} {
+        allow create: if member(orgId);
+        allow read: if isAdmin(orgId);
+        allow update, delete: if false;
+      }
+
+      // ---- hotels ------------------------------------------------------
+      match /hotels/{hotelId} {
+        allow create: if isAdmin(orgId) || get(/databases/$(database)/documents/orgs/$(orgId)).data.ownerUid == request.auth.uid;
+        allow read: if member(orgId);
+        allow update: if isAdmin(orgId);
+        allow delete: if false;
+
+        match /rooms/{roomId} {
+          allow read: if member(orgId);
+          allow create, update: if isStaff(orgId);
+          allow delete: if false;
+        }
+
+        // Housekeepers may update only their OWN assignments; staff manage all.
+        match /assignments/{aId} {
+          allow read: if member(orgId);
+          allow create: if isStaff(orgId);
+          allow update: if isStaff(orgId)
+            || (member(orgId) && resource.data.assignedToUid == request.auth.uid
+                && request.resource.data.assignedToUid == request.auth.uid);
+          allow delete: if isStaff(orgId);
+        }
+
+        match /inspections/{iId} {
+          allow read: if member(orgId);
+          allow create, update: if isStaff(orgId);
+          allow delete: if false;
+        }
+
+        match /deepcleans/{dId} {
+          allow read: if member(orgId);
+          allow create, update: if isStaff(orgId);
+          allow delete: if false;
+        }
+
+        // Any member may create notes; staff may edit (e.g. resolve maintenance).
+        match /roomnotes/{nId} {
+          allow read: if member(orgId);
+          allow create: if member(orgId);
+          allow update: if isStaff(orgId);
+          allow delete: if false;
+        }
+
+        match /documents/{docId} {
+          allow read: if member(orgId);
+          allow create, update: if isStaff(orgId);
+          allow delete: if isAdmin(orgId);
+        }
+
+        // Activity timeline: any member can append; not edited or deleted.
+        match /roomhistory/{eId} {
+          allow read: if member(orgId);
+          allow create: if member(orgId);
+          allow update, delete: if false;
+        }
+      }
+    }
+  }
+}
