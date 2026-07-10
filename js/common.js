@@ -162,6 +162,7 @@ HK.uploadPhoto = function (file, storagePath, onProgress) {
 HK.navItems = function (role) {
   var all = [
     { key: "dashboard", label: "Dashboard", href: "dashboard.html", ic: "grid", roles: ["admin", "supervisor"] },
+    { key: "allocation", label: "Allocation", href: "allocation.html", ic: "board", roles: ["admin", "supervisor"] },
     { key: "mytasks", label: "My Tasks", href: "mytasks.html", ic: "check", roles: ["admin", "supervisor", "housekeeper"] },
     { key: "assign", label: "Assign", href: "assign.html", ic: "list", roles: ["admin", "supervisor"] },
     { key: "inspect", label: "Inspect", href: "inspect.html", ic: "eye", roles: ["admin", "supervisor"] },
@@ -176,7 +177,7 @@ HK.navItems = function (role) {
 };
 
 HK.icon = function (name) {
-  var m = { cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
+  var m = { board: "\uD83D\uDCCB", cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
   return m[name] || "\u2022";
 };
 
