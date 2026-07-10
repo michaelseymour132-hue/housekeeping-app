@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Set up your hotel - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="auth-form" style="align-items:flex-start;">
+    <div style="width:100%;max-width:640px;padding:24px;">
+      <div class="breadcrumb">First-time setup</div>
+      <h1 class="mb8">Welcome - let us set up your hotel</h1>
+      <p class="muted mb16">Three quick steps and you are ready to go. This takes about two minutes.</p>
+
+      <div class="card" id="step1">
+        <div class="card-title">Step 1 of 3 - Hotel details</div>
+        <div class="field"><label for="orgName">Company / group name</label><input id="orgName" placeholder="e.g. Coastal Hotels Ltd"></div>
+        <div class="field"><label for="hotelName">Hotel name</label><input id="hotelName" placeholder="e.g. The Grand Bayview"></div>
+        <div class="field"><label for="hotelAddr">Address</label><input id="hotelAddr" placeholder="Street, town, postcode"></div>
+        <div class="field-row">
+          <div class="field"><label for="floors">Number of floors</label><input id="floors" type="number" min="1" value="3"></div>
+          <div class="field"><label for="tz">Timezone</label><input id="tz" value="Europe/London"></div>
+        </div>
+        <button class="btn btn-accent" id="to2">Continue</button>
+      </div>
+
+      <div class="card hidden" id="step2">
+        <div class="card-title">Step 2 of 3 - Add rooms</div>
+        <p class="small muted mb16">Generate a block of rooms by floor, or add single rooms. You can edit everything later in Settings.</p>
+        <div class="field-row">
+          <div class="field"><label>Floor from</label><input id="floorFrom" type="number" min="0" value="1"></div>
+          <div class="field"><label>Floor to</label><input id="floorTo" type="number" min="0" value="3"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Rooms per floor from</label><input id="roomFrom" type="number" min="0" value="1"></div>
+          <div class="field"><label>to</label><input id="roomTo" type="number" min="0" value="10"></div>
+        </div>
+        <div class="field"><label>Default room type</label><select id="defType"><option value="double">Double</option><option value="single">Single</option><option value="twin">Twin</option><option value="suite">Suite</option><option value="family">Family</option><option value="accessible">Accessible</option></select></div>
+        <button class="btn btn-secondary btn-sm" id="genRooms">Generate block</button>
+        <div class="row wrap mt16" style="align-items:flex-end;">
+          <div class="field grow" style="margin-bottom:0;"><label>Add single room number</label><input id="singleRoom" placeholder="e.g. 401"></div>
+          <button class="btn btn-secondary btn-sm" id="addSingle">Add</button>
+        </div>
+        <div class="mt16"><strong id="roomCount">0</strong> rooms ready</div>
+        <div id="roomPreview" class="room-grid mt8"></div>
+        <div class="row mt16"><button class="btn btn-secondary" id="back1">Back</button><button class="btn btn-accent" id="to3">Continue</button></div>
+      </div>
+
+      <div class="card hidden" id="step3">
+        <div class="card-title">Step 3 of 3 - Checklists</div>
+        <p class="small muted mb16">These are the tick-lists your housekeepers complete. Defaults are provided - add or remove any.</p>
+        <label>Daily clean checklist</label>
+        <div id="dailyList" class="mb8"></div>
+        <div class="row"><input id="dailyNew" placeholder="Add a daily task"><button class="btn btn-secondary btn-sm" id="addDaily">Add</button></div>
+        <label class="mt16">Deep clean checklist</label>
+        <div id="deepList" class="mb8"></div>
+        <div class="row"><input id="deepNew" placeholder="Add a deep clean task"><button class="btn btn-secondary btn-sm" id="addDeep">Add</button></div>
+        <div class="row mt16"><button class="btn btn-secondary" id="back2">Back</button><button class="btn btn-accent btn-lg" id="finish">Finish setup</button></div>
+      </div>
+    </div>
+  </div>
+  <div id="toast-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var rooms = [];
+    var daily = ["Strip and remake beds", "Clean and sanitise bathroom", "Replenish towels and toiletries", "Dust all surfaces", "Vacuum carpet / mop floor", "Empty bins", "Check lights and remote work", "Final visual check"];
+    var deep = ["Move furniture and clean behind", "Wash windows inside", "Clean curtains / blinds", "Descale shower and taps", "Clean mattress and turn", "Wipe skirting boards", "Clean air vents", "Shampoo carpet", "Sanitise all touch points"];
+    var uid = null, email = null;
+    auth.onAuthStateChanged(function (user) {
+      if (!user) { window.location.href = "index.html"; return; }
+      uid = user.uid; email = user.email;
+      // If this user already has a profile, they should not be here.
+      HK.loadProfile(user).then(function (ok) {
+        if (ok) { window.location.href = HK.homeForRole(HK.state.profile.role); }
+      }).catch(function () {});
+    });
+    function show(id) { ["step1","step2","step3"].forEach(function (s) { document.getElementById(s).className = (s === id) ? "card" : "card hidden"; }); }
+    function renderChecklist(listId, arr) {
+      var host = document.getElementById(listId); host.innerHTML = "";
+      arr.forEach(function (item, i) {
+        var row = document.createElement("div"); row.className = "checkitem";
+        var span = document.createElement("span"); span.className = "grow"; span.textContent = item; row.appendChild(span);
+        var del = document.createElement("button"); del.className = "btn btn-sm btn-secondary"; del.textContent = "Remove";
+        del.onclick = function () { arr.splice(i, 1); renderChecklist(listId, arr); }; row.appendChild(del);
+        host.appendChild(row);
+      });
+    }
+    function renderRooms() {
+      document.getElementById("roomCount").textContent = rooms.length;
+      var host = document.getElementById("roomPreview"); host.innerHTML = "";
+      rooms.slice(0, 60).forEach(function (r) {
+        var t = document.createElement("div"); t.className = "room-tile st-clean";
+        t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span><span class=\"rt\">F" + r.floor + "</span>";
+        host.appendChild(t);
+      });
+    }
+    document.getElementById("to2").onclick = function () {
+      if (!document.getElementById("orgName").value.trim() || !document.getElementById("hotelName").value.trim()) { HK.toast("Enter your company and hotel name.", "error"); return; }
+      show("step2");
+    };
+    document.getElementById("back1").onclick = function () { show("step1"); };
+    document.getElementById("back2").onclick = function () { show("step2"); };
+    document.getElementById("to3").onclick = function () { if (!rooms.length) { HK.toast("Add at least one room.", "error"); return; } renderChecklist("dailyList", daily); renderChecklist("deepList", deep); show("step3"); };
+    document.getElementById("genRooms").onclick = function () {
+      var ff = parseInt(document.getElementById("floorFrom").value, 10), ft = parseInt(document.getElementById("floorTo").value, 10);
+      var rf = parseInt(document.getElementById("roomFrom").value, 10), rt = parseInt(document.getElementById("roomTo").value, 10);
+      var type = document.getElementById("defType").value;
+      if (isNaN(ff) || isNaN(ft) || isNaN(rf) || isNaN(rt) || ft < ff || rt < rf) { HK.toast("Check your floor and room ranges.", "error"); return; }
+      var f, n;
+      for (f = ff; f <= ft; f++) {
+        for (n = rf; n <= rt; n++) {
+          var num = String(f) + ("0" + n).slice(-2);
+          var exists = rooms.some(function (r) { return r.roomNumber === num; });
+          if (!exists) { rooms.push({ roomNumber: num, floor: f, type: type }); }
+        }
+      }
+      renderRooms();
+    };
+    document.getElementById("addSingle").onclick = function () {
+      var num = document.getElementById("singleRoom").value.trim();
+      if (!num) { return; }
+      if (rooms.some(function (r) { return r.roomNumber === num; })) { HK.toast("That room already exists.", "info"); return; }
+      rooms.push({ roomNumber: num, floor: parseInt(num, 10) ? Math.floor(parseInt(num, 10) / 100) || 1 : 1, type: document.getElementById("defType").value });
+      document.getElementById("singleRoom").value = ""; renderRooms();
+    };
+    document.getElementById("addDaily").onclick = function () { var v = document.getElementById("dailyNew").value.trim(); if (v) { daily.push(v); document.getElementById("dailyNew").value = ""; renderChecklist("dailyList", daily); } };
+    document.getElementById("addDeep").onclick = function () { var v = document.getElementById("deepNew").value.trim(); if (v) { deep.push(v); document.getElementById("deepNew").value = ""; renderChecklist("deepList", deep); } };
+    document.getElementById("finish").onclick = function () {
+      var btn = this; btn.disabled = true; btn.textContent = "Setting up...";
+      var orgName = document.getElementById("orgName").value.trim();
+      var interval = 90;
+      var orgRef = db.collection("orgs").doc();
+      var hotelRef = orgRef.collection("hotels").doc();
+      var batch = db.batch();
+      batch.set(orgRef, { name: orgName, createdAt: firebase.firestore.FieldValue.serverTimestamp(), plan: "trial", ownerUid: uid, branding: { appName: "Housekeeping Hub", logoUrl: "", primaryColor: "#0e9591" } });
+      batch.set(hotelRef, { name: document.getElementById("hotelName").value.trim(), address: document.getElementById("hotelAddr").value.trim(), timezone: document.getElementById("tz").value.trim(), floorsCount: parseInt(document.getElementById("floors").value, 10) || 1, settings: { deepCleanIntervalDays: interval, dailyChecklist: daily, deepCleanChecklist: deep } });
+      var userRef = orgRef.collection("users").doc(uid);
+      batch.set(userRef, { uid: uid, displayName: (email || "Admin").split("@")[0], email: email, role: "admin", hotelIds: [hotelRef.id], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastLoginAt: firebase.firestore.FieldValue.serverTimestamp() });
+      rooms.forEach(function (r) {
+        var rr = hotelRef.collection("rooms").doc();
+        batch.set(rr, { roomNumber: r.roomNumber, floor: r.floor, type: r.type, status: "clean", occupancy: "vacant", bedConfig: "", notes: "", quirks: "", lastCleanedAt: null, lastDeepCleanAt: null, nextDeepCleanDue: null, photoUrls: [], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      });
+      batch.commit().then(function () {
+        localStorage.setItem("hk_hotel_" + orgRef.id, hotelRef.id);
+        HK.toast("Setup complete. Welcome aboard!", "success");
+        setTimeout(function () { window.location.href = "dashboard.html"; }, 900);
+      }).catch(function (err) {
+        btn.disabled = false; btn.textContent = "Finish setup";
+        HK.toast("Setup failed: " + err.message, "error");
+      });
+    };
+  })();
+  </script>
+</body>
+</html>
