@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documents - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+  <style> .doc-input{position:absolute;left:-9999px} .doc-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)} .doc-ic{font-size:22px} </style>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Documents</h1></div><button class="btn btn-accent right" id="uploadBtn">Upload document</button></div>
+      <div class="card mb16"><div class="row wrap"><input id="search" placeholder="Search title" style="max-width:220px;"><select id="fCat" style="max-width:180px;"><option value="">All categories</option><option value="coshh">COSHH</option><option value="checklist">Checklist</option><option value="inventory">Inventory</option><option value="policy">Policy</option><option value="other">Other</option></select></div></div>
+      <div class="card"><div id="list">Loading...</div></div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <div id="modal-host"></div>
+  <input type="file" accept="application/pdf,image/*" id="docInput" class="doc-input">
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var docs = [], rooms = [], canUpload = false;
+    HK.requireAuth(["admin", "supervisor", "housekeeper"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      canUpload = (state.profile.role !== "housekeeper");
+      if (!canUpload) { document.getElementById("uploadBtn").className = "btn btn-accent right hidden"; }
+      HK.mount("documents");
+      HK.col("rooms").where("active", "==", true).get().then(function (snap) { rooms = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; rooms.push(r); }); }).catch(function () {});
+      load();
+    });
+    document.getElementById("uploadBtn").onclick = uploadModal;
+    document.getElementById("search").oninput = render; document.getElementById("fCat").onchange = render;
+    function load() {
+      HK.col("documents").orderBy("createdAt", "desc").get().then(function (snap) {
+        docs = []; snap.forEach(function (d) { var x = d.data(); x.id = d.id; docs.push(x); }); render();
+      }).catch(function (err) { document.getElementById("list").innerHTML = "<p class=\"muted\">Could not load: " + HK.esc(err.message) + "</p>"; });
+    }
+    function render() {
+      var q = (document.getElementById("search").value || "").toLowerCase(); var cat = document.getElementById("fCat").value;
+      var list = docs.filter(function (d) { if (q && d.title.toLowerCase().indexOf(q) === -1) { return false; } if (cat && d.category !== cat) { return false; } return true; });
+      var el = document.getElementById("list"); el.innerHTML = "";
+      if (!list.length) { el.innerHTML = "<div class=\"empty\"><div class=\"empty-icon\">\u25A4</div><div>No documents found.</div></div>"; return; }
+      list.forEach(function (d) {
+        var ic = d.fileType && d.fileType.indexOf("pdf") !== -1 ? "\u25A4" : "\u25A3";
+        var row = document.createElement("div"); row.className = "doc-row";
+        row.innerHTML = "<span class=\"doc-ic\">" + ic + "</span><span class=\"grow\"><strong>" + HK.esc(d.title) + "</strong><div class=\"tiny muted\">" + HK.esc(d.category) + (d.roomId ? " - room linked" : "") + " - " + HK.esc(d.uploadedByName) + "</div></span>";
+        var view = document.createElement("a"); view.href = d.fileUrl; view.target = "_blank"; view.className = "btn btn-sm btn-secondary"; view.textContent = "View"; row.appendChild(view);
+        el.appendChild(row);
+      });
+    }
+    function uploadModal() {
+      var host = document.getElementById("modal-host"); var back = document.createElement("div"); back.className = "modal-backdrop"; var box = document.createElement("div"); box.className = "modal";
+      box.innerHTML = "<h2>Upload document</h2>";
+      box.innerHTML += "<div class=\"field\"><label>Title</label><input id=\"dTitle\"></div>";
+      box.innerHTML += "<div class=\"field\"><label>Category</label><select id=\"dCat\"><option value=\"coshh\">COSHH</option><option value=\"checklist\">Checklist</option><option value=\"inventory\">Inventory</option><option value=\"policy\">Policy</option><option value=\"other\" selected>Other</option></select></div>";
+      var roomOpts = "<option value=\"\">General (no room)</option>" + rooms.map(function (r) { return "<option value=\"" + r.id + "\">Room " + HK.esc(r.roomNumber) + "</option>"; }).join("");
+      box.innerHTML += "<div class=\"field\"><label>Link to room (optional)</label><select id=\"dRoom\">" + roomOpts + "</select></div>";
+      box.innerHTML += "<button class=\"btn btn-secondary btn-sm\" id=\"pickFile\">Choose file (PDF or image)</button><div id=\"fileName\" class=\"small muted mt8\"></div><div id=\"upProg\" class=\"small muted mt8\"></div>";
+      var acts = document.createElement("div"); acts.className = "modal-actions";
+      var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Cancel";
+      var save = document.createElement("button"); save.className = "btn btn-accent"; save.textContent = "Upload"; save.disabled = true;
+      cancel.onclick = function () { host.innerHTML = ""; }; back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+      var chosen = null;
+      acts.appendChild(cancel); acts.appendChild(save); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+      document.getElementById("pickFile").onclick = function () { var inp = document.getElementById("docInput"); inp.value = ""; inp.onchange = function () { if (inp.files && inp.files[0]) { chosen = inp.files[0]; if (chosen.size > 10485760) { HK.toast("File too large (max 10MB).", "error"); chosen = null; return; } document.getElementById("fileName").textContent = chosen.name; if (!document.getElementById("dTitle").value) { document.getElementById("dTitle").value = chosen.name.replace(/\.[^.]+$/, ""); } save.disabled = false; } }; inp.click(); };
+      save.onclick = function () {
+        var title = document.getElementById("dTitle").value.trim(); if (!title) { HK.toast("Enter a title.", "error"); return; } if (!chosen) { HK.toast("Choose a file.", "error"); return; }
+        save.disabled = true; save.textContent = "Uploading...";
+        var path = "orgs/" + HK.state.orgId + "/hotels/" + HK.state.hotelId + "/documents/" + Date.now() + "-" + chosen.name;
+        var task = storage.ref().child(path).put(chosen, { contentType: chosen.type });
+        task.on("state_changed", function (snap) { document.getElementById("upProg").textContent = "Uploading " + Math.round(snap.bytesTransferred / snap.totalBytes * 100) + "%"; }, function (err) { save.disabled = false; save.textContent = "Upload"; HK.toast("Upload failed: " + err.message, "error"); }, function () {
+          task.snapshot.ref.getDownloadURL().then(function (url) {
+            return HK.col("documents").add({ title: title, category: document.getElementById("dCat").value, roomId: document.getElementById("dRoom").value || null, fileUrl: url, fileName: chosen.name, fileType: chosen.type, uploadedByUid: HK.state.user.uid, uploadedByName: HK.state.profile.displayName, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          }).then(function () { HK.audit("document.uploaded", title); HK.toast("Document uploaded.", "success"); host.innerHTML = ""; load(); }).catch(function (err) { save.disabled = false; save.textContent = "Upload"; HK.toast("Save failed: " + err.message, "error"); });
+        });
+      };
+    }
+  })();
+  </script>
+</body>
+</html>
