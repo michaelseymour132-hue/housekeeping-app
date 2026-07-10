@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Cleans - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+  <style> .tabs-nav{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto} .tabs-nav button{min-height:40px;background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-weight:600;color:var(--slate);cursor:pointer;white-space:nowrap} .tabs-nav button.active{color:var(--accent-dark);border-bottom-color:var(--accent)} .photo-input{position:absolute;left:-9999px} .gallery img{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin:4px} </style>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Deep clean planner</h1></div></div>
+      <div class="tabs-nav"><button data-t="overdue" class="active">Overdue</button><button data-t="due">Due (14 days)</button><button data-t="scheduled">Scheduled</button><button data-t="completed">Completed</button></div>
+      <div id="pane"></div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <div id="modal-host"></div>
+  <input type="file" accept="image/*" capture="environment" id="photoInput" class="photo-input">
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var rooms = [], deepcleans = [], users = [], interval = 90, cur = "overdue";
+    HK.requireAuth(["admin", "supervisor"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      HK.mount("deepcleans");
+      HK.hotelRef().get().then(function (h) { interval = (h.data().settings || {}).deepCleanIntervalDays || 90; }).catch(function () {});
+      loadAll();
+    });
+    var btns = document.querySelectorAll(".tabs-nav button");
+    for (var i = 0; i < btns.length; i++) { btns[i].onclick = (function (b) { return function () { cur = b.getAttribute("data-t"); setActive(); render(); }; })(btns[i]); }
+    function setActive() { var bs = document.querySelectorAll(".tabs-nav button"); for (var j = 0; j < bs.length; j++) { bs[j].className = (bs[j].getAttribute("data-t") === cur) ? "active" : ""; } }
+    function loadAll() {
+      Promise.all([
+        HK.col("rooms").where("active", "==", true).get(),
+        HK.col("deepcleans").get(),
+        HK.orgRef().collection("users").where("active", "==", true).get()
+      ]).then(function (res) {
+        rooms = []; res[0].forEach(function (d) { var r = d.data(); r.id = d.id; rooms.push(r); });
+        deepcleans = []; res[1].forEach(function (d) { var x = d.data(); x.id = d.id; deepcleans.push(x); });
+        users = []; res[2].forEach(function (d) { var u = d.data(); if ((u.hotelIds || []).indexOf(HK.state.hotelId) !== -1) { users.push(u); } });
+        render();
+      }).catch(function (err) { HK.toast("Could not load: " + err.message, "error"); });
+    }
+    function daysUntil(r) { if (!r.nextDeepCleanDue || !r.nextDeepCleanDue.toDate) { return null; } return HK.daysBetween(new Date(), r.nextDeepCleanDue.toDate()); }
+    function render() {
+      var pane = document.getElementById("pane"); pane.innerHTML = "";
+      if (cur === "completed") { return renderCompleted(pane); }
+      if (cur === "scheduled") { return renderScheduled(pane); }
+      var list = rooms.filter(function (r) { var d = daysUntil(r); if (d === null) { return cur === "overdue" ? false : false; } if (cur === "overdue") { return d < 0; } return d >= 0 && d <= 14; });
+      list.sort(function (a, b) { return (daysUntil(a) || 0) - (daysUntil(b) || 0); });
+      var never = rooms.filter(function (r) { return !r.nextDeepCleanDue; });
+      if (cur === "overdue" && never.length) { list = list.concat(never); }
+      var card = document.createElement("div"); card.className = "card";
+      card.innerHTML = "<div class=\"card-title\">" + (cur === "overdue" ? "Overdue / never done" : "Due within 14 days") + "</div>";
+      if (!list.length) { card.innerHTML += "<div class=\"empty\"><div class=\"empty-icon\">\u2605</div><div>Nothing here. Great.</div></div>"; pane.appendChild(card); return; }
+      list.forEach(function (r) {
+        var d = daysUntil(r); var label = (d === null) ? "never deep cleaned" : (d < 0 ? Math.abs(d) + " days overdue" : "due in " + d + " days");
+        var row = document.createElement("div"); row.className = "checkitem";
+        row.innerHTML = "<span class=\"grow\"><strong>Room " + HK.esc(r.roomNumber) + "</strong> <span class=\"tiny muted\">" + HK.esc(r.type) + " - " + label + "</span></span>";
+        var btn = document.createElement("button"); btn.className = "btn btn-sm btn-accent"; btn.textContent = "Schedule";
+        btn.onclick = function () { scheduleModal(r); }; row.appendChild(btn); card.appendChild(row);
+      });
+      pane.appendChild(card);
+    }
+    function renderScheduled(pane) {
+      var list = deepcleans.filter(function (x) { return x.status === "scheduled" || x.status === "inprogress"; });
+      var card = document.createElement("div"); card.className = "card"; card.innerHTML = "<div class=\"card-title\">Scheduled &amp; in progress</div>";
+      if (!list.length) { card.innerHTML += "<div class=\"empty\"><div class=\"empty-icon\">\u2605</div><div>No deep cleans scheduled.</div></div>"; pane.appendChild(card); return; }
+      list.forEach(function (x) {
+        var row = document.createElement("div"); row.className = "checkitem";
+        row.innerHTML = "<span class=\"grow\"><strong>Room " + HK.esc(x.roomNumber) + "</strong> <span class=\"tiny muted\">" + HK.esc(x.status) + "</span></span>";
+        var btn = document.createElement("button"); btn.className = "btn btn-sm btn-accent"; btn.textContent = (x.status === "inprogress" ? "Continue" : "Start");
+        btn.onclick = function () { runModal(x); }; row.appendChild(btn); card.appendChild(row);
+      });
+      pane.appendChild(card);
+    }
+    function renderCompleted(pane) {
+      var list = deepcleans.filter(function (x) { return x.status === "complete"; });
+      list.sort(function (a, b) { return (b.completedAt && b.completedAt.seconds || 0) - (a.completedAt && a.completedAt.seconds || 0); });
+      var card = document.createElement("div"); card.className = "card"; card.innerHTML = "<div class=\"card-title\">Completed</div>";
+      if (!list.length) { card.innerHTML += "<div class=\"empty\"><div class=\"empty-icon\">\u2605</div><div>None completed yet.</div></div>"; pane.appendChild(card); return; }
+      list.forEach(function (x) { var row = document.createElement("div"); row.className = "checkitem"; row.innerHTML = "<span class=\"grow\"><strong>Room " + HK.esc(x.roomNumber) + "</strong> <span class=\"tiny muted\">" + HK.fmtDateTime(x.completedAt) + "</span></span><span class=\"badge badge-green\">done</span>"; card.appendChild(row); });
+      pane.appendChild(card);
+    }
+    function scheduleModal(r) {
+      var host = document.getElementById("modal-host"); var back = document.createElement("div"); back.className = "modal-backdrop"; var box = document.createElement("div"); box.className = "modal";
+      box.innerHTML = "<h2>Schedule deep clean - Room " + HK.esc(r.roomNumber) + "</h2>";
+      var opts = users.map(function (u) { return "<option value=\"" + u.uid + "\">" + HK.esc(u.displayName) + "</option>"; }).join("");
+      box.innerHTML += "<div class=\"field\"><label>Assign to</label><select id=\"dcHk\">" + opts + "</select></div>";
+      var acts = document.createElement("div"); acts.className = "modal-actions";
+      var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Cancel";
+      var ok = document.createElement("button"); ok.className = "btn btn-accent"; ok.textContent = "Schedule";
+      cancel.onclick = function () { host.innerHTML = ""; }; back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+      ok.onclick = function () {
+        var hkUid = document.getElementById("dcHk").value; if (!hkUid) { HK.toast("Choose a staff member.", "error"); return; }
+        ok.disabled = true; ok.textContent = "Scheduling...";
+        HK.hotelRef().get().then(function (h) {
+          var checklist = ((h.data().settings || {}).deepCleanChecklist || []).map(function (i) { return { item: i, done: false }; });
+          var dcRef = HK.col("deepcleans").doc();
+          var b = db.batch();
+          b.set(dcRef, { roomId: r.id, roomNumber: r.roomNumber, assignedToUid: hkUid, status: "scheduled", checklist: checklist, beforePhotoUrls: [], afterPhotoUrls: [], startedAt: null, completedAt: null, notes: "", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          var aRef = HK.col("assignments").doc(); var hkUser = users.filter(function (u) { return u.uid === hkUid; })[0];
+          b.set(aRef, { date: HK.todayStr(), roomId: r.id, roomNumber: r.roomNumber, assignedToUid: hkUid, assignedToName: hkUser ? hkUser.displayName : "", type: "deepclean", status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: checklist, createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          return b.commit();
+        }).then(function () { HK.audit("deepclean.scheduled", "Room " + r.roomNumber); HK.toast("Deep clean scheduled.", "success"); host.innerHTML = ""; loadAll(); }).catch(function (err) { ok.disabled = false; ok.textContent = "Schedule"; HK.toast("Failed: " + err.message, "error"); });
+      };
+      acts.appendChild(cancel); acts.appendChild(ok); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+    }
+    function runModal(x) {
+      var host = document.getElementById("modal-host"); var back = document.createElement("div"); back.className = "modal-backdrop"; var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "520px";
+      box.innerHTML = "<h2>Deep clean - Room " + HK.esc(x.roomNumber) + "</h2>";
+      var before = (x.beforePhotoUrls || []).slice(); var after = (x.afterPhotoUrls || []).slice();
+      var wrap = document.createElement("div");
+      wrap.innerHTML = "<label>Before photos</label><div class=\"gallery\" id=\"beforeG\"></div><button class=\"btn btn-sm btn-secondary\" id=\"addBefore\">Add before photo</button>";
+      wrap.innerHTML += "<label class=\"mt16\">Checklist</label><div id=\"clWrap\"></div>";
+      wrap.innerHTML += "<label class=\"mt16\">After photos</label><div class=\"gallery\" id=\"afterG\"></div><button class=\"btn btn-sm btn-secondary\" id=\"addAfter\">Add after photo</button>";
+      wrap.innerHTML += "<div class=\"field mt16\"><label>Notes</label><textarea id=\"dcNotes\">" + HK.esc(x.notes || "") + "</textarea></div><div id=\"upP\" class=\"small muted\"></div>";
+      box.appendChild(wrap);
+      var acts = document.createElement("div"); acts.className = "modal-actions";
+      var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Close";
+      var done = document.createElement("button"); done.className = "btn btn-accent"; done.textContent = "Complete deep clean";
+      cancel.onclick = function () { host.innerHTML = ""; }; back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+      acts.appendChild(cancel); acts.appendChild(done); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+      function drawG(id, arr) { var g = document.getElementById(id); g.innerHTML = ""; arr.forEach(function (u) { var im = document.createElement("img"); im.src = u; g.appendChild(im); }); }
+      var cl = (x.checklist || []).map(function (c) { return { item: c.item, done: c.done }; });
+      var clWrap = document.getElementById("clWrap"); cl.forEach(function (c) { var row = document.createElement("label"); row.className = "checkitem"; var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!c.done; cb.onchange = function () { c.done = cb.checked; }; var sp = document.createElement("span"); sp.className = "grow"; sp.textContent = c.item; row.appendChild(cb); row.appendChild(sp); clWrap.appendChild(row); });
+      drawG("beforeG", before); drawG("afterG", after);
+      function addPhoto(which) { var input = document.getElementById("photoInput"); input.value = ""; input.onchange = function () { if (!input.files || !input.files[0]) { return; } var path = "orgs/" + HK.state.orgId + "/hotels/" + HK.state.hotelId + "/deepcleans/" + x.id + "/" + which + "-" + Date.now() + ".jpg"; document.getElementById("upP").textContent = "Uploading..."; HK.uploadPhoto(input.files[0], path, function (p) { document.getElementById("upP").textContent = "Uploading " + p + "%"; }).then(function (url) { if (which === "before") { before.push(url); drawG("beforeG", before); } else { after.push(url); drawG("afterG", after); } document.getElementById("upP").textContent = ""; }).catch(function (err) { document.getElementById("upP").textContent = ""; HK.toast("Upload failed: " + err.message, "error"); }); }; input.click(); }
+      document.getElementById("addBefore").onclick = function () { if (x.status === "scheduled") { HK.col("deepcleans").doc(x.id).update({ status: "inprogress", startedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function () {}); x.status = "inprogress"; } addPhoto("before"); };
+      document.getElementById("addAfter").onclick = function () { addPhoto("after"); };
+      done.onclick = function () {
+        if (!before.length) { HK.toast("Add at least one before photo.", "error"); return; }
+        if (!after.length) { HK.toast("Add at least one after photo.", "error"); return; }
+        var undone = cl.filter(function (c) { return !c.done; }).length;
+        var proceed = undone ? HK.confirm("Skip " + undone + " items?", "Some checklist items are unticked. Complete anyway?", "Complete", false) : Promise.resolve(true);
+        proceed.then(function (go) { if (!go) { return; } done.disabled = true; done.textContent = "Saving...";
+          var nextDue = firebase.firestore.Timestamp.fromDate(HK.addDays(new Date(), interval));
+          var b = db.batch();
+          b.update(HK.col("deepcleans").doc(x.id), { status: "complete", checklist: cl, beforePhotoUrls: before, afterPhotoUrls: after, notes: document.getElementById("dcNotes").value, completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+          b.update(HK.col("rooms").doc(x.roomId), { lastDeepCleanAt: firebase.firestore.FieldValue.serverTimestamp(), nextDeepCleanDue: nextDue, status: "clean", updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+          b.commit().then(function () { HK.history(x.roomId, x.roomNumber, "deepclean", "Deep clean completed", x.id); HK.audit("deepclean.completed", "Room " + x.roomNumber); HK.toast("Deep clean completed.", "success"); host.innerHTML = ""; loadAll(); }).catch(function (err) { done.disabled = false; done.textContent = "Complete deep clean"; HK.toast("Failed: " + err.message, "error"); });
+        });
+      };
+    }
+  })();
+  </script>
+</body>
+</html>
