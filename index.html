@@ -1,87 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign in - Housekeeping Hub</title>
-  <link rel="stylesheet" href="css/style.css">
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in - Housekeeping Hub</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 </head>
 <body>
-  <div class="auth-wrap">
-    <div class="auth-brand">
-      <div>
-        <h1>Housekeeping Hub</h1>
-        <p>The operations platform for hotel housekeeping teams. Assign, clean, inspect, and report - from the floor to the front desk.</p>
-      </div>
-    </div>
-    <div class="auth-form">
-      <div class="auth-card card">
-        <h1 class="mb8">Sign in</h1>
-        <p class="muted mb16">Welcome back. Enter your details to continue.</p>
-        <form id="login-form">
-          <div class="field">
-            <label for="email">Email</label>
-            <input type="email" id="email" autocomplete="username" required>
-          </div>
-          <div class="field">
-            <label for="password">Password</label>
-            <input type="password" id="password" autocomplete="current-password" required>
-          </div>
-          <button type="submit" id="login-btn" class="btn btn-accent btn-block btn-lg">Sign in</button>
-        </form>
-        <p class="small mt16"><a href="#" id="forgot">Forgot password?</a></p>
-        <p class="tiny muted mt16">No account? Your administrator creates accounts in the Settings console. Contact them to be added.</p>
-      </div>
-    </div>
-  </div>
-  <div id="toast-host"></div>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/common.js"></script>
-  <script>
-  (function () {
-    // If already signed in, route to role home.
-    auth.onAuthStateChanged(function (user) {
-      if (user) {
-        HK.loadProfile(user).then(function (ok) {
-          if (ok) { window.location.href = HK.homeForRole(HK.state.profile.role); }
-          else { HK.toast("This login has no active profile. Contact your administrator.", "error"); auth.signOut(); }
-        }).catch(function () {});
+<div class="auth-wrap">
+<div class="auth-brand">
+<div>
+<h1>Housekeeping Hub</h1>
+<p>The operations platform for hotel housekeeping teams. Assign, clean, inspect, and report - from the floor to the front desk.</p>
+</div>
+</div>
+<div class="auth-form">
+<div class="auth-card card">
+<h1 class="mb8">Sign in</h1>
+<p class="muted mb16">Welcome back. Enter your details to continue.</p>
+<form id="login-form">
+<div class="field">
+<label for="email">Email</label>
+<input type="email" id="email" autocomplete="username" required>
+</div>
+<div class="field">
+<label for="password">Password</label>
+<input type="password" id="password" autocomplete="current-password" required>
+</div>
+<button type="submit" id="login-btn" class="btn btn-accent btn-block btn-lg">Sign in</button>
+</form>
+<p class="small mt16"><a href="#" id="forgot">Forgot password?</a></p>
+<p class="tiny muted mt16">No account? Your administrator creates accounts in the Settings console. Contact them to be added.</p>
+</div>
+</div>
+</div>
+<div id="toast-host"></div>
+<script src="js/firebase-config.js"></script>
+<script src="js/common.js"></script>
+<script>
+(function () {
+  var redirecting = false;
+  // If already signed in, route based on whether a profile exists yet.
+  auth.onAuthStateChanged(function (user) {
+    if (!user || redirecting) { return; }
+    HK.loadProfile(user).then(function (ok) {
+      if (ok) {
+        redirecting = true;
+        window.location.href = HK.homeForRole(HK.state.profile.role);
+      } else {
+        // Signed in but no profile yet - first run. Send to the setup wizard
+        // instead of signing out, so the admin can create the org and profile.
+        redirecting = true;
+        window.location.href = "onboarding.html";
       }
+    }).catch(function (err) {
+      HK.toast("Could not load your profile: " + err.message, "error");
     });
-    var form = document.getElementById("login-form");
-    var btn = document.getElementById("login-btn");
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var email = document.getElementById("email").value.trim();
-      var pass = document.getElementById("password").value;
-      if (!email || !pass) { HK.toast("Enter your email and password.", "error"); return; }
-      btn.disabled = true; btn.textContent = "Signing in...";
-      auth.signInWithEmailAndPassword(email, pass).then(function () {
-        // onAuthStateChanged handles the redirect.
-      }).catch(function (err) {
-        btn.disabled = false; btn.textContent = "Sign in";
-        var msg = "Could not sign in.";
-        if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") { msg = "Incorrect email or password."; }
-        else if (err.code === "auth/user-not-found") { msg = "No account found for that email."; }
-        else if (err.code === "auth/user-disabled") { msg = "This account has been disabled."; }
-        else if (err.code === "auth/too-many-requests") { msg = "Too many attempts. Try again shortly."; }
-        else if (err.code === "auth/invalid-email") { msg = "That email address looks invalid."; }
-        HK.toast(msg, "error");
-      });
+  });
+  var form = document.getElementById("login-form");
+  var btn = document.getElementById("login-btn");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("email").value.trim();
+    var pass = document.getElementById("password").value;
+    if (!email || !pass) { HK.toast("Enter your email and password.", "error"); return; }
+    btn.disabled = true; btn.textContent = "Signing in...";
+    auth.signInWithEmailAndPassword(email, pass).then(function () {
+      // onAuthStateChanged handles the redirect.
+    }).catch(function (err) {
+      btn.disabled = false; btn.textContent = "Sign in";
+      var msg = "Could not sign in.";
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") { msg = "Incorrect email or password."; }
+      else if (err.code === "auth/user-not-found") { msg = "No account found for that email."; }
+      else if (err.code === "auth/user-disabled") { msg = "This account has been disabled."; }
+      else if (err.code === "auth/too-many-requests") { msg = "Too many attempts. Try again shortly."; }
+      else if (err.code === "auth/invalid-email") { msg = "That email address looks invalid."; }
+      HK.toast(msg, "error");
     });
-    document.getElementById("forgot").addEventListener("click", function (e) {
-      e.preventDefault();
-      var email = document.getElementById("email").value.trim();
-      if (!email) { HK.toast("Enter your email above first, then tap Forgot password.", "info"); return; }
-      auth.sendPasswordResetEmail(email).then(function () {
-        HK.toast("Password reset email sent to " + email, "success");
-      }).catch(function () { HK.toast("Could not send reset email. Check the address.", "error"); });
-    });
-  })();
-  </script>
+  });
+  document.getElementById("forgot").addEventListener("click", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("email").value.trim();
+    if (!email) { HK.toast("Enter your email above first, then tap Forgot password.", "info"); return; }
+    auth.sendPasswordResetEmail(email).then(function () {
+      HK.toast("Password reset email sent to " + email, "success");
+    }).catch(function () { HK.toast("Could not send reset email. Check the address.", "error"); });
+  });
+})();
+</script>
 </body>
 </html>
