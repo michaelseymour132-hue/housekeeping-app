@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Housekeeping Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head">
+        <div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Dashboard</h1></div>
+        <a href="assign.html" class="btn btn-accent right">Assign rooms</a>
+      </div>
+      <div class="kpi-grid" id="kpis">
+        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Clean</div></div>
+        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Remaining</div></div>
+        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Deep cleans due</div></div>
+        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Open maintenance</div></div>
+      </div>
+      <div class="card">
+        <div class="row wrap mb16">
+          <input id="search" placeholder="Search room number" style="max-width:200px;">
+          <select id="fFloor" style="max-width:140px;"><option value="">All floors</option></select>
+          <select id="fStatus" style="max-width:160px;"><option value="">All statuses</option><option value="clean">Clean</option><option value="dirty">Dirty</option><option value="inprogress">In progress</option><option value="inspected">Inspected</option><option value="ooo">Out of order</option><option value="dnd">Do not disturb</option></select>
+          <select id="fOcc" style="max-width:160px;"><option value="">All occupancy</option><option value="vacant">Vacant</option><option value="occupied">Occupied</option><option value="checkout">Checkout</option><option value="stayover">Stayover</option></select>
+        </div>
+        <div class="row wrap mb16 small">
+          <span class="badge badge-green">Clean</span><span class="badge badge-red">Dirty</span><span class="badge badge-amber">In progress</span><span class="badge badge-blue">Inspected</span><span class="badge badge-grey">Out of order</span><span class="badge badge-purple">Do not disturb</span>
+        </div>
+        <div id="grid" class="room-grid"></div>
+        <div id="gridEmpty" class="empty hidden"><div class="empty-icon">\u25A6</div><div>No rooms match your filters.</div></div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <div id="popover-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var allRooms = [], unsub = null;
+    HK.requireAuth(["admin", "supervisor"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      HK.mount("dashboard");
+      start();
+    });
+    window.addEventListener("beforeunload", function () { if (unsub) { unsub(); } });
+    ["search", "fFloor", "fStatus", "fOcc"].forEach(function (id) { document.addEventListener("input", function (e) { if (e.target.id === id) { render(); } }); });
+
+    function start() {
+      unsub = HK.col("rooms").where("active", "==", true).onSnapshot(function (snap) {
+        allRooms = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; allRooms.push(r); });
+        allRooms.sort(function (a, b) { return (a.roomNumber > b.roomNumber) ? 1 : -1; });
+        populateFloors(); render(); renderKpis();
+      }, function (err) { HK.toast("Could not load rooms: " + err.message, "error"); });
+      HK.col("roomnotes").where("isMaintenanceIssue", "==", true).where("maintenanceStatus", "in", ["open", "inprogress"]).get().then(function (s) {
+        document.querySelectorAll(".kpi-val")[3].textContent = s.size; document.querySelectorAll(".kpi-val")[3].className = "kpi-val";
+      }).catch(function () {});
+    }
+    function populateFloors() {
+      var sel = document.getElementById("fFloor"); if (sel.dataset.done) { return; }
+      var floors = {}; allRooms.forEach(function (r) { floors[r.floor] = true; });
+      Object.keys(floors).sort(function (a, b) { return a - b; }).forEach(function (f) { var o = document.createElement("option"); o.value = f; o.textContent = "Floor " + f; sel.appendChild(o); });
+      sel.dataset.done = "1";
+    }
+    function renderKpis() {
+      var vals = document.querySelectorAll(".kpi-val");
+      var total = allRooms.length; var clean = allRooms.filter(function (r) { return r.status === "clean" || r.status === "inspected"; }).length;
+      var remaining = allRooms.filter(function (r) { return r.status === "dirty" || r.status === "inprogress"; }).length;
+      var now = new Date(); var due = allRooms.filter(function (r) { return r.nextDeepCleanDue && r.nextDeepCleanDue.toDate && r.nextDeepCleanDue.toDate() <= now; }).length;
+      vals[0].textContent = total ? Math.round(clean / total * 100) + "%" : "-"; vals[0].className = "kpi-val";
+      vals[1].textContent = remaining; vals[1].className = "kpi-val";
+      vals[2].textContent = due; vals[2].className = "kpi-val";
+    }
+    function render() {
+      var q = (document.getElementById("search").value || "").toLowerCase();
+      var ff = document.getElementById("fFloor").value, fs = document.getElementById("fStatus").value, fo = document.getElementById("fOcc").value;
+      var grid = document.getElementById("grid"); grid.innerHTML = "";
+      var shown = allRooms.filter(function (r) {
+        if (q && r.roomNumber.toLowerCase().indexOf(q) === -1) { return false; }
+        if (ff && String(r.floor) !== ff) { return false; }
+        if (fs && r.status !== fs) { return false; }
+        if (fo && r.occupancy !== fo) { return false; }
+        return true;
+      });
+      document.getElementById("gridEmpty").className = shown.length ? "empty hidden" : "empty";
+      shown.forEach(function (r) {
+        var t = document.createElement("div"); t.className = "room-tile st-" + r.status;
+        t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span><span class=\"rt\">" + HK.esc(r.type) + "</span>";
+        t.onclick = function () { popover(r, t); };
+        grid.appendChild(t);
+      });
+    }
+    function popover(r, anchor) {
+      var host = document.getElementById("popover-host"); host.innerHTML = "";
+      var back = document.createElement("div"); back.className = "modal-backdrop";
+      var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "360px";
+      box.innerHTML = "<h2>Room " + HK.esc(r.roomNumber) + "</h2><p class=\"muted small mb16\">" + HK.esc(r.type) + " - " + HK.esc(r.status) + " - " + HK.esc(r.occupancy) + "</p>";
+      var view = document.createElement("a"); view.href = "room.html?id=" + r.id; view.className = "btn btn-secondary btn-block mb8"; view.textContent = "View room profile"; box.appendChild(view);
+      var label = document.createElement("label"); label.textContent = "Change status"; box.appendChild(label);
+      var sel = document.createElement("select");
+      ["clean", "dirty", "inprogress", "inspected", "ooo", "dnd"].forEach(function (st) { var o = document.createElement("option"); o.value = st; o.textContent = st; if (st === r.status) { o.selected = true; } sel.appendChild(o); });
+      box.appendChild(sel);
+      var acts = document.createElement("div"); acts.className = "modal-actions";
+      var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Close";
+      var save = document.createElement("button"); save.className = "btn btn-accent"; save.textContent = "Save";
+      cancel.onclick = function () { host.innerHTML = ""; };
+      back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+      save.onclick = function () {
+        save.disabled = true; save.textContent = "Saving...";
+        var ns = sel.value;
+        HK.col("rooms").doc(r.id).update({ status: ns, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () {
+          HK.history(r.id, r.roomNumber, "statuschange", "Status set to " + ns, null);
+          HK.audit("room.statuschange", "Room " + r.roomNumber + " -> " + ns);
+          HK.toast("Room " + r.roomNumber + " updated.", "success"); host.innerHTML = "";
+        }).catch(function (err) { save.disabled = false; save.textContent = "Save"; HK.toast("Update failed: " + err.message, "error"); });
+      };
+      acts.appendChild(cancel); acts.appendChild(save); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+    }
+  })();
+  </script>
+</body>
+</html>
