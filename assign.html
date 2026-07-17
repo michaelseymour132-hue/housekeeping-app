@@ -136,14 +136,16 @@
       });
     }
     function copyYesterday() {
+      var cy = document.getElementById("copyYest"); cy.disabled = true;
+      function reenable() { cy.disabled = false; }
       var date = document.getElementById("date").value; var d = new Date(date + "T00:00:00"); var y = HK.dateStr(HK.addDays(d, -1));
       HK.col("assignments").where("date", "==", y).get().then(function (snap) {
-        if (snap.empty) { HK.toast("No assignments found for " + y + ".", "info"); return; }
+        if (snap.empty) { HK.toast("No assignments found for " + y + ".", "info"); reenable(); return; }
         var b = db.batch(); var n = 0;
         snap.forEach(function (doc) { var a = doc.data(); var exists = assignmentsForDate.some(function (x) { return x.roomId === a.roomId; }); if (exists) { return; } n++; var ref = HK.col("assignments").doc(); b.set(ref, { date: date, roomId: a.roomId, roomNumber: a.roomNumber, assignedToUid: a.assignedToUid, assignedToName: a.assignedToName, type: a.type, status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: (a.checklist || []).map(function (c) { return { item: c.item, done: false }; }), createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() }); });
-        if (!n) { HK.toast("Everything from yesterday is already assigned.", "info"); return; }
-        b.commit().then(function () { HK.audit("assignment.created", "Copied " + n + " assignments from " + y); HK.toast("Copied " + n + " assignments from yesterday.", "success"); loadAssignmentsForDate(); }).catch(function (err) { HK.toast("Copy failed: " + err.message, "error"); });
-      }).catch(function (err) { HK.toast("Could not read yesterday: " + err.message, "error"); });
+        if (!n) { HK.toast("Everything from yesterday is already assigned.", "info"); reenable(); return; }
+        b.commit().then(function () { HK.audit("assignment.created", "Copied " + n + " assignments from " + y); HK.toast("Copied " + n + " assignments from yesterday.", "success"); loadAssignmentsForDate(); reenable(); }).catch(function (err) { HK.toast("Copy failed: " + err.message, "error"); reenable(); });
+      }).catch(function (err) { HK.toast("Could not read yesterday: " + err.message, "error"); reenable(); });
     }
   })();
   </script>

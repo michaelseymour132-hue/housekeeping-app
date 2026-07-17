@@ -39,7 +39,12 @@
 </style>
 </head>
 <body>
-<div class="app"></div>
+<div class="app">
+  <main class="main">
+    <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Calendar</h1></div></div>
+    <div id="calRoot"></div>
+  </main>
+</div>
 <div id="toast-host"></div>
 <script src="js/firebase-config.js"></script>
 <script src="js/common.js"></script>
@@ -51,7 +56,8 @@
   var loaded = false;
 
   HK.requireAuth(["admin", "supervisor"], function (state) {
-    if (!state.hotelId) { HK.toast("No hotel selected.", "error"); return; }
+    if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+    HK.mount("calendar");
     render();
     loadEvents();
   });
@@ -76,34 +82,31 @@
     events = [];
     loaded = false;
     var jobs = [];
+    // Assignments carry the real date. Deep cleans are scheduled AS assignments
+    // (type "deepclean"), so we colour those purple rather than querying a
+    // separate deepcleans collection (its docs have no scheduled-date field).
     jobs.push(HK.col("assignments").get().then(function (snap) {
       snap.forEach(function (doc) {
         var d = doc.data();
         var ds = toDateStr(d.date);
         if (!ds) { return; }
-        events.push({ type: "assign", date: ds, roomId: d.roomId || null,
-          label: "Room " + (d.roomNumber || "?") + (d.type ? " - " + d.type : ""),
+        var isDeep = (d.type === "deepclean");
+        events.push({ type: isDeep ? "deep" : "assign", date: ds, roomId: d.roomId || null,
+          label: (isDeep ? "Deep clean - Room " : "Room ") + (d.roomNumber || "?") + ((!isDeep && d.type) ? " - " + d.type : ""),
           status: d.status || "" });
       });
     }).catch(function () {}));
-    jobs.push(HK.col("deepcleans").get().then(function (snap) {
+    // Maintenance issues live in roomnotes (isMaintenanceIssue == true), dated by
+    // when they were reported. Resolved issues are dropped from the calendar.
+    jobs.push(HK.col("roomnotes").where("isMaintenanceIssue", "==", true).get().then(function (snap) {
       snap.forEach(function (doc) {
         var d = doc.data();
-        var ds = toDateStr(d.scheduled);
-        if (!ds) { return; }
-        events.push({ type: "deep", date: ds, roomId: d.roomId || null,
-          label: "Deep clean - Room " + (d.roomNumber || "?"),
-          status: d.status || "" });
-      });
-    }).catch(function () {}));
-    jobs.push(HK.col("maintenance").get().then(function (snap) {
-      snap.forEach(function (doc) {
-        var d = doc.data();
-        var ds = toDateStr(d.dueDate || d.date || d.createdAt);
+        if (d.maintenanceStatus === "resolved") { return; }
+        var ds = toDateStr(d.createdAt);
         if (!ds) { return; }
         events.push({ type: "maint", date: ds, roomId: d.roomId || null,
           label: "Maintenance - Room " + (d.roomNumber || "?"),
-          status: d.status || "" });
+          status: d.maintenanceStatus || "open" });
       });
     }).catch(function () {}));
     Promise.all(jobs).then(function () { loaded = true; render(); }).catch(function () { loaded = true; render(); });
@@ -126,10 +129,9 @@
   }
 
   function render() {
-    var app = document.querySelector(".app");
-    if (!app) { return; }
-    HK.mount("calendar");
-    var main = app.querySelector(".content") || app.querySelector("main") || app;
+    var root = document.getElementById("calRoot");
+    if (!root) { return; }
+    root.innerHTML = "";
     var host = document.createElement("div");
     host.className = "card";
     host.style.padding = "16px";
@@ -163,7 +165,7 @@
     } else {
       host.appendChild(buildGrid());
     }
-    main.appendChild(host);
+    root.appendChild(host);
   }
 
   function buildGrid() {

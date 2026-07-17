@@ -104,9 +104,11 @@
         HK.hotelRef().get().then(function (h) {
           var checklist = ((h.data().settings || {}).deepCleanChecklist || []).map(function (i) { return { item: i, done: false }; });
           var dcRef = HK.col("deepcleans").doc();
-          var b = db.batch();
-          b.set(dcRef, { roomId: r.id, roomNumber: r.roomNumber, assignedToUid: hkUid, status: "scheduled", checklist: checklist, beforePhotoUrls: [], afterPhotoUrls: [], startedAt: null, completedAt: null, notes: "", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
           var aRef = HK.col("assignments").doc(); var hkUser = users.filter(function (u) { return u.uid === hkUid; })[0];
+          var b = db.batch();
+          // Store the linked assignment id on the deep clean so completing the
+          // deep clean can close that assignment (otherwise it lingers "pending").
+          b.set(dcRef, { roomId: r.id, roomNumber: r.roomNumber, assignedToUid: hkUid, assignmentId: aRef.id, status: "scheduled", checklist: checklist, beforePhotoUrls: [], afterPhotoUrls: [], startedAt: null, completedAt: null, notes: "", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
           b.set(aRef, { date: HK.todayStr(), roomId: r.id, roomNumber: r.roomNumber, assignedToUid: hkUid, assignedToName: hkUser ? hkUser.displayName : "", type: "deepclean", status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: checklist, createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
           return b.commit();
         }).then(function () { HK.audit("deepclean.scheduled", "Room " + r.roomNumber); HK.toast("Deep clean scheduled.", "success"); host.innerHTML = ""; loadAll(); }).catch(function (err) { ok.disabled = false; ok.textContent = "Schedule"; HK.toast("Failed: " + err.message, "error"); });
@@ -145,6 +147,8 @@
           var b = db.batch();
           b.update(HK.col("deepcleans").doc(x.id), { status: "complete", checklist: cl, beforePhotoUrls: before, afterPhotoUrls: after, notes: document.getElementById("dcNotes").value, completedAt: firebase.firestore.FieldValue.serverTimestamp() });
           b.update(HK.col("rooms").doc(x.roomId), { lastDeepCleanAt: firebase.firestore.FieldValue.serverTimestamp(), nextDeepCleanDue: nextDue, status: "clean", updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+          // Close the linked housekeeper assignment so it stops showing as pending.
+          if (x.assignmentId) { b.update(HK.col("assignments").doc(x.assignmentId), { status: "complete", completedAt: firebase.firestore.FieldValue.serverTimestamp() }); }
           b.commit().then(function () { HK.history(x.roomId, x.roomNumber, "deepclean", "Deep clean completed", x.id); HK.audit("deepclean.completed", "Room " + x.roomNumber); HK.toast("Deep clean completed.", "success"); host.innerHTML = ""; loadAll(); }).catch(function (err) { done.disabled = false; done.textContent = "Complete deep clean"; HK.toast("Failed: " + err.message, "error"); });
         });
       };

@@ -72,7 +72,7 @@
       var p = document.getElementById("pane-overview");
       var statusBadge = { clean:"badge-green", dirty:"badge-red", inprogress:"badge-amber", inspected:"badge-blue", ooo:"badge-grey", dnd:"badge-purple" }[room.status] || "badge-grey";
       var html = "<div class=\"card\"><div class=\"card-title\">Details</div>";
-      html += "<div class=\"row wrap mb16\"><span class=\"badge " + statusBadge + "\">" + HK.esc(room.status) + "</span><span class=\"badge badge-grey\">" + HK.esc(room.occupancy) + "</span></div>";
+      html += "<div class=\"row wrap mb16\"><span class=\"badge " + statusBadge + "\">" + HK.esc(room.status) + "</span><span class=\"badge badge-grey\">" + HK.esc(room.occStatus || room.occupancy || "vacant") + "</span></div>";
       html += "<div class=\"field\"><label>Type</label>" + (canEdit ? "<select id=\"eType\"></select>" : "<div>" + HK.esc(room.type) + "</div>") + "</div>";
       html += "<div class=\"field\"><label>Bed configuration</label>" + (canEdit ? "<input id=\"eBed\" value=\"" + HK.esc(room.bedConfig) + "\">" : "<div>" + HK.esc(room.bedConfig || "-") + "</div>") + "</div>";
       html += "<div class=\"field\"><label>Notes</label>" + (canEdit ? "<textarea id=\"eNotes\">" + HK.esc(room.notes) + "</textarea>" : "<div>" + HK.esc(room.notes || "-") + "</div>") + "</div>";
@@ -80,7 +80,7 @@
       html += "<p class=\"small muted\">Last cleaned: " + HK.fmtDateTime(room.lastCleanedAt) + " - Last deep clean: " + HK.fmtDateTime(room.lastDeepCleanAt) + "</p>";
       if (canEdit) { html += "<button class=\"btn btn-accent\" id=\"saveRoom\">Save changes</button>"; }
       html += "</div>";
-      html += "<div class=\"card\"><div class=\"card-title\">Photos</div><div class=\"gallery\" id=\"gallery\"></div><button class=\"btn btn-secondary btn-sm mt16\" id=\"addPhoto\">Add photo</button><div id=\"upProg\" class=\"small muted mt8\"></div></div>";
+      html += "<div class=\"card\"><div class=\"card-title\">Photos</div><div class=\"gallery\" id=\"gallery\"></div>" + (canEdit ? "<button class=\"btn btn-secondary btn-sm mt16\" id=\"addPhoto\">Add photo</button><div id=\"upProg\" class=\"small muted mt8\"></div>" : "") + "</div>";
       html += "<div class=\"card\"><div class=\"card-title\">Actions</div><div class=\"row wrap\"><button class=\"btn btn-secondary\" id=\"aNote\">Add note</button><button class=\"btn btn-secondary\" id=\"aIssue\">Report issue</button></div></div>";
       p.innerHTML = html;
       if (canEdit) {
@@ -88,7 +88,8 @@
         document.getElementById("saveRoom").onclick = saveRoom;
       }
       renderGallery();
-      document.getElementById("addPhoto").onclick = function () { pickPhoto(); };
+      var addPhotoBtn = document.getElementById("addPhoto");
+      if (addPhotoBtn) { addPhotoBtn.onclick = function () { pickPhoto(); }; }
       document.getElementById("aNote").onclick = function () { noteModal("general", false); };
       document.getElementById("aIssue").onclick = function () { noteModal("damage", true); };
     }
@@ -103,12 +104,15 @@
       HK.col("rooms").doc(roomId).update(upd).then(function () { room.type = upd.type; room.bedConfig = upd.bedConfig; room.notes = upd.notes; room.quirks = upd.quirks; HK.audit("room.updated", "Room " + room.roomNumber + " details edited"); HK.toast("Room saved.", "success"); btn.disabled = false; btn.textContent = "Save changes"; }).catch(function (err) { btn.disabled = false; btn.textContent = "Save changes"; HK.toast("Save failed: " + err.message, "error"); });
     }
     function pickPhoto() {
+      if (!canEdit) { return; }
       var input = document.getElementById("photoInput"); input.value = "";
-      input.onchange = function () { if (!input.files || !input.files[0]) { return; } var f = input.files[0]; var prog = document.getElementById("upProg"); prog.textContent = "Uploading 0%";
+      input.onchange = function () { if (!input.files || !input.files[0]) { return; } var f = input.files[0]; var prog = document.getElementById("upProg");
+        var addBtn = document.getElementById("addPhoto"); if (addBtn) { addBtn.disabled = true; }
+        prog.textContent = "Uploading 0%";
         var path = "orgs/" + HK.state.orgId + "/hotels/" + HK.state.hotelId + "/rooms/" + roomId + "/" + Date.now() + ".jpg";
         HK.uploadPhoto(f, path, function (pct) { prog.textContent = "Uploading " + pct + "%"; }).then(function (url) {
-          return HK.col("rooms").doc(roomId).update({ photoUrls: firebase.firestore.FieldValue.arrayUnion(url), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () { room.photoUrls = (room.photoUrls || []).concat([url]); renderGallery(); prog.textContent = ""; HK.toast("Photo added.", "success"); });
-        }).catch(function (err) { prog.textContent = ""; HK.toast("Upload failed: " + err.message, "error"); });
+          return HK.col("rooms").doc(roomId).update({ photoUrls: firebase.firestore.FieldValue.arrayUnion(url), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () { room.photoUrls = (room.photoUrls || []).concat([url]); renderGallery(); prog.textContent = ""; if (addBtn) { addBtn.disabled = false; } HK.toast("Photo added.", "success"); });
+        }).catch(function (err) { prog.textContent = ""; if (addBtn) { addBtn.disabled = false; } HK.toast("Upload failed: " + err.message, "error"); });
       };
       input.click();
     }

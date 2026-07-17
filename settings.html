@@ -36,7 +36,7 @@
     var btns = document.querySelectorAll(".tabs-nav button");
     for (var i = 0; i < btns.length; i++) { btns[i].onclick = (function (b) { return function () { cur = b.getAttribute("data-t"); setActive(); render(); }; })(btns[i]); }
     function setActive() { var bs = document.querySelectorAll(".tabs-nav button"); for (var j = 0; j < bs.length; j++) { bs[j].className = (bs[j].getAttribute("data-t") === cur) ? "active" : ""; } }
-    function render() { var p = document.getElementById("pane"); p.innerHTML = ""; if (cur === "hotel") { renderHotel(p); } else if (cur === "checklists") { renderChecklists(p); } else if (cur === "rooms") { renderRooms(p); } else if (cur === "users") { renderUsers(p); } else if (cur === "branding") { renderBranding(p); } else if (cur === "export") { renderExport(p); } else if (cur === "audit") { renderAudit(p); } }
+    function render() { var p = document.getElementById("pane"); if (!hotel) { p.innerHTML = "Loading..."; return; } p.innerHTML = ""; if (cur === "hotel") { renderHotel(p); } else if (cur === "checklists") { renderChecklists(p); } else if (cur === "rooms") { renderRooms(p); } else if (cur === "users") { renderUsers(p); } else if (cur === "branding") { renderBranding(p); } else if (cur === "export") { renderExport(p); } else if (cur === "audit") { renderAudit(p); } }
     function renderHotel(p) {
       var c = document.createElement("div"); c.className = "card";
       c.innerHTML = "<div class=\"card-title\">Hotel details</div><div class=\"field\"><label>Name</label><input id=\"hName\" value=\"" + HK.esc(hotel.name) + "\"></div><div class=\"field\"><label>Address</label><input id=\"hAddr\" value=\"" + HK.esc(hotel.address || "") + "\"></div><div class=\"field-row\"><div class=\"field\"><label>Floors</label><input id=\"hFloors\" type=\"number\" value=\"" + (hotel.floorsCount || 1) + "\"></div><div class=\"field\"><label>Deep clean interval (days)</label><input id=\"hInterval\" type=\"number\" value=\"" + (hotel.settings.deepCleanIntervalDays || 90) + "\"></div></div><button class=\"btn btn-accent\" id=\"saveHotel\">Save</button>";
@@ -58,15 +58,36 @@
     function renderRooms(p) {
       var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">Room manager</div><div class=\"field-row\"><div class=\"field\"><label>Room number</label><input id=\"rNum\"></div><div class=\"field\"><label>Floor</label><input id=\"rFloor\" type=\"number\" value=\"1\"></div><div class=\"field\"><label>Type</label><select id=\"rType\"><option>double</option><option>single</option><option>twin</option><option>suite</option><option>family</option><option>accessible</option></select></div></div><button class=\"btn btn-accent btn-sm\" id=\"addRoom\">Add room</button><div id=\"roomList\" class=\"mt16\">Loading...</div>";
       p.appendChild(c);
-      document.getElementById("addRoom").onclick = function () { var num = document.getElementById("rNum").value.trim(); if (!num) { HK.toast("Enter a room number.", "error"); return; } HK.col("rooms").add({ roomNumber: num, floor: parseInt(document.getElementById("rFloor").value, 10) || 1, type: document.getElementById("rType").value, status: "clean", occupancy: "vacant", bedConfig: "", notes: "", quirks: "", lastCleanedAt: null, lastDeepCleanAt: null, nextDeepCleanDue: null, photoUrls: [], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () { HK.audit("room.created", "Room " + num); HK.toast("Room added.", "success"); document.getElementById("rNum").value = ""; loadRoomList(); }).catch(function (err) { HK.toast("Add failed: " + err.message, "error"); }); };
+      document.getElementById("addRoom").onclick = function () { var num = document.getElementById("rNum").value.trim(); if (!num) { HK.toast("Enter a room number.", "error"); return; } HK.col("rooms").add({ roomNumber: num, floor: parseInt(document.getElementById("rFloor").value, 10) || 1, type: document.getElementById("rType").value, status: "clean", occupancy: "vacant", occStatus: "vacant", arrival: "", departure: "", guestName: "", bedConfig: "", notes: "", quirks: "", lastCleanedAt: null, lastDeepCleanAt: null, nextDeepCleanDue: null, photoUrls: [], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () { HK.audit("room.created", "Room " + num); HK.toast("Room added.", "success"); document.getElementById("rNum").value = ""; loadRoomList(); }).catch(function (err) { HK.toast("Add failed: " + err.message, "error"); }); };
       loadRoomList();
       function loadRoomList() { HK.col("rooms").where("active", "==", true).get().then(function (snap) { var el = document.getElementById("roomList"); el.innerHTML = ""; var arr = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; arr.push(r); }); arr.sort(function (a, b) { return (a.roomNumber > b.roomNumber) ? 1 : -1; }); if (!arr.length) { el.innerHTML = "<p class=\"muted small\">No rooms.</p>"; return; } arr.forEach(function (r) { var row = document.createElement("div"); row.className = "checkitem"; row.innerHTML = "<span class=\"grow\">Room " + HK.esc(r.roomNumber) + " <span class=\"tiny muted\">" + HK.esc(r.type) + " - floor " + r.floor + "</span></span>"; var del = document.createElement("button"); del.className = "btn btn-sm btn-danger"; del.textContent = "Deactivate"; del.onclick = function () { HK.confirm("Deactivate room " + r.roomNumber + "?", "It will be hidden from boards but its history is kept.", "Deactivate", true).then(function (go) { if (!go) { return; } HK.col("rooms").doc(r.id).update({ active: false }).then(function () { HK.audit("room.deactivated", "Room " + r.roomNumber); HK.toast("Deactivated.", "success"); loadRoomList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); }); }; row.appendChild(del); el.appendChild(row); }); }).catch(function (err) { document.getElementById("roomList").innerHTML = "<p class=\"muted\">" + HK.esc(err.message) + "</p>"; }); }
     }
     function renderUsers(p) {
-      var note = document.createElement("div"); note.className = "card mb16"; note.innerHTML = "<div class=\"card-title\">Important</div><p class=\"small\">The login account itself is created in <strong>Firebase Console &gt; Authentication &gt; Add user</strong>. Here you create the matching profile (role and hotels) using that person\u2019s exact sign-in email and their Firebase UID.</p>";
-      var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">Add user profile</div><div class=\"field\"><label>Firebase UID</label><input id=\"uUid\" placeholder=\"from Authentication tab\"></div><div class=\"field\"><label>Display name</label><input id=\"uName\"></div><div class=\"field\"><label>Email</label><input id=\"uEmail\" type=\"email\"></div><div class=\"field\"><label>Role</label><select id=\"uRole\"><option value=\"housekeeper\">Housekeeper</option><option value=\"supervisor\">Supervisor</option><option value=\"admin\">Admin</option></select></div><button class=\"btn btn-accent btn-sm\" id=\"addUser\">Create profile</button><div id=\"userList\" class=\"mt16\">Loading...</div>";
+      var note = document.createElement("div"); note.className = "card mb16"; note.innerHTML = "<div class=\"card-title\">Add a team member</div><p class=\"small\">Enter their name, email and role, then press Create. Their login is set up automatically and they are emailed a link to choose their own password - no Firebase Console step needed.</p>";
+      var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">New user</div><div class=\"field\"><label>Display name</label><input id=\"uName\"></div><div class=\"field\"><label>Email</label><input id=\"uEmail\" type=\"email\" autocomplete=\"off\"></div><div class=\"field\"><label>Role</label><select id=\"uRole\"><option value=\"housekeeper\">Housekeeper</option><option value=\"supervisor\">Supervisor</option><option value=\"admin\">Admin</option></select></div><button class=\"btn btn-accent btn-sm\" id=\"addUser\">Create user</button><div id=\"userList\" class=\"mt16\">Loading...</div>";
       p.appendChild(note); p.appendChild(c);
-      document.getElementById("addUser").onclick = function () { var uid = document.getElementById("uUid").value.trim(); var name = document.getElementById("uName").value.trim(); var email = document.getElementById("uEmail").value.trim(); if (!uid || !name || !email) { HK.toast("Fill in UID, name and email.", "error"); return; } HK.orgRef().collection("users").doc(uid).set({ uid: uid, displayName: name, email: email, role: document.getElementById("uRole").value, hotelIds: [HK.state.hotelId], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastLoginAt: null }).then(function () { HK.audit("user.created", name + " (" + document.getElementById("uRole").value + ")"); HK.toast("User profile created.", "success"); document.getElementById("uUid").value = ""; document.getElementById("uName").value = ""; document.getElementById("uEmail").value = ""; loadUserList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); };
+      document.getElementById("addUser").onclick = function () {
+        var btn = this; var name = document.getElementById("uName").value.trim(); var email = document.getElementById("uEmail").value.trim(); var role = document.getElementById("uRole").value;
+        if (!name || !email) { HK.toast("Enter a name and email.", "error"); return; }
+        btn.disabled = true; btn.textContent = "Creating...";
+        var user = firebase.auth().currentUser;
+        if (!user) { btn.disabled = false; btn.textContent = "Create user"; HK.toast("Please sign in again.", "error"); return; }
+        user.getIdToken().then(function (token) {
+          return fetch("/api/create-user", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ orgId: HK.state.orgId, hotelId: HK.state.hotelId, email: email, displayName: name, role: role }) });
+        }).then(function (resp) {
+          return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+        }).then(function (r) {
+          if (!r.ok) { throw new Error((r.data && r.data.error) || "Could not create the user."); }
+          // Ask Firebase to email the new user a link to set their own password.
+          return auth.sendPasswordResetEmail(email).catch(function () {}).then(function () {
+            HK.audit("user.created", name + " (" + role + ")");
+            HK.toast("User created. They have been emailed a link to set their password.", "success");
+            document.getElementById("uName").value = ""; document.getElementById("uEmail").value = "";
+            btn.disabled = false; btn.textContent = "Create user";
+            loadUserList();
+          });
+        }).catch(function (err) { btn.disabled = false; btn.textContent = "Create user"; HK.toast("Failed: " + err.message, "error"); });
+      };
       loadUserList();
       function loadUserList() { HK.orgRef().collection("users").get().then(function (snap) { var el = document.getElementById("userList"); el.innerHTML = ""; snap.forEach(function (d) { var u = d.data(); var row = document.createElement("div"); row.className = "checkitem"; row.innerHTML = "<span class=\"grow\">" + HK.esc(u.displayName) + " <span class=\"tiny muted\">" + HK.esc(u.email) + " - " + HK.esc(u.role) + (u.active ? "" : " - inactive") + "</span></span>"; if (u.uid !== HK.state.user.uid) { var tog = document.createElement("button"); tog.className = "btn btn-sm btn-secondary"; tog.textContent = u.active ? "Deactivate" : "Reactivate"; tog.onclick = function () { HK.orgRef().collection("users").doc(u.uid).update({ active: !u.active }).then(function () { HK.audit("user.updated", u.displayName + " active=" + (!u.active)); HK.toast("Updated.", "success"); loadUserList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); }; row.appendChild(tog); } el.appendChild(row); }); }).catch(function (err) { document.getElementById("userList").innerHTML = "<p class=\"muted\">" + HK.esc(err.message) + "</p>"; }); }
     }
@@ -83,9 +104,42 @@
     }
     function exportCol(col, btn) { btn.disabled = true; var old = btn.textContent; btn.textContent = "..."; HK.col(col).get().then(function (snap) { var rows = []; var keys = {}; snap.forEach(function (d) { var o = d.data(); Object.keys(o).forEach(function (k) { keys[k] = true; }); }); var cols = Object.keys(keys); rows.push(cols); snap.forEach(function (d) { var o = d.data(); rows.push(cols.map(function (k) { var v = o[k]; if (v && v.toDate) { v = v.toDate().toISOString(); } if (typeof v === "object") { v = JSON.stringify(v); } return v == null ? "" : v; })); }); var csv = rows.map(function (r) { return r.map(function (cc) { return "\"" + String(cc).replace(/\"/g, "\"\"") + "\""; }).join(","); }).join("\n"); var blob = new Blob([csv], { type: "text/csv" }); var url = URL.createObjectURL(blob); var a = document.createElement("a"); a.href = url; a.download = col + ".csv"; a.click(); URL.revokeObjectURL(url); btn.disabled = false; btn.textContent = old; }).catch(function (err) { btn.disabled = false; btn.textContent = old; HK.toast("Export failed: " + err.message, "error"); }); }
     function renderAudit(p) {
-      var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">Audit log (read-only)</div><div class=\"table-wrap\"><table><thead><tr><th>When</th><th>Action</th><th>Detail</th><th>Actor</th></tr></thead><tbody id=\"auditBody\"><tr><td colspan=\"4\">Loading...</td></tr></tbody></table></div>";
+      var c = document.createElement("div"); c.className = "card";
+      c.innerHTML = "<div class=\"card-title\">Audit log (read-only)</div>" +
+        "<div class=\"row wrap mb16\">" +
+        "<div class=\"field\" style=\"margin-bottom:0;\"><label class=\"tiny\">From</label><input type=\"date\" id=\"aFrom\"></div>" +
+        "<div class=\"field\" style=\"margin-bottom:0;\"><label class=\"tiny\">To</label><input type=\"date\" id=\"aTo\"></div>" +
+        "<div class=\"field grow\" style=\"margin-bottom:0;\"><label class=\"tiny\">Action contains</label><input id=\"aAction\" placeholder=\"e.g. room, user, inspection\"></div>" +
+        "<button class=\"btn btn-sm btn-accent\" id=\"aApply\">Apply</button>" +
+        "</div>" +
+        "<div class=\"table-wrap\"><table><thead><tr><th>When</th><th>Action</th><th>Detail</th><th>Actor</th></tr></thead><tbody id=\"auditBody\"><tr><td colspan=\"4\">Loading...</td></tr></tbody></table></div>";
       p.appendChild(c);
-      HK.orgRef().collection("auditlog").orderBy("createdAt", "desc").limit(100).get().then(function (snap) { var tb = document.getElementById("auditBody"); tb.innerHTML = ""; if (snap.empty) { tb.innerHTML = "<tr><td colspan=\"4\" class=\"muted\">No audit entries yet.</td></tr>"; return; } snap.forEach(function (d) { var a = d.data(); var tr = document.createElement("tr"); tr.innerHTML = "<td class=\"tiny\">" + HK.fmtDateTime(a.createdAt) + "</td><td>" + HK.esc(a.action) + "</td><td>" + HK.esc(a.detail) + "</td><td>" + HK.esc(a.actorName) + "</td>"; tb.appendChild(tr); }); }).catch(function (err) { document.getElementById("auditBody").innerHTML = "<tr><td colspan=\"4\" class=\"muted\">" + HK.esc(err.message) + "</td></tr>"; });
+      document.getElementById("aApply").onclick = loadAudit;
+      loadAudit();
+      function tsStart(s) { return firebase.firestore.Timestamp.fromDate(new Date(s + "T00:00:00")); }
+      function tsEnd(s) { return firebase.firestore.Timestamp.fromDate(new Date(s + "T23:59:59")); }
+      function loadAudit() {
+        var from = document.getElementById("aFrom").value, to = document.getElementById("aTo").value;
+        var action = (document.getElementById("aAction").value || "").trim().toLowerCase();
+        var q = HK.orgRef().collection("auditlog");
+        if (from) { q = q.where("createdAt", ">=", tsStart(from)); }
+        if (to) { q = q.where("createdAt", "<=", tsEnd(to)); }
+        q = q.orderBy("createdAt", "desc").limit(500);
+        document.getElementById("auditBody").innerHTML = "<tr><td colspan=\"4\">Loading...</td></tr>";
+        q.get().then(function (snap) {
+          var tb = document.getElementById("auditBody"); tb.innerHTML = "";
+          var shown = 0;
+          snap.forEach(function (d) {
+            var a = d.data();
+            if (action && String(a.action || "").toLowerCase().indexOf(action) === -1) { return; }
+            shown++;
+            var tr = document.createElement("tr");
+            tr.innerHTML = "<td class=\"tiny\">" + HK.fmtDateTime(a.createdAt) + "</td><td>" + HK.esc(a.action) + "</td><td>" + HK.esc(a.detail) + "</td><td>" + HK.esc(a.actorName) + "</td>";
+            tb.appendChild(tr);
+          });
+          if (!shown) { tb.innerHTML = "<tr><td colspan=\"4\" class=\"muted\">No matching audit entries.</td></tr>"; }
+        }).catch(function (err) { document.getElementById("auditBody").innerHTML = "<tr><td colspan=\"4\" class=\"muted\">" + HK.esc(err.message) + "</td></tr>"; });
+      }
     }
   })();
   </script>

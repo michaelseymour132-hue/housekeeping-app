@@ -2,8 +2,6 @@
 
 An enterprise hotel housekeeping operations platform: room status, daily cleans, inspections, deep-clean scheduling, maintenance, documents, reporting, and a full admin console. Plain HTML/CSS/vanilla JS front end on Firebase (Firestore, Auth, Storage), hosted on Vercel.
 
-> The original single-file prototype is preserved as `legacy.html`.
-
 ## File tree
 
 ```
@@ -21,12 +19,15 @@ reports.html        Analytics, SVG charts, CSV export, print
 settings.html       Admin console (7 sections)
 privacy.html        GDPR privacy policy TEMPLATE
 seed.html           Dev-only demo data (refuses non-empty hotel)
-legacy.html         Original prototype (kept for reference)
+calendar.html       Month/week calendar of assignments, deep cleans, maintenance
+allocation.html     Occupancy-driven room allocation (CSV import)
 css/style.css       Design system + print styles
 js/firebase-config.js   Firebase config (with Console locations)
 js/common.js        Auth guard, roles, toast, dates, photo upload, shell
 firestore.rules     Firestore security rules (paste into Console)
 storage.rules       Storage security rules (paste into Console)
+api/create-user.js  Serverless function: create staff logins in-app (Vercel)
+package.json        Server dependency (firebase-admin) for the /api function
 README.md TESTING.md ROADMAP.md
 ```
 
@@ -44,11 +45,22 @@ README.md TESTING.md ROADMAP.md
 4. **Firestore > Rules** > paste all of `firestore.rules` > **Publish**.
 5. **Storage** > Get started > then **Storage > Rules** > paste all of `storage.rules` > **Publish**.
 6. **Create your first admin login**: Authentication > Users > Add user (email + password). Then sign in to the deployed app - because you have no profile yet, you are routed to `onboarding.html`, which creates your org, hotel, rooms, and your own admin profile automatically.
-7. **Add more staff**: create their Auth user (Authentication > Add user), copy their UID, then in the app go to Settings > Users and create a matching profile with that UID, email, and role.
+7. **Add more staff**: once the in-app user creation backend is set up (see below), go to Settings > Users in the app, enter a name, email and role and press Create - the login account and profile are created automatically and the person is emailed a link to set their own password. (Before that setup, or as a fallback, you can still add people the old way: Authentication > Add user, then Settings > Users.)
 
 ## Vercel
 
-Connect the GitHub repo in Vercel; it serves the static files as-is. Every push to `main` auto-deploys. No build step or environment variables required.
+Connect the GitHub repo in Vercel; it serves the static files as-is and turns any file under `/api` into a serverless function. Every push to `main` auto-deploys. No build step is required. One environment variable is needed for in-app user creation - see the next section.
+
+## In-app user creation (backend setup)
+
+The app can create staff logins for you (Settings > Users) instead of you making each one by hand in the Firebase Console. This uses one serverless function (`api/create-user.js`) that runs on Vercel. One-time setup, no command line:
+
+1. **Get a service account key.** Firebase Console > gear icon (Project settings) > **Service accounts** tab > **Generate new private key** > Generate key. A `.json` file downloads. Treat it like a password - it grants full access to your Firebase project. Never put it in the repo.
+2. **Copy its contents.** Open the downloaded `.json` file in a text editor and copy everything.
+3. **Add it to Vercel.** Vercel dashboard > your project > **Settings** > **Environment Variables**. Add a variable named exactly `FIREBASE_SERVICE_ACCOUNT`, paste the whole JSON as the value, apply it to all environments, and Save.
+4. **Redeploy.** Vercel > Deployments > latest deployment > "..." menu > Redeploy, so the new variable is picked up. `firebase-admin` installs automatically from `package.json` - you run nothing yourself.
+
+Until this is done, the "Create user" button reports a "Server not configured" error, and you can add people the old way (Firebase Console > Authentication > Add user).
 
 ## Composite indexes
 

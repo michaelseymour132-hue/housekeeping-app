@@ -74,11 +74,14 @@
       if (!days.length) { chart.innerHTML = "<div class=\"empty\"><div class=\"empty-icon\">\u2637</div><div>No completed cleans in this range.</div></div>"; }
       else { var bw = 100 / days.length; var svg = "<svg viewBox=\"0 0 100 40\" preserveAspectRatio=\"none\" style=\"width:100%;height:160px;\">"; days.forEach(function (d, idx) { var h = byDay[d] / maxV * 36; svg += "<rect x=\"" + (idx * bw + bw * 0.15) + "\" y=\"" + (38 - h) + "\" width=\"" + (bw * 0.7) + "\" height=\"" + h + "\" fill=\"#0e9591\"></rect>"; }); svg += "</svg>"; chart.innerHTML = svg + "<div class=\"tiny muted\">" + days[0] + " to " + days[days.length - 1] + " (max " + maxV + "/day)</div>"; }
       // per-housekeeper
-      var byHk = {}; completed.forEach(function (a) { var k = a.assignedToUid; if (!byHk[k]) { byHk[k] = { name: a.assignedToName, count: 0, durs: [], rooms: [] }; } byHk[k].count++; if (a.durationMinutes) { byHk[k].durs.push(a.durationMinutes); } byHk[k].rooms.push(a.roomId); });
-      var inspByRoom = {}; insp.forEach(function (x) { inspByRoom[x.roomId] = inspByRoom[x.roomId] || []; inspByRoom[x.roomId].push(x.result); });
+      var byHk = {}; completed.forEach(function (a) { var k = a.assignedToUid; if (!byHk[k]) { byHk[k] = { name: a.assignedToName, count: 0, durs: [] }; } byHk[k].count++; if (a.durationMinutes) { byHk[k].durs.push(a.durationMinutes); } });
+      // Attribute inspections to the housekeeper who did the clean (inspections now
+      // carry assignedToUid). Inspections recorded before this field existed have no
+      // uid and are simply not attributed, so a housekeeper's pass rate is accurate.
+      var inspByHk = {}; insp.forEach(function (x) { if (!x.assignedToUid) { return; } inspByHk[x.assignedToUid] = inspByHk[x.assignedToUid] || []; inspByHk[x.assignedToUid].push(x.result); });
       var tbody = document.querySelector("#perf tbody"); tbody.innerHTML = ""; perfData = [];
       Object.keys(byHk).forEach(function (k) { var h = byHk[k]; var a = h.durs.length ? Math.round(h.durs.reduce(function (x, y) { return x + y; }, 0) / h.durs.length) : 0;
-        var total = 0, passed = 0; h.rooms.forEach(function (rid) { (inspByRoom[rid] || []).forEach(function (res) { total++; if (res === "pass") { passed++; } }); });
+        var results = inspByHk[k] || []; var total = results.length; var passed = results.filter(function (res) { return res === "pass"; }).length;
         var pr = total ? Math.round(passed / total * 100) + "%" : "-";
         perfData.push([h.name, h.count, a, pr]);
         var tr = document.createElement("tr"); tr.innerHTML = "<td>" + HK.esc(h.name) + "</td><td>" + h.count + "</td><td>" + a + "</td><td>" + pr + "</td>"; tbody.appendChild(tr); });

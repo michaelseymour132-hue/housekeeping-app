@@ -2,6 +2,23 @@ rules_version = "2";
 // Firestore security rules for Housekeeping Hub (multi-tenant).
 // DEPLOY: Firebase Console > Firestore Database > Rules > paste all > Publish.
 // (You do not need the Firebase CLI.)
+//
+// HARDENED VERSION - changes vs the previous rules:
+//  1. A user can no longer promote themselves to admin by editing their own
+//     profile (role / active / hotelIds are locked on self-update).
+//  2. A signed-in user can no longer inject themselves into any org as admin.
+//     Self-create of a user profile is only allowed for the org owner during
+//     first-run onboarding; everyone else is created by an admin.
+//  3. User profiles are no longer readable across every org. You can read your
+//     own profile (needed for login) and profiles inside orgs you belong to.
+//  4. Audit-log and room-history entries must be stamped with the real caller's
+//     uid - they can no longer be forged in someone else's name.
+//  5. Housekeepers may update rooms ONLY to change status/timestamps (this makes
+//     the "start cleaning" / "complete room" flow work without giving them the
+//     power to rename or reconfigure rooms).
+//  6. Housekeepers updating their OWN assignment are restricted to the task
+//     fields (status, checklist, timestamps) - they cannot rewrite the room,
+//     date, type, or reassign the job.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -22,6 +39,19 @@ service cloud.firestore {
     function isAdmin(orgId) { return roleIn(orgId, ["admin"]); }
     function isStaff(orgId) { return roleIn(orgId, ["admin", "supervisor"]); }
 
+    // True if the caller is the recorded owner of this org (used at onboarding,
+    // before any user profile exists yet).
+    function isOrgOwner(orgId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/orgs/$(orgId))
+        && get(/databases/$(database)/documents/orgs/$(orgId)).data.ownerUid == request.auth.uid;
+    }
+
+    // The set of fields being written must be limited to `allowed`.
+    function onlyChanges(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
     // ---- org root ------------------------------------------------------
     match /orgs/{orgId} {
       // Create allowed for a signed-in user setting themselves as owner (onboarding).
@@ -32,41 +62,66 @@ service cloud.firestore {
 
       // ---- users -------------------------------------------------------
       match /users/{uid} {
-        // Needed so a brand-new admin can create their own profile during onboarding.
-        allow create: if signedIn() && (uid == request.auth.uid || isAdmin(orgId));
-        // A member can read profiles in their org (needed for collectionGroup login lookup).
-        allow read: if signedIn();
-        allow update: if isAdmin(orgId) || uid == request.auth.uid;
+        // Admins create anyone. During first-run onboarding the org OWNER may
+        // create their own profile. A signed-in user can NOT self-insert into
+        // an arbitrary org anymore.
+        allow create: if isAdmin(orgId)
+          || (uid == request.auth.uid && isOrgOwner(orgId));
+
+        // You can always read your OWN profile (this is what the login lookup
+        // uses). You can read other members' profiles only inside your own org.
+        allow read: if signedIn()
+          && (resource.data.uid == request.auth.uid || member(orgId));
+
+        // Admins may change anything. You may edit your OWN profile but you may
+        // NOT change your role, active flag, or hotel access (no self-promotion).
+        allow update: if isAdmin(orgId)
+          || (uid == request.auth.uid
+              && request.resource.data.role == resource.data.role
+              && request.resource.data.active == resource.data.active
+              && request.resource.data.hotelIds == resource.data.hotelIds);
+
         allow delete: if false;
       }
 
       // ---- audit log: append-only, admin-read, never edited or deleted --
+      // Entry must be stamped with the caller's own uid so it cannot be forged.
       match /auditlog/{entryId} {
-        allow create: if member(orgId);
+        allow create: if member(orgId)
+          && request.resource.data.actorUid == request.auth.uid;
         allow read: if isAdmin(orgId);
         allow update, delete: if false;
       }
 
       // ---- hotels ------------------------------------------------------
       match /hotels/{hotelId} {
-        allow create: if isAdmin(orgId) || get(/databases/$(database)/documents/orgs/$(orgId)).data.ownerUid == request.auth.uid;
+        allow create: if isAdmin(orgId) || isOrgOwner(orgId);
         allow read: if member(orgId);
         allow update: if isAdmin(orgId);
         allow delete: if false;
 
+        // Staff manage rooms fully. Housekeepers may change ONLY the live
+        // status/timestamp fields (so start/complete works) - not room config.
         match /rooms/{roomId} {
           allow read: if member(orgId);
-          allow create, update: if isStaff(orgId);
+          allow create: if isStaff(orgId);
+          allow update: if isStaff(orgId)
+            || (member(orgId)
+                && onlyChanges(["status", "updatedAt", "lastCleanedAt"]));
           allow delete: if false;
         }
 
-        // Housekeepers may update only their OWN assignments; staff manage all.
+        // Housekeepers may update only their OWN assignments, and only the task
+        // fields; staff manage all assignments.
         match /assignments/{aId} {
           allow read: if member(orgId);
           allow create: if isStaff(orgId);
           allow update: if isStaff(orgId)
-            || (member(orgId) && resource.data.assignedToUid == request.auth.uid
-                && request.resource.data.assignedToUid == request.auth.uid);
+            || (member(orgId)
+                && resource.data.assignedToUid == request.auth.uid
+                && request.resource.data.assignedToUid == request.auth.uid
+                && onlyChanges(["status", "checklist", "startedAt",
+                                "completedAt", "durationMinutes", "updatedAt"]));
           allow delete: if isStaff(orgId);
         }
 
@@ -96,10 +151,12 @@ service cloud.firestore {
           allow delete: if isAdmin(orgId);
         }
 
-        // Activity timeline: any member can append; not edited or deleted.
+        // Activity timeline: any member can append (stamped with their own uid);
+        // never edited or deleted.
         match /roomhistory/{eId} {
           allow read: if member(orgId);
-          allow create: if member(orgId);
+          allow create: if member(orgId)
+            && request.resource.data.actorUid == request.auth.uid;
           allow update, delete: if false;
         }
       }

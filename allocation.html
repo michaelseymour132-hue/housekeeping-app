@@ -36,7 +36,12 @@
 </style>
 </head>
 <body>
-<div class="app"></div>
+<div class="app">
+  <main class="main">
+    <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Allocation</h1></div></div>
+    <div id="allocRoot"></div>
+  </main>
+</div>
 <div id="toast-host"></div>
 <script src="js/firebase-config.js"></script>
 <script src="js/common.js"></script>
@@ -47,7 +52,8 @@
   var filterSvc = "all";
 
   HK.requireAuth(["admin", "supervisor"], function (state) {
-    if (!state.hotelId) { HK.toast("No hotel selected.", "error"); return; }
+    if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+    HK.mount("allocation");
     render();
     loadRooms();
   });
@@ -86,10 +92,9 @@
   }
 
   function render() {
-    var app = document.querySelector(".app");
-    if (!app) { return; }
-    HK.mount("allocation");
-    var main = app.querySelector(".content") || app.querySelector("main") || app;
+    var root = document.getElementById("allocRoot");
+    if (!root) { return; }
+    root.innerHTML = "";
     var host = document.createElement("div"); host.className = "card"; host.style.padding = "16px";
 
     var bar = document.createElement("div"); bar.className = "alloc-toolbar";
@@ -110,13 +115,13 @@
 
     if (!loaded) {
       var sk = document.createElement("div"); sk.className = "muted"; sk.textContent = "Loading rooms..."; host.appendChild(sk);
-      main.appendChild(host); return;
+      root.appendChild(host); return;
     }
 
     host.appendChild(buildStats());
     host.appendChild(buildFilter());
     host.appendChild(buildTable());
-    main.appendChild(host);
+    root.appendChild(host);
   }
 
   function buildStats() {

@@ -79,6 +79,17 @@
       vals[1].textContent = remaining; vals[1].className = "kpi-val";
       vals[2].textContent = due; vals[2].className = "kpi-val";
     }
+    // Live occupancy lands in occStatus (occupied/vacant) via the allocation CSV
+    // import; the older occupancy field is only the seed default. Derive the
+    // bucket the dashboard filter uses from the live data, matching allocation.
+    function occBucket(r) {
+      var today = HK.todayStr();
+      var occ = r.occStatus || r.occupancy || "vacant";
+      if (r.departure && r.departure === today) { return "checkout"; }
+      if (occ === "occupied" && r.departure && r.departure > today) { return "stayover"; }
+      if (occ === "occupied") { return "occupied"; }
+      return "vacant";
+    }
     function render() {
       var q = (document.getElementById("search").value || "").toLowerCase();
       var ff = document.getElementById("fFloor").value, fs = document.getElementById("fStatus").value, fo = document.getElementById("fOcc").value;
@@ -87,7 +98,7 @@
         if (q && r.roomNumber.toLowerCase().indexOf(q) === -1) { return false; }
         if (ff && String(r.floor) !== ff) { return false; }
         if (fs && r.status !== fs) { return false; }
-        if (fo && r.occupancy !== fo) { return false; }
+        if (fo && occBucket(r) !== fo) { return false; }
         return true;
       });
       document.getElementById("gridEmpty").className = shown.length ? "empty hidden" : "empty";
@@ -102,7 +113,7 @@
       var host = document.getElementById("popover-host"); host.innerHTML = "";
       var back = document.createElement("div"); back.className = "modal-backdrop";
       var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "360px";
-      box.innerHTML = "<h2>Room " + HK.esc(r.roomNumber) + "</h2><p class=\"muted small mb16\">" + HK.esc(r.type) + " - " + HK.esc(r.status) + " - " + HK.esc(r.occupancy) + "</p>";
+      box.innerHTML = "<h2>Room " + HK.esc(r.roomNumber) + "</h2><p class=\"muted small mb16\">" + HK.esc(r.type) + " - " + HK.esc(r.status) + " - " + HK.esc(occBucket(r)) + "</p>";
       var view = document.createElement("a"); view.href = "room.html?id=" + r.id; view.className = "btn btn-secondary btn-block mb8"; view.textContent = "View room profile"; box.appendChild(view);
       var label = document.createElement("label"); label.textContent = "Change status"; box.appendChild(label);
       var sel = document.createElement("select");

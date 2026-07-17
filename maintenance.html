@@ -50,20 +50,21 @@
         row.innerHTML = "<div class=\"row\"><strong class=\"grow\">Room " + HK.esc(n.roomNumber) + "</strong><span class=\"badge " + stB + "\">" + HK.esc(n.maintenanceStatus || "open") + "</span></div>";
         row.innerHTML += "<p class=\"small\">" + HK.esc(n.text) + "</p><p class=\"tiny muted\">" + HK.esc(n.category) + " - reported by " + HK.esc(n.createdByName) + " - " + ageDays(n) + " days ago</p>";
         var acts = document.createElement("div"); acts.className = "row wrap mt8";
-        if ((n.maintenanceStatus || "open") === "open") { acts.appendChild(mkBtn("Start work", "btn-secondary", function () { setStatus(n, "inprogress"); })); }
-        if ((n.maintenanceStatus || "open") !== "resolved") { acts.appendChild(mkBtn("Mark resolved", "btn-accent", function () { setStatus(n, "resolved"); })); }
+        if ((n.maintenanceStatus || "open") === "open") { acts.appendChild(mkBtn("Start work", "btn-secondary", function (btn) { setStatus(n, "inprogress", btn); })); }
+        if ((n.maintenanceStatus || "open") !== "resolved") { acts.appendChild(mkBtn("Mark resolved", "btn-accent", function (btn) { setStatus(n, "resolved", btn); })); }
         row.appendChild(acts); card.appendChild(row);
       });
       pane.appendChild(card);
     }
-    function mkBtn(label, cls, fn) { var b = document.createElement("button"); b.className = "btn btn-sm " + cls; b.textContent = label; b.onclick = fn; return b; }
-    function setStatus(n, status) {
+    function mkBtn(label, cls, fn) { var b = document.createElement("button"); b.className = "btn btn-sm " + cls; b.textContent = label; b.onclick = function () { fn(b); }; return b; }
+    function setStatus(n, status, btn) {
+      if (btn) { btn.disabled = true; }
       var upd = { maintenanceStatus: status }; if (status === "resolved") { upd.resolvedAt = firebase.firestore.FieldValue.serverTimestamp(); upd.resolvedByUid = HK.state.user.uid; }
       HK.col("roomnotes").doc(n.id).update(upd).then(function () {
         HK.history(n.roomId, n.roomNumber, "maintenance", "Maintenance " + status + ": " + (n.text || "").slice(0, 40), n.id);
         HK.audit("maintenance.statuschange", "Room " + n.roomNumber + " -> " + status);
         HK.toast("Marked " + status + ".", "success"); n.maintenanceStatus = status; render();
-      }).catch(function (err) { HK.toast("Update failed: " + err.message, "error"); });
+      }).catch(function (err) { if (btn) { btn.disabled = false; } HK.toast("Update failed: " + err.message, "error"); });
     }
   })();
   </script>
