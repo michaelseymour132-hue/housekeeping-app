@@ -53,6 +53,17 @@ service cloud.firestore {
     }
 
     // ---- org root ------------------------------------------------------
+    // ---- collection-group read for login ----------------------------------
+    // The login lookup runs collectionGroup("users").where("uid","==",<me>).
+    // Nested match rules do NOT apply to collection group queries, so without
+    // this the login query is denied ("Missing or insufficient permissions").
+    // This grants a signed-in user read access to ONLY their own user doc
+    // anywhere in the tree - no other data is exposed.
+    match /{path=**}/users/{uid} {
+      allow read: if request.auth != null
+                  && resource.data.uid == request.auth.uid;
+    }
+
     match /orgs/{orgId} {
       // Create allowed for a signed-in user setting themselves as owner (onboarding).
       allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
