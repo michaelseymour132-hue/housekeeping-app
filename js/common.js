@@ -1,3 +1,36 @@
+
+// ---- PWA: manifest link + theme color + service worker registration ------
+// Added once here so every page (all load common.js) becomes installable and
+// gets a cached shell for offline resilience. Never interferes with Firebase.
+(function () {
+  try {
+    var head = document.head || document.getElementsByTagName("head")[0];
+    function ensure(sel, make) {
+      if (head.querySelector(sel)) { return; }
+      head.appendChild(make());
+    }
+    ensure("link[rel=\"manifest\"]", function () {
+      var l = document.createElement("link"); l.rel = "manifest"; l.href = "manifest.json"; return l;
+    });
+    ensure("meta[name=\"theme-color\"]", function () {
+      var m = document.createElement("meta"); m.name = "theme-color"; m.content = "#1a2332"; return m;
+    });
+    ensure("link[rel=\"apple-touch-icon\"]", function () {
+      var l = document.createElement("link"); l.rel = "apple-touch-icon"; l.href = "icon.svg"; return l;
+    });
+    ensure("meta[name=\"apple-mobile-web-app-capable\"]", function () {
+      var m = document.createElement("meta"); m.name = "apple-mobile-web-app-capable"; m.content = "yes"; return m;
+    });
+  } catch (e) { /* head injection is best-effort */ }
+
+  if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {
+        /* registration failure must never block the app */
+      });
+    });
+  }
+})();
 // js/common.js - shared logic for Housekeeping Hub
 // Auth guard, role check, toast, modal, date helpers, photo compression,
 // app-shell nav rendering, roomhistory + auditlog writers.
@@ -231,3 +264,36 @@ HK.qs = function (name) {
   var m = new RegExp("[?&]" + name + "=([^&]*)").exec(window.location.search);
   return m ? decodeURIComponent(m[1]) : null;
 };
+
+// ---- PWA: manifest link + theme color + service worker registration ------
+// Added once here so every page (all load common.js) becomes installable and
+// gets a cached shell for offline resilience. Never interferes with Firebase.
+(function () {
+  try {
+    var head = document.head || document.getElementsByTagName("head")[0];
+    function ensure(sel, make) {
+      if (head.querySelector(sel)) { return; }
+      head.appendChild(make());
+    }
+    ensure("link[rel=\"manifest\"]", function () {
+      var l = document.createElement("link"); l.rel = "manifest"; l.href = "manifest.json"; return l;
+    });
+    ensure("meta[name=\"theme-color\"]", function () {
+      var m = document.createElement("meta"); m.name = "theme-color"; m.content = "#1a2332"; return m;
+    });
+    ensure("link[rel=\"apple-touch-icon\"]", function () {
+      var l = document.createElement("link"); l.rel = "apple-touch-icon"; l.href = "icon.svg"; return l;
+    });
+    ensure("meta[name=\"apple-mobile-web-app-capable\"]", function () {
+      var m = document.createElement("meta"); m.name = "apple-mobile-web-app-capable"; m.content = "yes"; return m;
+    });
+  } catch (e) { /* head injection is best-effort */ }
+
+  if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {
+        /* registration failure must never block the app */
+      });
+    });
+  }
+})();
