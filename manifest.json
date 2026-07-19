@@ -1,0 +1,26 @@
+{
+  "name": "Housekeeping Hub",
+  "short_name": "Housekeeping",
+  "description": "The private operations platform for hotel housekeeping teams: assign, clean, inspect and report.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1a2332",
+  "theme_color": "#1a2332",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ]
+}
