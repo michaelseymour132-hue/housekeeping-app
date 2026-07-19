@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Housekeeping Hub">
+  <rect width="512" height="512" rx="96" fill="#1a2332"/>
+  <rect x="96" y="150" width="40" height="212" rx="8" fill="#0e9591"/>
+  <rect x="216" y="150" width="40" height="212" rx="8" fill="#0e9591"/>
+  <rect x="96" y="236" width="160" height="40" fill="#0e9591"/>
+  <rect x="300" y="150" width="40" height="212" rx="8" fill="#7fe3df"/>
+  <rect x="420" y="150" width="40" height="212" rx="8" fill="#7fe3df"/>
+  <rect x="300" y="236" width="160" height="40" fill="#7fe3df"/>
+</svg>
