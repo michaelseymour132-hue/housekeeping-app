@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign in - Housekeeping Hub</title>
+<meta name="description" content="Housekeeping Hub - the private staff operations platform for hotel housekeeping teams. Authorized staff sign-in only.">
+<meta name="robots" content="noindex">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -13,13 +15,23 @@
 <body>
 <div class="auth-wrap">
 <div class="auth-brand">
-<div>
-<h1>Housekeeping Hub</h1>
-<p>The operations platform for hotel housekeeping teams. Assign, clean, inspect, and report - from the floor to the front desk.</p>
+<div class="auth-brand-inner">
+<div class="auth-logo">
+<span class="auth-logo-mark">HH</span>
+<span class="auth-logo-text">Housekeeping Hub</span>
+</div>
+<h1>Run housekeeping like clockwork.</h1>
+<p>Assign, clean, inspect, and report - from the floor to the front desk. The operations platform trusted by hotel housekeeping teams.</p>
+<ul class="auth-points">
+<li><span class="auth-tick">check</span> Role-based access for admins, supervisors and housekeepers</li>
+<li><span class="auth-tick">check</span> Real-time room status, inspections and deep-clean tracking</li>
+<li><span class="auth-tick">check</span> Encrypted sign-in, secured by Firebase Authentication</li>
+</ul>
 </div>
 </div>
 <div class="auth-form">
 <div class="auth-card card">
+<div class="auth-secure"><span class="auth-lock">lock</span> Secure staff sign-in</div>
 <h1 class="mb8">Sign in</h1>
 <p class="muted mb16">Welcome back. Enter your details to continue.</p>
 <form id="login-form">
@@ -34,7 +46,15 @@
 <button type="submit" id="login-btn" class="btn btn-accent btn-block btn-lg">Sign in</button>
 </form>
 <p class="small mt16"><a href="#" id="forgot">Forgot password?</a></p>
-<p class="tiny muted mt16">No account? Your administrator creates accounts in the Settings console. Contact them to be added.</p>
+<p class="tiny muted mt16">This is a private login for authorized staff only. Accounts are created by your administrator in the Settings console - contact them to be added.</p>
+<div class="auth-foot">
+<span class="auth-foot-brand">Housekeeping Hub</span>
+<span class="auth-foot-sep">&middot;</span>
+<a href="privacy.html">Privacy</a>
+<span class="auth-foot-sep">&middot;</span>
+<a href="mailto:support@housekeepinghub.app">Contact support</a>
+<div class="auth-foot-note">Protected by Firebase Authentication. Your credentials are encrypted in transit.</div>
+</div>
 </div>
 </div>
 </div>
@@ -44,7 +64,6 @@
 <script>
 (function () {
   var redirecting = false;
-  // If already signed in, route based on whether a profile exists yet.
   auth.onAuthStateChanged(function (user) {
     if (!user || redirecting) { return; }
     HK.loadProfile(user).then(function (ok) {
@@ -52,8 +71,6 @@
         redirecting = true;
         window.location.href = HK.homeForRole(HK.state.profile.role);
       } else {
-        // Signed in but no profile yet - first run. Send to the setup wizard
-        // instead of signing out, so the admin can create the org and profile.
         redirecting = true;
         window.location.href = "onboarding.html";
       }
@@ -70,7 +87,6 @@
     if (!email || !pass) { HK.toast("Enter your email and password.", "error"); return; }
     btn.disabled = true; btn.textContent = "Signing in...";
     auth.signInWithEmailAndPassword(email, pass).then(function () {
-      // onAuthStateChanged handles the redirect.
     }).catch(function (err) {
       btn.disabled = false; btn.textContent = "Sign in";
       var msg = "Could not sign in.";
