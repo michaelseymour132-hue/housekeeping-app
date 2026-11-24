@@ -82,7 +82,7 @@ module.exports = function (req, res) {
     var org = orgSnap.exists ? orgSnap.data() : {};
     var plan = org.plan || "trial";
     if (plan === "trial" && org.trialEndsAt && org.trialEndsAt.toMillis() <= Date.now()) {
-      throw { httpStatus: 403, message: "Your free trial has ended - choose a plan to add team members." };
+      throw { httpStatus: 403, message: (org.billing && org.billing.subscriptionId ? "Your subscription has ended" : "Your free trial has ended") + " - choose a plan to add team members." };
     }
     return admin.auth().createUser({ email: email, password: tempPassword(), displayName: name });
   }).then(function (userRecord) {

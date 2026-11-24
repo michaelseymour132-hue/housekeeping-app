@@ -92,6 +92,26 @@ The app can create staff logins for you (Settings > Users) instead of you making
 
 Until this is done, the "Create user" button reports a "Server not configured" error, and you can add people the old way (Firebase Console > Authentication > Add user).
 
+## Card payments (Stripe)
+
+Customers pay by card on Stripe's own secure page; card details never touch this app or its database. Three serverless functions handle it:
+
+- `api/checkout.js` - an admin presses "Choose Starter/Professional" on the Plan page; this sends them to Stripe's payment page.
+- `api/stripe-webhook.js` - Stripe calls this when a payment succeeds, a card fails or someone cancels. It is the only thing that switches a plan on or off. It never trusts the incoming message: it asks Stripe directly whether the event is real.
+- `api/billing-portal.js` - "Manage billing" on the Plan page: change card, invoices, cancel.
+
+One-time setup, no command line:
+
+1. **Stripe account.** Create one at stripe.com and stay in **Test mode** until you have tried a payment.
+2. **Two products.** Product catalogue > Add product: "Housekeeping Hub Starter" at GBP 19 / month recurring, and "Housekeeping Hub Professional" at GBP 39 / month recurring. Each gets a price id starting `price_`.
+3. **Vercel environment variables** (Settings > Environment Variables): `STRIPE_SECRET_KEY` (Stripe > Developers > API keys > Secret key), `STRIPE_PRICE_STARTER` and `STRIPE_PRICE_PRO` (the two price ids). `FIREBASE_SERVICE_ACCOUNT` from the section above is also required. Then redeploy.
+4. **Webhook.** Stripe > Developers > Webhooks > Add endpoint: `https://www.housekeepinghub.app/api/stripe-webhook`, events `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
+5. **Customer portal.** Stripe > Settings > Billing > Customer portal: switch it on, allow cancelling and switching between the two plans.
+6. **Test.** On the Plan page choose a plan and pay with Stripe's test card 4242 4242 4242 4242 (any future date, any CVC). The Plan page should show the plan as active within a few seconds.
+7. **Go live.** Repeat steps 2-4 in Live mode and swap the three Vercel values for the live ones.
+
+Until `STRIPE_SECRET_KEY` is set, choosing a plan records a request and opens an email instead ("we will be in touch"). A failed card keeps the account on while Stripe retries; if the subscription is cancelled the account is paused (read-only) exactly like an ended trial, with all data kept.
+
 ## Composite indexes
 
 Firestore may ask for a composite index the first time certain queries run (reports date ranges, some filtered lists). When that happens the browser console prints a direct "create index" link - open it and click Create; the index builds in a minute. Likely candidates: `assignments` by `date` + `assignedToUid`; `roomnotes` by `isMaintenanceIssue` + `maintenanceStatus`; `roomhistory` by `roomId` + `createdAt`.

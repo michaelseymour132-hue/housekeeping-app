@@ -27,25 +27,95 @@
   <script>
   (function () {
     var roomCount = 0;
+    var waitTimer = null;
     HK.requireAuth(["admin"], function (state) {
       if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
       HK.mount("plan");
-      HK.col("rooms").where("active", "==", true).get().then(function (snap) { roomCount = snap.size; render(); })
-        .catch(function () { render(); });
+      HK.col("rooms").where("active", "==", true).get().then(function (snap) { roomCount = snap.size; render(); afterReturn(); })
+        .catch(function () { render(); afterReturn(); });
     });
 
     function money(p) { return p === null ? "Let's talk" : HH_SITE.currency + p; }
+    function niceDate(d) { return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); }
+    function tsDate(v) { if (!v) { return null; } return v.toDate ? v.toDate() : new Date(v); }
+    function isPaid(org) { return !!org.plan && org.plan !== "trial"; }
+
+    // Coming back from Stripe's payment page: ?paid=1 or ?cancelled=1 is on the address.
+    function afterReturn() {
+      var q = window.location.search || "";
+      if (q.indexOf("cancelled=1") !== -1) {
+        HK.toast("No payment was taken. You can choose a plan whenever you are ready.", "info");
+        cleanAddress();
+        return;
+      }
+      if (q.indexOf("paid=1") === -1) { return; }
+      cleanAddress();
+      if (isPaid(HK.state.org || {})) { HK.toast("Payment received - your plan is active. Thank you!", "success"); return; }
+      // Stripe confirms to our server a moment after the customer returns; wait for it.
+      var tries = 0;
+      var st = document.getElementById("status");
+      st.innerHTML = "";
+      var t1 = document.createElement("div"); t1.className = "card-title"; t1.textContent = "Confirming your payment..."; st.appendChild(t1);
+      var p1 = document.createElement("p"); p1.textContent = "This usually takes a few seconds. Please keep this page open."; st.appendChild(p1);
+      waitTimer = setInterval(function () {
+        tries++;
+        HK.orgRef().get().then(function (snap) {
+          var org = snap.data() || {};
+          if (isPaid(org)) {
+            clearInterval(waitTimer); waitTimer = null;
+            HK.state.org = org;
+            HK.toast("Payment received - your plan is active. Thank you!", "success");
+            window.location.reload();
+          } else if (tries >= 20) {
+            clearInterval(waitTimer); waitTimer = null;
+            render();
+            HK.toast("Your payment is still being confirmed. Refresh this page in a minute" + (HH_SITE.supportEmail ? ", or email " + HH_SITE.supportEmail : "") + ".", "info");
+          }
+        }).catch(function () {});
+      }, 2000);
+    }
+    function cleanAddress() {
+      try { window.history.replaceState({}, "", window.location.pathname); } catch (e) {}
+    }
+
+    // Call one of the payment functions on the server with the admin's sign-in token.
+    function callServer(path, body) {
+      var user = firebase.auth().currentUser;
+      if (!user) { return Promise.reject(new Error("Please sign in again.")); }
+      return user.getIdToken().then(function (token) {
+        return fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify(body) });
+      }).then(function (resp) {
+        return resp.json().catch(function () { return {}; }).then(function (data) { return { status: resp.status, ok: resp.ok, data: data }; });
+      });
+    }
 
     function render() {
       var t = HK.trial();
       var org = HK.state.org || {};
+      var bill = org.billing || {};
+      var paid = isPaid(org);
       var st = document.getElementById("status");
       st.innerHTML = "";
       var title = document.createElement("div"); title.className = "card-title"; st.appendChild(title);
       var p = document.createElement("p"); st.appendChild(p);
-      if (t.onTrial && !t.ended) {
+      if (paid) {
+        title.textContent = "Plan: " + (org.planName || org.plan || "active");
+        var end = tsDate(bill.currentPeriodEnd);
+        if (bill.status === "past_due") {
+          p.textContent = "Your last card payment did not go through. Please update your card in Manage billing to keep your account switched on.";
+        } else if (bill.cancelAtPeriodEnd && end) {
+          p.textContent = "Your subscription is set to end on " + niceDate(end) + ". Until then everything works as normal.";
+        } else if (end) {
+          p.textContent = "Your subscription is active. Next payment: " + niceDate(end) + ".";
+        } else {
+          p.textContent = "Thank you for using Housekeeping Hub.";
+        }
+      } else if (t.onTrial && !t.ended) {
         title.textContent = "Free trial - " + t.daysLeft + (t.daysLeft === 1 ? " day" : " days") + " left";
-        p.textContent = "Every feature is switched on until " + t.endsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) + ". Nothing is charged when the trial ends; your data stays safe and you choose a plan to carry on.";
+        p.textContent = "Every feature is switched on until " + niceDate(t.endsAt) + ". Nothing is charged when the trial ends; your data stays safe and you choose a plan to carry on.";
+      } else if (t.onTrial && t.ended && bill.subscriptionId) {
+        title.textContent = "Your subscription has ended";
+        p.textContent = "Everything you set up is still here and you can view it all. Choose a plan below to switch changes back on for your team.";
       } else if (t.onTrial && t.ended) {
         title.textContent = "Your free trial has ended";
         p.textContent = "Everything you set up is still here and you can view it all. Choose a plan below to switch changes back on for your team.";
@@ -56,10 +126,20 @@
       var rc = document.createElement("p"); rc.className = "small muted mt8";
       rc.textContent = "You have " + roomCount + (roomCount === 1 ? " room" : " rooms") + " set up.";
       st.appendChild(rc);
-      if (org.planRequest && org.planRequest.plan) {
+      if (!paid && org.planRequest && org.planRequest.plan) {
         var pr = document.createElement("p"); pr.className = "small mt8";
         pr.textContent = "You asked to continue on the " + org.planRequest.plan + " plan - we will be in touch to set up payment.";
         st.appendChild(pr);
+      }
+      if (bill.customerId) {
+        var mb = document.createElement("button");
+        mb.className = "btn btn-secondary mt16"; mb.id = "manageBilling";
+        mb.textContent = "Manage billing";
+        mb.onclick = function () { manage(mb); };
+        st.appendChild(mb);
+        var mh = document.createElement("p"); mh.className = "small muted mt8";
+        mh.textContent = "Change your card, download invoices or cancel - on our payment provider's secure page.";
+        st.appendChild(mh);
       }
 
       var host = document.getElementById("plans");
@@ -67,31 +147,66 @@
       var suggested = null;
       HH_SITE.plans.forEach(function (pl) { if (!suggested && (pl.maxRooms === null || roomCount <= pl.maxRooms)) { suggested = pl.id; } });
       HH_SITE.plans.forEach(function (pl) {
+        var current = paid && org.plan === pl.id;
         var c = document.createElement("div");
-        c.className = "plan-card" + (pl.id === suggested ? " featured" : "");
+        c.className = "plan-card" + ((paid ? current : pl.id === suggested) ? " featured" : "");
         var h = document.createElement("h2"); h.textContent = pl.name; c.appendChild(h);
         var pr2 = document.createElement("div"); pr2.className = "plan-price"; pr2.textContent = money(pl.price);
         if (pl.price !== null) { var sm = document.createElement("small"); sm.textContent = " / " + pl.period; pr2.appendChild(sm); }
         c.appendChild(pr2);
         var bl = document.createElement("p"); bl.className = "small muted"; bl.textContent = pl.blurb; c.appendChild(bl);
-        if (pl.id === suggested) { var fit = document.createElement("span"); fit.className = "badge badge-green"; fit.textContent = "Fits your property"; c.appendChild(fit); }
+        if (current) { var cur = document.createElement("span"); cur.className = "badge badge-green"; cur.textContent = "Your plan"; c.appendChild(cur); }
+        else if (!paid && pl.id === suggested) { var fit = document.createElement("span"); fit.className = "badge badge-green"; fit.textContent = "Fits your property"; c.appendChild(fit); }
         var ul = document.createElement("ul");
         pl.features.forEach(function (f) { var li = document.createElement("li"); li.textContent = f; ul.appendChild(li); });
         c.appendChild(ul);
         var b = document.createElement("button");
         var tooSmall = pl.maxRooms !== null && roomCount > pl.maxRooms;
-        b.className = "btn " + (pl.id === suggested ? "btn-accent" : "btn-secondary") + " btn-block";
-        b.textContent = tooSmall ? "Too small for " + roomCount + " rooms" : (pl.price === null ? "Get in touch" : "Choose " + pl.name);
-        b.disabled = tooSmall;
-        b.onclick = function () { choose(pl, b); };
+        b.className = "btn " + (pl.id === suggested && !paid ? "btn-accent" : "btn-secondary") + " btn-block";
+        if (current) { b.textContent = "Your current plan"; b.disabled = true; }
+        else if (tooSmall) { b.textContent = "Too small for " + roomCount + " rooms"; b.disabled = true; }
+        else if (pl.price === null) { b.textContent = "Get in touch"; b.onclick = function () { request(pl, b); }; }
+        else if (paid) { b.textContent = "Switch in Manage billing"; b.onclick = function () { manage(b); }; }
+        else { b.textContent = "Choose " + pl.name; b.onclick = function () { choose(pl, b); }; }
         c.appendChild(b);
         host.appendChild(c);
       });
-      document.getElementById("note").textContent = "Prices include everything in the plan - no setup fees. Online card payment is being switched on; when you choose a plan we contact you to set it up." +
+      document.getElementById("note").textContent = "Prices include everything in the plan - no setup fees, cancel any time. Card payments are taken by Stripe; your card details never touch Housekeeping Hub." +
         (HH_SITE.supportEmail ? " Questions: " + HH_SITE.supportEmail : "");
     }
 
+    // Paid plans: go to the secure payment page. If card payments are not switched
+    // on yet (or the server cannot be reached), fall back to "we will be in touch".
     function choose(pl, btn) {
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = "Opening secure payment...";
+      callServer("/api/checkout", { orgId: HK.state.orgId, planId: pl.id }).then(function (r) {
+        if (r.ok && r.data && r.data.url) {
+          HK.audit("plan.checkout_started", pl.name);
+          window.location.href = r.data.url;
+          return;
+        }
+        if (r.status === 503 || r.status === 404 || r.status === 405 || r.status === 501) { request(pl, btn); return; }
+        btn.disabled = false; btn.textContent = label;
+        HK.toast((r.data && r.data.error) || "Could not start the payment. Please try again.", "error");
+      }).catch(function () { request(pl, btn); });
+    }
+
+    function manage(btn) {
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = "Opening...";
+      callServer("/api/billing-portal", { orgId: HK.state.orgId }).then(function (r) {
+        if (r.ok && r.data && r.data.url) { window.location.href = r.data.url; return; }
+        btn.disabled = false; btn.textContent = label;
+        HK.toast((r.data && r.data.error) || "Could not open billing. Please try again.", "error");
+      }).catch(function () {
+        btn.disabled = false; btn.textContent = label;
+        HK.toast("Could not open billing. Please check your connection and try again.", "error");
+      });
+    }
+
+    // Record that this property wants a plan and open an email to us.
+    function request(pl, btn) {
       btn.disabled = true; btn.textContent = "Saving...";
       var req = { plan: pl.name, planId: pl.id, rooms: roomCount, at: firebase.firestore.FieldValue.serverTimestamp(), byUid: HK.state.user.uid, byEmail: HK.state.user.email || "" };
       HK.orgRef().update({ planRequest: req }).then(function () {
@@ -102,7 +217,7 @@
           window.location.href = "mailto:" + HH_SITE.supportEmail + "?subject=" + encodeURIComponent("Housekeeping Hub - " + pl.name + " plan for " + ((HK.state.org && HK.state.org.name) || "my property"));
         }
         render();
-      }).catch(function (err) { btn.disabled = false; btn.textContent = "Choose " + pl.name; HK.toast("Could not save: " + err.message, "error"); });
+      }).catch(function (err) { btn.disabled = false; btn.textContent = pl.price === null ? "Get in touch" : "Choose " + pl.name; HK.toast("Could not save: " + err.message, "error"); });
     }
   })();
   </script>

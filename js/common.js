@@ -153,9 +153,11 @@ HK.trialBar = function () {
   bar.className = "trial-bar" + (t.ended ? " trial-ended" : (t.daysLeft <= 3 ? " trial-soon" : ""));
   var msg = document.createElement("span");
   if (t.ended) {
+    var lapsed = !!((HK.state.org || {}).billing || {}).subscriptionId;   // paid before, then stopped
+    var what = lapsed ? "subscription" : "free trial";
     msg.textContent = role === "admin"
-      ? "Your free trial has ended. Your data is safe and you can still view it - choose a plan to keep working."
-      : "This account's free trial has ended. You can view everything, but changes are paused until your manager chooses a plan.";
+      ? "Your " + what + " has ended. Your data is safe and you can still view it - choose a plan to keep working."
+      : "This account's " + what + " has ended. You can view everything, but changes are paused until your manager chooses a plan.";
   } else {
     msg.textContent = "Free trial - " + t.daysLeft + (t.daysLeft === 1 ? " day" : " days") + " left.";
   }
