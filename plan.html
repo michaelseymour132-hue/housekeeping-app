@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plan - Housekeeping Hub</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Your plan</h1></div></div>
+      <div class="card mb16" id="status">Loading...</div>
+      <div class="plan-grid" id="plans"></div>
+      <p class="small muted mt16" id="note"></p>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <script src="js/site-config.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+  (function () {
+    var roomCount = 0;
+    HK.requireAuth(["admin"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      HK.mount("plan");
+      HK.col("rooms").where("active", "==", true).get().then(function (snap) { roomCount = snap.size; render(); })
+        .catch(function () { render(); });
+    });
+
+    function money(p) { return p === null ? "Let's talk" : HH_SITE.currency + p; }
+
+    function render() {
+      var t = HK.trial();
+      var org = HK.state.org || {};
+      var st = document.getElementById("status");
+      st.innerHTML = "";
+      var title = document.createElement("div"); title.className = "card-title"; st.appendChild(title);
+      var p = document.createElement("p"); st.appendChild(p);
+      if (t.onTrial && !t.ended) {
+        title.textContent = "Free trial - " + t.daysLeft + (t.daysLeft === 1 ? " day" : " days") + " left";
+        p.textContent = "Every feature is switched on until " + t.endsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) + ". Nothing is charged when the trial ends; your data stays safe and you choose a plan to carry on.";
+      } else if (t.onTrial && t.ended) {
+        title.textContent = "Your free trial has ended";
+        p.textContent = "Everything you set up is still here and you can view it all. Choose a plan below to switch changes back on for your team.";
+      } else {
+        title.textContent = "Plan: " + (org.planName || org.plan || "active");
+        p.textContent = "Thank you for using Housekeeping Hub.";
+      }
+      var rc = document.createElement("p"); rc.className = "small muted mt8";
+      rc.textContent = "You have " + roomCount + (roomCount === 1 ? " room" : " rooms") + " set up.";
+      st.appendChild(rc);
+      if (org.planRequest && org.planRequest.plan) {
+        var pr = document.createElement("p"); pr.className = "small mt8";
+        pr.textContent = "You asked to continue on the " + org.planRequest.plan + " plan - we will be in touch to set up payment.";
+        st.appendChild(pr);
+      }
+
+      var host = document.getElementById("plans");
+      host.innerHTML = "";
+      var suggested = null;
+      HH_SITE.plans.forEach(function (pl) { if (!suggested && (pl.maxRooms === null || roomCount <= pl.maxRooms)) { suggested = pl.id; } });
+      HH_SITE.plans.forEach(function (pl) {
+        var c = document.createElement("div");
+        c.className = "plan-card" + (pl.id === suggested ? " featured" : "");
+        var h = document.createElement("h2"); h.textContent = pl.name; c.appendChild(h);
+        var pr2 = document.createElement("div"); pr2.className = "plan-price"; pr2.textContent = money(pl.price);
+        if (pl.price !== null) { var sm = document.createElement("small"); sm.textContent = " / " + pl.period; pr2.appendChild(sm); }
+        c.appendChild(pr2);
+        var bl = document.createElement("p"); bl.className = "small muted"; bl.textContent = pl.blurb; c.appendChild(bl);
+        if (pl.id === suggested) { var fit = document.createElement("span"); fit.className = "badge badge-green"; fit.textContent = "Fits your property"; c.appendChild(fit); }
+        var ul = document.createElement("ul");
+        pl.features.forEach(function (f) { var li = document.createElement("li"); li.textContent = f; ul.appendChild(li); });
+        c.appendChild(ul);
+        var b = document.createElement("button");
+        var tooSmall = pl.maxRooms !== null && roomCount > pl.maxRooms;
+        b.className = "btn " + (pl.id === suggested ? "btn-accent" : "btn-secondary") + " btn-block";
+        b.textContent = tooSmall ? "Too small for " + roomCount + " rooms" : (pl.price === null ? "Get in touch" : "Choose " + pl.name);
+        b.disabled = tooSmall;
+        b.onclick = function () { choose(pl, b); };
+        c.appendChild(b);
+        host.appendChild(c);
+      });
+      document.getElementById("note").textContent = "Prices include everything in the plan - no setup fees. Online card payment is being switched on; when you choose a plan we contact you to set it up." +
+        (HH_SITE.supportEmail ? " Questions: " + HH_SITE.supportEmail : "");
+    }
+
+    function choose(pl, btn) {
+      btn.disabled = true; btn.textContent = "Saving...";
+      var req = { plan: pl.name, planId: pl.id, rooms: roomCount, at: firebase.firestore.FieldValue.serverTimestamp(), byUid: HK.state.user.uid, byEmail: HK.state.user.email || "" };
+      HK.orgRef().update({ planRequest: req }).then(function () {
+        HK.state.org.planRequest = { plan: pl.name };
+        HK.audit("plan.requested", pl.name);
+        HK.toast("Thanks - we will be in touch to set up the " + pl.name + " plan.", "success");
+        if (HH_SITE.supportEmail) {
+          window.location.href = "mailto:" + HH_SITE.supportEmail + "?subject=" + encodeURIComponent("Housekeeping Hub - " + pl.name + " plan for " + ((HK.state.org && HK.state.org.name) || "my property"));
+        }
+        render();
+      }).catch(function (err) { btn.disabled = false; btn.textContent = "Choose " + pl.name; HK.toast("Could not save: " + err.message, "error"); });
+    }
+  })();
+  </script>
+</body>
+</html>

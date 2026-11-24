@@ -75,6 +75,15 @@ module.exports = function (req, res) {
     if (profile.role !== "admin" || profile.active !== true) {
       throw { httpStatus: 403, message: "Only an active admin can create users." };
     }
+    // This function runs with full privileges, so it must apply the same free-trial
+    // rule as firestore.rules itself: no new team members once a trial has ended.
+    return db.doc("orgs/" + orgId).get();
+  }).then(function (orgSnap) {
+    var org = orgSnap.exists ? orgSnap.data() : {};
+    var plan = org.plan || "trial";
+    if (plan === "trial" && org.trialEndsAt && org.trialEndsAt.toMillis() <= Date.now()) {
+      throw { httpStatus: 403, message: "Your free trial has ended - choose a plan to add team members." };
+    }
     return admin.auth().createUser({ email: email, password: tempPassword(), displayName: name });
   }).then(function (userRecord) {
     // Create the matching profile with the SAME uid as the new Auth account.

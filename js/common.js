@@ -37,7 +37,7 @@
 // Style: var / function() / string concatenation / .then().catch() only.
 
 var HK = {};
-HK.state = { user: null, profile: null, orgId: null, hotelId: null };
+HK.state = { user: null, profile: null, orgId: null, hotelId: null, org: null };
 
 // ---- Toast ---------------------------------------------------------------
 HK.toast = function (message, kind) {
@@ -83,11 +83,11 @@ HK.daysBetween = function (a, b) { return Math.round((b - a) / 86400000); };
 HK.addDays = function (d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; };
 
 // ---- Auth guard + profile load ------------------------------------------
-// Call HK.requireAuth(rolesArray, onReady). Redirects to index.html if not
+// Call HK.requireAuth(rolesArray, onReady). Redirects to login.html if not
 // signed in or if role not permitted. Loads org membership + profile.
 HK.requireAuth = function (allowedRoles, onReady) {
   auth.onAuthStateChanged(function (user) {
-    if (!user) { window.location.href = "index.html"; return; }
+    if (!user) { window.location.href = "login.html"; return; }
     HK.state.user = user;
     HK.loadProfile(user).then(function (ok) {
       if (!ok) { HK.toast("Your account has no access. Contact your administrator.", "error"); auth.signOut(); return; }
@@ -118,8 +118,76 @@ HK.loadProfile = function (user) {
       HK.state.hotelId = (stored && hotelIds.indexOf(stored) !== -1) ? stored : (hotelIds[0] || null);
       // best-effort lastLoginAt update
       doc.ref.update({ lastLoginAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function () {});
-      return true;
+      // The organisation record carries the plan, the trial end date and the branding.
+      return db.collection("orgs").doc(orgId).get().then(function (o) {
+        HK.state.org = o.exists ? o.data() : {};
+        return true;
+      }).catch(function () { HK.state.org = {}; return true; });
     });
+};
+
+// ---- Plan / free trial ---------------------------------------------------
+// Returns { plan, onTrial, daysLeft, ended, endsAt }. An org with no trial end
+// date (created before trials existed) counts as active.
+HK.trial = function () {
+  var o = HK.state.org || {};
+  var plan = o.plan || "trial";
+  var out = { plan: plan, onTrial: false, daysLeft: null, ended: false, endsAt: null };
+  if (plan !== "trial" || !o.trialEndsAt) { return out; }
+  var ends = o.trialEndsAt.toDate ? o.trialEndsAt.toDate() : new Date(o.trialEndsAt);
+  var msLeft = ends.getTime() - Date.now();
+  out.onTrial = true;
+  out.endsAt = ends;
+  out.ended = msLeft <= 0;
+  out.daysLeft = out.ended ? 0 : Math.ceil(msLeft / 86400000);
+  return out;
+};
+
+// The bar across the top of every app page while on trial (or once it ends).
+HK.trialBar = function () {
+  var t = HK.trial();
+  if (!t.onTrial) { return null; }
+  var role = (HK.state.profile || {}).role;
+  var bar = document.createElement("div");
+  bar.className = "trial-bar" + (t.ended ? " trial-ended" : (t.daysLeft <= 3 ? " trial-soon" : ""));
+  var msg = document.createElement("span");
+  if (t.ended) {
+    msg.textContent = role === "admin"
+      ? "Your free trial has ended. Your data is safe and you can still view it - choose a plan to keep working."
+      : "This account's free trial has ended. You can view everything, but changes are paused until your manager chooses a plan.";
+  } else {
+    msg.textContent = "Free trial - " + t.daysLeft + (t.daysLeft === 1 ? " day" : " days") + " left.";
+  }
+  bar.appendChild(msg);
+  if (role === "admin" && !/plan\.html$/.test(window.location.pathname)) {
+    var a = document.createElement("a");
+    a.href = "plan.html";
+    a.className = "trial-cta";
+    a.textContent = t.ended ? "Choose a plan" : "See plans";
+    bar.appendChild(a);
+  }
+  return bar;
+};
+
+// Branding lives on the organisation record (Settings > Branding).
+HK.brand = function () {
+  var b = (HK.state.org && HK.state.org.branding) || {};
+  return {
+    appName: (b.appName && String(b.appName).trim()) || "Housekeeping Hub",
+    color: /^#[0-9a-fA-F]{6}$/.test(b.primaryColor || "") ? b.primaryColor : "",
+    logoUrl: /^https:\/\//.test(b.logoUrl || "") ? b.logoUrl : ""
+  };
+};
+HK.applyBrandColour = function () {
+  var c = HK.brand().color;
+  if (!c) { return; }
+  var r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16);
+  function shade(x) { return Math.max(0, Math.round(x * 0.8)); }
+  function hex(x) { return ("0" + x.toString(16)).slice(-2); }
+  var root = document.documentElement.style;
+  root.setProperty("--accent", c);
+  root.setProperty("--accent-dark", "#" + hex(shade(r)) + hex(shade(g)) + hex(shade(b)));
+  root.setProperty("--accent-soft", "rgba(" + r + "," + g + "," + b + ",0.12)");
 };
 
 HK.homeForRole = function (role) {
@@ -127,7 +195,7 @@ HK.homeForRole = function (role) {
   return "dashboard.html";
 };
 
-HK.signOut = function () { auth.signOut().then(function () { window.location.href = "index.html"; }); };
+HK.signOut = function () { auth.signOut().then(function () { window.location.href = "login.html"; }); };
 
 // Convenience path builders -------------------------------------------------
 HK.orgRef = function () { return db.collection("orgs").doc(HK.state.orgId); };
@@ -204,24 +272,27 @@ HK.navItems = function (role) {
     { key: "maintenance", label: "Maintenance", href: "maintenance.html", ic: "wrench", roles: ["admin", "supervisor"] },
     { key: "documents", label: "Documents", href: "documents.html", ic: "doc", roles: ["admin", "supervisor", "housekeeper"] },
     { key: "reports", label: "Reports", href: "reports.html", ic: "chart", roles: ["admin", "supervisor"] },
-    { key: "settings", label: "Settings", href: "settings.html", ic: "gear", roles: ["admin"] }
+    { key: "settings", label: "Settings", href: "settings.html", ic: "gear", roles: ["admin"] },
+    { key: "plan", label: "Plan", href: "plan.html", ic: "plan", roles: ["admin"] }
   ];
   return all.filter(function (i) { return i.roles.indexOf(role) !== -1; });
 };
 
 HK.icon = function (name) {
-  var m = { board: "\uD83D\uDCCB", cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
+  var m = { plan: "\u00A3", board: "\uD83D\uDCCB", cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
   return m[name] || "\u2022";
 };
 
 HK.renderShell = function (activeKey) {
   var role = HK.state.profile.role;
   var items = HK.navItems(role);
-  var brand = (HK.state.profile.branding && HK.state.profile.branding.appName) || "Housekeeping Hub";
+  var brand = HK.brand().appName;
   var i, it;
   // sidebar
   var side = document.createElement("nav"); side.className = "sidebar";
-  var b = document.createElement("div"); b.className = "brand"; b.textContent = brand; side.appendChild(b);
+  var b = document.createElement("div"); b.className = "brand";
+  if (HK.brand().logoUrl) { var lg = document.createElement("img"); lg.src = HK.brand().logoUrl; lg.alt = ""; lg.className = "brand-logo"; b.appendChild(lg); }
+  b.appendChild(document.createTextNode(brand)); side.appendChild(b);
   for (i = 0; i < items.length; i++) {
     it = items[i];
     var a = document.createElement("a"); a.href = it.href; if (it.key === activeKey) { a.className = "active"; }
@@ -232,7 +303,8 @@ HK.renderShell = function (activeKey) {
   foot.appendChild(out); side.appendChild(foot);
   // topbar (mobile)
   var top = document.createElement("header"); top.className = "topbar";
-  top.innerHTML = "<span class=\"brand\">" + brand + "</span><span class=\"spacer\"></span>";
+  var tb = document.createElement("span"); tb.className = "brand"; tb.textContent = brand; top.appendChild(tb);
+  var sp = document.createElement("span"); sp.className = "spacer"; top.appendChild(sp);
   var outm = document.createElement("button"); outm.className = "btn btn-sm btn-secondary"; outm.textContent = "Sign out"; outm.onclick = HK.signOut; top.appendChild(outm);
   // bottom tabs (mobile) - cap at 5 most relevant
   var tabs = document.createElement("nav"); tabs.className = "tabbar";
@@ -250,9 +322,12 @@ HK.mount = function (activeKey) {
   var app = document.querySelector(".app");
   var main = document.querySelector(".main");
   var shell = HK.renderShell(activeKey);
+  HK.applyBrandColour();
   app.insertBefore(shell.side, main);
   document.body.insertBefore(shell.top, app);
   document.body.appendChild(shell.tabs);
+  var bar = HK.trialBar();
+  if (bar) { main.insertBefore(bar, main.firstChild); }
 };
 
 HK.esc = function (s) {

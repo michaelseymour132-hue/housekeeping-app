@@ -3,12 +3,15 @@
 // WITHOUT ever caching Firebase/auth/data requests (those must hit the network).
 // Style note: this file runs in the service-worker scope, not the page.
 
-var CACHE = "hk-shell-v1";
+var CACHE = "hk-shell-v2";
 var SHELL = [
   "./",
   "./index.html",
+  "./login.html",
   "./css/style.css",
+  "./css/site.css",
   "./js/common.js",
+  "./js/site-config.js",
   "./manifest.json",
   "./icon.svg",
   "./offline.html"
@@ -54,7 +57,7 @@ self.addEventListener("fetch", function (e) {
         return res;
       }).catch(function () {
         return caches.match(req).then(function (hit) {
-          return hit || caches.match("./offline.html") || caches.match("./index.html");
+          return hit || caches.match("./offline.html") || caches.match("./login.html");
         });
       })
     );

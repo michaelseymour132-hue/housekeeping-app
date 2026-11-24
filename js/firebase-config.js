@@ -20,9 +20,9 @@ var firebaseConfig = {
   apiKey: "AIzaSyB9oh9GOnrF7H65tOc6IkME7Fhj9D-wul8",           // Project settings > General > Web API Key
   authDomain: "housekeeping-app-4684b.firebaseapp.com",        // <projectId>.firebaseapp.com
   projectId: "housekeeping-app-4684b",                         // Project settings > General > Project ID
-  storageBucket: "housekeeping-app-4684b.appspot.com",         // <projectId>.appspot.com
-  messagingSenderId: "REPLACE_WITH_SENDER_ID",                 // Project settings > Cloud Messaging > Sender ID
-  appId: "REPLACE_WITH_APP_ID"                                 // Project settings > General > Your apps > App ID
+  storageBucket: "housekeeping-app-4684b.appspot.com"          // <projectId>.appspot.com
+  // messagingSenderId / appId are only needed for push messages and analytics,
+  // which the app does not use yet. Add them from Project settings when it does.
 };
 
 // Initialise Firebase (compat SDK, loaded via CDN script tags on each page).

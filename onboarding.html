@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Set up your hotel - Housekeeping Hub</title>
+  <title>Set up your property - Housekeeping Hub</title>
+  <meta name="robots" content="noindex">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -14,16 +15,16 @@
   <div class="auth-form" style="align-items:flex-start;">
     <div style="width:100%;max-width:640px;padding:24px;">
       <div class="breadcrumb">First-time setup</div>
-      <h1 class="mb8">Welcome - let us set up your hotel</h1>
-      <p class="muted mb16">Three quick steps and you are ready to go. This takes about two minutes.</p>
+      <h1 class="mb8">Welcome - let us set up your property</h1>
+      <p class="muted mb16">Three quick steps and you are ready to go. This takes about two minutes. Your <span id="trialDays">14</span>-day free trial starts when you finish.</p>
 
       <div class="card" id="step1">
-        <div class="card-title">Step 1 of 3 - Hotel details</div>
-        <div class="field"><label for="orgName">Company / group name</label><input id="orgName" placeholder="e.g. Coastal Hotels Ltd"></div>
-        <div class="field"><label for="hotelName">Hotel name</label><input id="hotelName" placeholder="e.g. The Grand Bayview"></div>
+        <div class="card-title">Step 1 of 3 - Your property</div>
+        <div class="field"><label for="orgName">Business name</label><input id="orgName" maxlength="80" placeholder="e.g. Sea View Ltd (or your own name)"></div>
+        <div class="field"><label for="hotelName">Property name</label><input id="hotelName" maxlength="80" placeholder="e.g. Sea View Guest House"></div>
         <div class="field"><label for="hotelAddr">Address</label><input id="hotelAddr" placeholder="Street, town, postcode"></div>
         <div class="field-row">
-          <div class="field"><label for="floors">Number of floors</label><input id="floors" type="number" min="1" value="3"></div>
+          <div class="field"><label for="floors">Number of floors</label><input id="floors" type="number" min="1" value="2"></div>
           <div class="field"><label for="tz">Timezone</label><input id="tz" value="Europe/London"></div>
         </div>
         <button class="btn btn-accent" id="to2">Continue</button>
@@ -34,11 +35,11 @@
         <p class="small muted mb16">Generate a block of rooms by floor, or add single rooms. You can edit everything later in Settings.</p>
         <div class="field-row">
           <div class="field"><label>Floor from</label><input id="floorFrom" type="number" min="0" value="1"></div>
-          <div class="field"><label>Floor to</label><input id="floorTo" type="number" min="0" value="3"></div>
+          <div class="field"><label>Floor to</label><input id="floorTo" type="number" min="0" value="2"></div>
         </div>
         <div class="field-row">
           <div class="field"><label>Rooms per floor from</label><input id="roomFrom" type="number" min="0" value="1"></div>
-          <div class="field"><label>to</label><input id="roomTo" type="number" min="0" value="10"></div>
+          <div class="field"><label>to</label><input id="roomTo" type="number" min="0" value="6"></div>
         </div>
         <div class="field"><label>Default room type</label><select id="defType"><option value="double">Double</option><option value="single">Single</option><option value="twin">Twin</option><option value="suite">Suite</option><option value="family">Family</option><option value="accessible">Accessible</option></select></div>
         <button class="btn btn-secondary btn-sm" id="genRooms">Generate block</button>
@@ -65,6 +66,7 @@
     </div>
   </div>
   <div id="toast-host"></div>
+  <script src="js/site-config.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/common.js"></script>
   <script>
@@ -73,8 +75,11 @@
     var daily = ["Strip and remake beds", "Clean and sanitise bathroom", "Replenish towels and toiletries", "Dust all surfaces", "Vacuum carpet / mop floor", "Empty bins", "Check lights and remote work", "Final visual check"];
     var deep = ["Move furniture and clean behind", "Wash windows inside", "Clean curtains / blinds", "Descale shower and taps", "Clean mattress and turn", "Wipe skirting boards", "Clean air vents", "Shampoo carpet", "Sanitise all touch points"];
     var uid = null, email = null;
+    document.getElementById("trialDays").textContent = HH_SITE.trialDays;
+    var signupName = "";
+    try { signupName = localStorage.getItem("hk_signup_name") || ""; } catch (x) {}
     auth.onAuthStateChanged(function (user) {
-      if (!user) { window.location.href = "index.html"; return; }
+      if (!user) { window.location.href = "login.html"; return; }
       uid = user.uid; email = user.email;
       // If this user already has a profile, they should not be here.
       HK.loadProfile(user).then(function (ok) {
@@ -150,9 +155,12 @@
       // ALREADY exist before the hotel and rooms may be written - rule get()/
       // exists() cannot see other writes still pending inside the same batch.
       // So we commit in stages: org first, then the admin user, then hotel+rooms.
-      orgRef.set({ name: orgName, createdAt: firebase.firestore.FieldValue.serverTimestamp(), plan: "trial", ownerUid: uid, branding: { appName: "Housekeeping Hub", logoUrl: "", primaryColor: "#0e9591" } })
+      // The free trial starts now. firestore.rules only accept a trial end date
+      // in the future and no more than 15 days away.
+      var trialEnds = new Date(Date.now() + HH_SITE.trialDays * 86400000);
+      orgRef.set({ name: orgName, createdAt: firebase.firestore.FieldValue.serverTimestamp(), plan: "trial", trialStartedAt: firebase.firestore.FieldValue.serverTimestamp(), trialEndsAt: firebase.firestore.Timestamp.fromDate(trialEnds), ownerUid: uid, branding: { appName: "Housekeeping Hub", logoUrl: "", primaryColor: "#0e9591" } })
         .then(function () {
-          return userRef.set({ uid: uid, displayName: (email || "Admin").split("@")[0], email: email, role: "admin", hotelIds: [hotelRef.id], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastLoginAt: firebase.firestore.FieldValue.serverTimestamp() });
+          return userRef.set({ uid: uid, displayName: signupName || (email || "Admin").split("@")[0], email: email, role: "admin", hotelIds: [hotelRef.id], active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastLoginAt: firebase.firestore.FieldValue.serverTimestamp() });
         })
         .then(function () {
           return hotelRef.set({ name: document.getElementById("hotelName").value.trim(), address: document.getElementById("hotelAddr").value.trim(), timezone: document.getElementById("tz").value.trim(), floorsCount: parseInt(document.getElementById("floors").value, 10) || 1, settings: { deepCleanIntervalDays: interval, dailyChecklist: daily, deepCleanChecklist: deep } });
@@ -162,6 +170,7 @@
         })
         .then(function () {
           localStorage.setItem("hk_hotel_" + orgRef.id, hotelRef.id);
+          try { localStorage.removeItem("hk_signup_name"); } catch (x) {}
           HK.toast("Setup complete. Welcome aboard!", "success");
           setTimeout(function () { window.location.href = "dashboard.html"; }, 900);
         })

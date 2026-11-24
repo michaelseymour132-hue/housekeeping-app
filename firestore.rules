@@ -19,6 +19,16 @@ rules_version = "2";
 //  6. Housekeepers updating their OWN assignment are restricted to the task
 //     fields (status, checklist, timestamps) - they cannot rewrite the room,
 //     date, type, or reassign the job.
+//
+// FREE TRIAL (stage 1, Nov 2026):
+//  7. A new org must start on plan "trial" with a trial end date in the future
+//     and no more than 15 days away.
+//  8. Nobody in the app can change plan, trialEndsAt, ownerUid or billing -
+//     only the server (payments) can, because the Admin SDK bypasses rules.
+//  9. Once a trial has ended, everything stays READABLE but new work is
+//     blocked (rooms, assignments, inspections, notes, documents, new users)
+//     until the org is moved to a paid plan. Orgs created before trials
+//     existed (no trialEndsAt field) are treated as active.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -52,6 +62,15 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
     }
 
+    // True while the org may do new work: on a paid plan, or a trial that has
+    // not ended yet.
+    function orgLive(orgId) {
+      let o = get(/databases/$(database)/documents/orgs/$(orgId)).data;
+      return o.get("plan", "trial") != "trial"
+        || !("trialEndsAt" in o)
+        || o.trialEndsAt > request.time;
+    }
+
     // ---- org root ------------------------------------------------------
     // ---- collection-group read for login ----------------------------------
     // The login lookup runs collectionGroup("users").where("uid","==",<me>).
@@ -65,10 +84,21 @@ service cloud.firestore {
     }
 
     match /orgs/{orgId} {
-      // Create allowed for a signed-in user setting themselves as owner (onboarding).
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      // Create allowed for a signed-in user setting themselves as owner
+      // (onboarding), and only as a fresh free trial of at most 15 days.
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.plan == "trial"
+        && request.resource.data.trialEndsAt is timestamp
+        && request.resource.data.trialEndsAt > request.time
+        && request.resource.data.trialEndsAt < request.time + duration.value(15, "d")
+        && !("billing" in request.resource.data);
       allow read: if member(orgId);
-      allow update: if isAdmin(orgId);
+      // Admins edit the org (name, branding, plan requests) but never the plan,
+      // the trial dates, the owner or billing.
+      allow update: if isAdmin(orgId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(["plan", "trialEndsAt", "trialStartedAt", "ownerUid", "billing"]);
       allow delete: if false;
 
       // ---- users -------------------------------------------------------
@@ -76,7 +106,7 @@ service cloud.firestore {
         // Admins create anyone. During first-run onboarding the org OWNER may
         // create their own profile. A signed-in user can NOT self-insert into
         // an arbitrary org anymore.
-        allow create: if isAdmin(orgId)
+        allow create: if (isAdmin(orgId) && orgLive(orgId))
           || (uid == request.auth.uid && isOrgOwner(orgId));
 
         // You can always read your OWN profile (this is what the login lookup
@@ -106,19 +136,19 @@ service cloud.firestore {
 
       // ---- hotels ------------------------------------------------------
       match /hotels/{hotelId} {
-        allow create: if isAdmin(orgId) || isOrgOwner(orgId);
+        allow create: if (isAdmin(orgId) || isOrgOwner(orgId)) && orgLive(orgId);
         allow read: if member(orgId);
-        allow update: if isAdmin(orgId);
+        allow update: if isAdmin(orgId) && orgLive(orgId);
         allow delete: if false;
 
         // Staff manage rooms fully. Housekeepers may change ONLY the live
         // status/timestamp fields (so start/complete works) - not room config.
         match /rooms/{roomId} {
           allow read: if member(orgId);
-          allow create: if isStaff(orgId);
-          allow update: if isStaff(orgId)
+          allow create: if isStaff(orgId) && orgLive(orgId);
+          allow update: if orgLive(orgId) && (isStaff(orgId)
             || (member(orgId)
-                && onlyChanges(["status", "updatedAt", "lastCleanedAt"]));
+                && onlyChanges(["status", "updatedAt", "lastCleanedAt"])));
           allow delete: if false;
         }
 
@@ -126,39 +156,39 @@ service cloud.firestore {
         // fields; staff manage all assignments.
         match /assignments/{aId} {
           allow read: if member(orgId);
-          allow create: if isStaff(orgId);
-          allow update: if isStaff(orgId)
+          allow create: if isStaff(orgId) && orgLive(orgId);
+          allow update: if orgLive(orgId) && (isStaff(orgId)
             || (member(orgId)
                 && resource.data.assignedToUid == request.auth.uid
                 && request.resource.data.assignedToUid == request.auth.uid
                 && onlyChanges(["status", "checklist", "startedAt",
-                                "completedAt", "durationMinutes", "updatedAt"]));
-          allow delete: if isStaff(orgId);
+                                "completedAt", "durationMinutes", "updatedAt"])));
+          allow delete: if isStaff(orgId) && orgLive(orgId);
         }
 
         match /inspections/{iId} {
           allow read: if member(orgId);
-          allow create, update: if isStaff(orgId);
+          allow create, update: if isStaff(orgId) && orgLive(orgId);
           allow delete: if false;
         }
 
         match /deepcleans/{dId} {
           allow read: if member(orgId);
-          allow create, update: if isStaff(orgId);
+          allow create, update: if isStaff(orgId) && orgLive(orgId);
           allow delete: if false;
         }
 
         // Any member may create notes; staff may edit (e.g. resolve maintenance).
         match /roomnotes/{nId} {
           allow read: if member(orgId);
-          allow create: if member(orgId);
-          allow update: if isStaff(orgId);
+          allow create: if member(orgId) && orgLive(orgId);
+          allow update: if isStaff(orgId) && orgLive(orgId);
           allow delete: if false;
         }
 
         match /documents/{docId} {
           allow read: if member(orgId);
-          allow create, update: if isStaff(orgId);
+          allow create, update: if isStaff(orgId) && orgLive(orgId);
           allow delete: if isAdmin(orgId);
         }
 
@@ -166,7 +196,7 @@ service cloud.firestore {
         // never edited or deleted.
         match /roomhistory/{eId} {
           allow read: if member(orgId);
-          allow create: if member(orgId)
+          allow create: if member(orgId) && orgLive(orgId)
             && request.resource.data.actorUid == request.auth.uid;
           allow update, delete: if false;
         }

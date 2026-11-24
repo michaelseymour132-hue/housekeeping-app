@@ -3,109 +3,246 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in - Housekeeping Hub</title>
-<meta name="description" content="Housekeeping Hub - the private staff operations platform for hotel housekeeping teams. Authorized staff sign-in only.">
-<meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/style.css">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<title>Housekeeping Hub - the housekeeping app for guest houses and small hotels</title>
+<meta name="description" content="Plan the day, clean to your standard, inspect in seconds and keep proof of every room - from any phone. Built for guest houses and small hotels. Free 14-day trial, no card needed.">
+<meta property="og:title" content="Housekeeping Hub - every room ready, every time">
+<meta property="og:description" content="The housekeeping app for guest houses and small hotels. Free 14-day trial, no card needed.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#13202f">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/site.css">
 </head>
 <body>
-<div class="auth-wrap">
-<div class="auth-brand">
-<div class="auth-brand-inner">
-<div class="auth-logo">
-<span class="auth-logo-mark">HH</span>
-<span class="auth-logo-text">Housekeeping Hub</span>
-</div>
-<h1>Run housekeeping like clockwork.</h1>
-<p>Assign, clean, inspect, and report - from the floor to the front desk. The operations platform trusted by hotel housekeeping teams.</p>
-<ul class="auth-points">
-<li><span class="auth-tick">check</span> Role-based access for admins, supervisors and housekeepers</li>
-<li><span class="auth-tick">check</span> Real-time room status, inspections and deep-clean tracking</li>
-<li><span class="auth-tick">check</span> Encrypted sign-in, secured by Firebase Authentication</li>
-</ul>
-</div>
-</div>
-<div class="auth-form">
-<div class="auth-card card">
-<div class="auth-secure"><span class="auth-lock">lock</span> Secure staff sign-in</div>
-<h1 class="mb8">Sign in</h1>
-<p class="muted mb16">Welcome back. Enter your details to continue.</p>
-<form id="login-form">
-<div class="field">
-<label for="email">Email</label>
-<input type="email" id="email" autocomplete="username" required>
-</div>
-<div class="field">
-<label for="password">Password</label>
-<input type="password" id="password" autocomplete="current-password" required>
-</div>
-<button type="submit" id="login-btn" class="btn btn-accent btn-block btn-lg">Sign in</button>
-</form>
-<p class="small mt16"><a href="#" id="forgot">Forgot password?</a></p>
-<p class="tiny muted mt16">This is a private login for authorized staff only. Accounts are created by your administrator in the Settings console - contact them to be added.</p>
-<div class="auth-foot">
-<span class="auth-foot-brand">Housekeeping Hub</span>
-<span class="auth-foot-sep">&middot;</span>
-<a href="privacy.html">Privacy</a>
-<span class="auth-foot-sep">&middot;</span>
-<a href="mailto:support@housekeepinghub.app">Contact support</a>
-<div class="auth-foot-note">Protected by Firebase Authentication. Your credentials are encrypted in transit.</div>
-</div>
-</div>
-</div>
-</div>
-<div id="toast-host"></div>
-<script src="js/firebase-config.js"></script>
-<script src="js/common.js"></script>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="logo" href="index.html"><span class="logo-mark">HH</span>Housekeeping Hub</a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="login.html">Sign in</a>
+      <a class="btn btn-primary" href="signup.html"><span class="long">Start free trial</span><span class="short">Free trial</span></a>
+    </div>
+    <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">&#9776;</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">For guest houses &amp; small hotels</span>
+      <h1>Every room ready.<br><em>Every time.</em></h1>
+      <p class="lead">Plan the day, clean to your standard, inspect in seconds and keep proof of every room - all from the phones your team already carries.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="signup.html">Start your free trial</a>
+        <a class="btn btn-ghost btn-lg" href="#how">See how it works</a>
+      </div>
+      <p class="hero-small"><span id="heroDays">14</span>-day free trial &middot; no card needed &middot; set up in about two minutes</p>
+    </div>
+    <div class="mock" aria-hidden="true">
+      <div class="mock-desk">
+        <div class="mock-bar"><i></i><i></i><i></i></div>
+        <div class="mock-body">
+          <div class="mock-kpis">
+            <div class="mock-kpi"><b>83%</b><span>Rooms ready</span></div>
+            <div class="mock-kpi"><b>3</b><span>To inspect</span></div>
+            <div class="mock-kpi"><b>1</b><span>Repairs open</span></div>
+          </div>
+          <div class="mock-grid">
+            <div class="mock-room r-clean">101</div><div class="mock-room r-clean">102</div><div class="mock-room r-prog">103</div>
+            <div class="mock-room r-clean">104</div><div class="mock-room r-insp">105</div><div class="mock-room r-clean">106</div>
+            <div class="mock-room r-dirty">201</div><div class="mock-room r-clean">202</div><div class="mock-room r-clean">203</div>
+            <div class="mock-room r-insp">204</div><div class="mock-room r-clean">205</div><div class="mock-room r-prog">206</div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-phone">
+        <div class="mock-screen">
+          <h4>Room 103</h4>
+          <div class="mock-prog"><span></span></div>
+          <div class="mock-check done"><i></i>Strip and remake beds</div>
+          <div class="mock-check done"><i></i>Clean and sanitise bathroom</div>
+          <div class="mock-check done"><i></i>Replenish towels</div>
+          <div class="mock-check done"><i></i>Dust all surfaces</div>
+          <div class="mock-check"><i></i>Vacuum and mop</div>
+          <div class="mock-check"><i></i>Empty bins</div>
+          <div class="mock-check"><i></i>Final visual check</div>
+          <div class="mock-btn">Complete room</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pains">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Sound familiar?</span>
+      <h2 class="big">Housekeeping still runs on group chats, whiteboards and memory.</h2>
+    </div>
+    <div class="pain-grid">
+      <div class="pain"><div class="q">?</div><h3>"Is 104 ready yet?"</h3><p>Front desk chasing housekeeping by phone while a guest waits with their bags.</p></div>
+      <div class="pain"><div class="q">!</div><h3>Missed jobs, no proof</h3><p>A guest complains about a room and nobody can show what was cleaned, when, or by whom.</p></div>
+      <div class="pain"><div class="q">&#8230;</div><h3>Deep cleans slip</h3><p>Mattress turns, curtains and vents get pushed back for months because nobody tracks them.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">What you get</span>
+      <h2 class="big">One place for every room, every clean and every check.</h2>
+      <p>Everything below is in the app today and included in your free trial.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat"><div class="ic">&#9638;</div><h3>Live room board</h3><p>See every room at a glance - dirty, in progress, clean, inspected - updating the moment your team taps a button.</p></div>
+      <div class="feat"><div class="ic">&#10003;</div><h3>Checklists on any phone</h3><p>Each housekeeper gets today's rooms with your own checklist. Start, tick, add a note or photo, complete.</p></div>
+      <div class="feat"><div class="ic">&#9673;</div><h3>Inspections in seconds</h3><p>Pass a room or send it back for a re-clean with a comment. Re-cleans jump to the top of the list.</p></div>
+      <div class="feat"><div class="ic">&#9733;</div><h3>Deep-clean planner</h3><p>Know which rooms are due or overdue, schedule them, and keep before-and-after photos as proof.</p></div>
+      <div class="feat"><div class="ic">&#9874;</div><h3>Maintenance reports</h3><p>Staff report a dripping tap or broken lamp with a photo. Track it from open to fixed.</p></div>
+      <div class="feat"><div class="ic">&#9776;</div><h3>Plan from arrivals</h3><p>Import tomorrow's arrivals and departures from a spreadsheet and see exactly which rooms need turning.</p></div>
+      <div class="feat"><div class="ic">&#9783;</div><h3>Reports you can use</h3><p>Rooms cleaned, time per room, inspection pass rates and more - print them or export to a spreadsheet.</p></div>
+      <div class="feat"><div class="ic">&#9636;</div><h3>Documents in one place</h3><p>COSHH sheets, procedures and checklists stored where your team can find them on the floor.</p></div>
+      <div class="feat"><div class="ic">&#9919;</div><h3>Right access for everyone</h3><p>Admins, supervisors and housekeepers each see what they need. Every change is recorded in an audit log.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="who">
+  <div class="wrap">
+    <div>
+      <span class="kicker">Built by someone who has done the job</span>
+      <h2 class="big">Designed on the housekeeping floor, not in a boardroom.</h2>
+      <p>Housekeeping Hub is designed by a working hygiene supervisor with a housekeeping background. Every screen is built around how rooms really get turned - short on time, busy days, and a team that needs things simple.</p>
+    </div>
+    <div class="who-list">
+      <div class="who-item"><b>No training day needed</b><span>If your team can use a phone, they can use Housekeeping Hub.</span></div>
+      <div class="who-item"><b>No booking software needed</b><span>Works on its own. Bring in arrivals from a simple spreadsheet.</span></div>
+      <div class="who-item"><b>Your standards, your checklists</b><span>Set your own daily and deep-clean lists. Change them any time.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="kicker">How it works</span>
+      <h2 class="big">Up and running before your next changeover.</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Create your account</h3><p>Sign up with your email. No card, no sales call.</p></div>
+      <div class="step"><h3>Add rooms and checklists</h3><p>Generate your rooms floor by floor and tweak our ready-made checklists.</p></div>
+      <div class="step"><h3>Invite your team</h3><p>Add each person by email. They get a link to set a password and start on their phone.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="soon">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Coming soon</span>
+      <h2 class="big">Where Housekeeping Hub is heading.</h2>
+      <p>Being built now. Trial and paying customers get them as they arrive.</p>
+    </div>
+    <div class="soon-grid">
+      <div class="soon-card"><span class="tag">Coming soon</span><h3>AI room check</h3><p>Snap the finished room; the app checks it against your standard and flags anything missed before a guest sees it.</p></div>
+      <div class="soon-card"><span class="tag">Coming soon</span><h3>Booking calendar sync</h3><p>Read arrivals and departures straight from your Booking.com and Airbnb calendars to build the day's plan.</p></div>
+      <div class="soon-card"><span class="tag">Coming soon</span><h3>Guest feedback codes</h3><p>A small code in each room lets guests report a problem or rate cleanliness - straight to your team.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="kicker">Pricing</span>
+      <h2 class="big">Simple monthly pricing. Every plan starts free.</h2>
+      <p>Try everything for <span id="priceDays">14</span> days. No card needed, nothing charged when the trial ends.</p>
+    </div>
+    <div class="price-grid" id="priceGrid"></div>
+    <p class="price-note">Unlimited staff on every plan. Pay monthly - no setup fees.</p>
+  </div>
+</section>
+
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="kicker">Questions</span>
+      <h2 class="big">Good to know.</h2>
+    </div>
+    <div class="faq-list">
+      <details><summary>Do I need a card to start the trial?</summary><p>No. Sign up with your email and use everything free for the whole trial.</p></details>
+      <details><summary>What happens when the trial ends?</summary><p>Nothing is charged. Your rooms, history and photos stay safe and you can still view them. Choose a plan to switch changes back on for your team.</p></details>
+      <details><summary>Does my team need to download anything?</summary><p>No. It runs in the web browser on any phone, tablet or computer, and can be added to the home screen so it opens like an app.</p></details>
+      <details><summary>Do I need booking or property management software?</summary><p>No. Housekeeping Hub works on its own. You can import arrivals and departures from a spreadsheet, and automatic calendar sync is on the way.</p></details>
+      <details><summary>Is my data safe?</summary><p>Each business's data is kept completely separate and is stored with Google's Firebase cloud service. Staff only see what their role allows, and every change is logged. You can export your data any time.</p></details>
+      <details><summary>How many staff can I add?</summary><p>As many as you need - every plan includes unlimited staff.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2 class="big">See your rooms come together on one screen.</h2>
+    <p>Set up your property in about two minutes and run tomorrow's changeover from your phone.</p>
+    <a class="btn btn-light btn-lg" href="signup.html">Start your free trial</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="index.html"><span class="logo-mark">HH</span>Housekeeping Hub</a>
+    <span class="sp"></span>
+    <a href="#pricing">Pricing</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="login.html">Sign in</a>
+    <span id="footContact"></span>
+  </div>
+</footer>
+
+<script src="js/site-config.js"></script>
 <script>
 (function () {
-  var redirecting = false;
-  auth.onAuthStateChanged(function (user) {
-    if (!user || redirecting) { return; }
-    HK.loadProfile(user).then(function (ok) {
-      if (ok) {
-        redirecting = true;
-        window.location.href = HK.homeForRole(HK.state.profile.role);
-      } else {
-        redirecting = true;
-        window.location.href = "onboarding.html";
-      }
-    }).catch(function (err) {
-      HK.toast("Could not load your profile: " + err.message, "error");
-    });
+  var days = String(HH_SITE.trialDays);
+  document.getElementById("heroDays").textContent = days;
+  document.getElementById("priceDays").textContent = days;
+
+  var grid = document.getElementById("priceGrid");
+  HH_SITE.plans.forEach(function (pl) {
+    var c = document.createElement("div"); c.className = "price" + (pl.featured ? " featured" : "");
+    var h = document.createElement("h3"); h.textContent = pl.name; c.appendChild(h);
+    var b = document.createElement("p"); b.className = "blurb"; b.textContent = pl.blurb; c.appendChild(b);
+    var a = document.createElement("div"); a.className = "amt";
+    if (pl.price === null) { a.textContent = "Let's talk"; }
+    else { a.textContent = HH_SITE.currency + pl.price; var s = document.createElement("small"); s.textContent = " / " + pl.period; a.appendChild(s); }
+    c.appendChild(a);
+    var ul = document.createElement("ul");
+    pl.features.forEach(function (f) { var li = document.createElement("li"); li.textContent = f; ul.appendChild(li); });
+    c.appendChild(ul);
+    var btn = document.createElement("a"); btn.className = "btn " + (pl.featured ? "btn-primary" : "btn-ghost");
+    btn.href = "signup.html"; btn.textContent = "Start free trial"; c.appendChild(btn);
+    grid.appendChild(c);
   });
-  var form = document.getElementById("login-form");
-  var btn = document.getElementById("login-btn");
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var email = document.getElementById("email").value.trim();
-    var pass = document.getElementById("password").value;
-    if (!email || !pass) { HK.toast("Enter your email and password.", "error"); return; }
-    btn.disabled = true; btn.textContent = "Signing in...";
-    auth.signInWithEmailAndPassword(email, pass).then(function () {
-    }).catch(function (err) {
-      btn.disabled = false; btn.textContent = "Sign in";
-      var msg = "Could not sign in.";
-      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") { msg = "Incorrect email or password."; }
-      else if (err.code === "auth/user-not-found") { msg = "No account found for that email."; }
-      else if (err.code === "auth/user-disabled") { msg = "This account has been disabled."; }
-      else if (err.code === "auth/too-many-requests") { msg = "Too many attempts. Try again shortly."; }
-      else if (err.code === "auth/invalid-email") { msg = "That email address looks invalid."; }
-      HK.toast(msg, "error");
-    });
+
+  if (HH_SITE.supportEmail) {
+    var fc = document.getElementById("footContact");
+    var l = document.createElement("a"); l.href = "mailto:" + HH_SITE.supportEmail; l.textContent = "Contact";
+    fc.appendChild(l);
+  }
+
+  var nav = document.getElementById("nav"), mb = document.getElementById("menuBtn");
+  mb.addEventListener("click", function () {
+    var open = nav.className.indexOf("open") === -1;
+    nav.className = open ? "nav open" : "nav";
+    mb.setAttribute("aria-expanded", open ? "true" : "false");
   });
-  document.getElementById("forgot").addEventListener("click", function (e) {
-    e.preventDefault();
-    var email = document.getElementById("email").value.trim();
-    if (!email) { HK.toast("Enter your email above first, then tap Forgot password.", "info"); return; }
-    auth.sendPasswordResetEmail(email).then(function () {
-      HK.toast("Password reset email sent to " + email, "success");
-    }).catch(function () { HK.toast("Could not send reset email. Check the address.", "error"); });
-  });
+  var links = document.querySelectorAll(".nav-links a");
+  for (var i = 0; i < links.length; i++) { links[i].addEventListener("click", function () { nav.className = "nav"; }); }
 })();
 </script>
 </body>

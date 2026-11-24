@@ -12,6 +12,13 @@ service firebase.storage {
         && firestore.exists(/databases/(default)/documents/orgs/$(orgId)/users/$(request.auth.uid))
         && firestore.get(/databases/(default)/documents/orgs/$(orgId)/users/$(request.auth.uid)).data.active == true;
     }
+    // New uploads stop when a free trial has ended (same test as firestore.rules).
+    function orgLive(orgId) {
+      let o = firestore.get(/databases/(default)/documents/orgs/$(orgId)).data;
+      return o.get("plan", "trial") != "trial"
+        || !("trialEndsAt" in o)
+        || o.trialEndsAt > request.time;
+    }
     function okUpload() {
       return request.resource.size < 10 * 1024 * 1024
         && (request.resource.contentType.matches("image/.*")
@@ -21,7 +28,7 @@ service firebase.storage {
     // All app files live under orgs/{orgId}/...
     match /orgs/{orgId}/{allPaths=**} {
       allow read: if member(orgId);
-      allow write: if member(orgId) && okUpload();
+      allow write: if member(orgId) && okUpload() && orgLive(orgId);
     }
   }
 }

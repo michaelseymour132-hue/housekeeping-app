@@ -1,12 +1,17 @@
 # Housekeeping Hub
 
-An enterprise hotel housekeeping operations platform: room status, daily cleans, inspections, deep-clean scheduling, maintenance, documents, reporting, and a full admin console. Plain HTML/CSS/vanilla JS front end on Firebase (Firestore, Auth, Storage), hosted on Vercel.
+The housekeeping app for guest houses and small hotels: room status, daily cleans, inspections, deep-clean scheduling, maintenance, documents, reporting, and a full admin console. Anyone can sign up for a free trial from the website. Plain HTML/CSS/vanilla JS front end on Firebase (Firestore, Auth, Storage), hosted on Vercel.
+
+**Business settings live in one file: `js/site-config.js`** - prices, plans, trial length, support email and company name.
 
 ## File tree
 
 ```
-index.html          Login (split-screen, password reset)
-onboarding.html     First-run wizard: hotel, bulk rooms, checklists
+index.html          Public website: features, pricing, FAQ, "Start free trial"
+signup.html         Self-serve sign-up for a free trial (creates the admin login)
+login.html          Sign in (split-screen, password reset)
+onboarding.html     First-run wizard: property, bulk rooms, checklists; starts the trial
+plan.html           Admin: trial status, plans, "choose a plan" request
 dashboard.html      KPIs + real-time room grid (supervisor/admin)
 room.html           Room profile: overview, history, documents, maintenance
 mytasks.html        Housekeeper daily flow: start, checklist, complete
@@ -21,15 +26,26 @@ privacy.html        GDPR privacy policy TEMPLATE
 seed.html           Dev-only demo data (refuses non-empty hotel)
 calendar.html       Month/week calendar of assignments, deep cleans, maintenance
 allocation.html     Occupancy-driven room allocation (CSV import)
-css/style.css       Design system + print styles
+css/style.css       App design system + print styles
+css/site.css        Public website styles
+js/site-config.js   Prices, plans, trial length, contact details (edit here)
 js/firebase-config.js   Firebase config (with Console locations)
 js/common.js        Auth guard, roles, toast, dates, photo upload, shell
 firestore.rules     Firestore security rules (paste into Console)
 storage.rules       Storage security rules (paste into Console)
-api/create-user.js  Serverless function: create staff logins in-app (Vercel)
+api/create-user.js  Serverless function: create staff logins in-app (Vercel; refuses once a trial has ended)
 package.json        Server dependency (firebase-admin) for the /api function
 README.md TESTING.md ROADMAP.md
 ```
+
+## Free trial and plans
+
+- A new customer signs up on `signup.html`, then the setup wizard creates their organisation on plan `trial` with `trialEndsAt` = now + `trialDays` (14).
+- An admin sees days left in a bar on every page and on `plan.html`.
+- When the trial ends, everything stays **readable**, but new work is blocked by `firestore.rules` / `storage.rules` (and by `api/create-user.js` for new staff).
+- "Choose a plan" records `planRequest` on the organisation (visible in Firestore). Card payments are stage 2.
+- To move a customer to paid by hand: Firestore > `orgs/{orgId}` > set `plan` to `"active"` (only possible from the console or the server - the app itself cannot change `plan`).
+- Organisations created before trials existed have no `trialEndsAt` and are treated as active.
 
 ## Roles
 
@@ -44,7 +60,7 @@ README.md TESTING.md ROADMAP.md
 3. **Firestore Database** > Create database (production mode).
 4. **Firestore > Rules** > paste all of `firestore.rules` > **Publish**.
 5. **Storage** > Get started > then **Storage > Rules** > paste all of `storage.rules` > **Publish**.
-6. **Create your first admin login**: Authentication > Users > Add user (email + password). Then sign in to the deployed app - because you have no profile yet, you are routed to `onboarding.html`, which creates your org, hotel, rooms, and your own admin profile automatically.
+6. **Create your first admin login**: use "Start free trial" on the website (`signup.html`), or Authentication > Users > Add user and then sign in. Because you have no profile yet, you are routed to `onboarding.html`, which creates your org, property, rooms, and your own admin profile automatically.
 7. **Add more staff**: once the in-app user creation backend is set up (see below), go to Settings > Users in the app, enter a name, email and role and press Create - the login account and profile are created automatically and the person is emailed a link to set their own password. (Before that setup, or as a fallback, you can still add people the old way: Authentication > Add user, then Settings > Users.)
 
 ## Vercel

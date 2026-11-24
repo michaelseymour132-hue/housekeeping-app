@@ -92,10 +92,25 @@
       function loadUserList() { HK.orgRef().collection("users").get().then(function (snap) { var el = document.getElementById("userList"); el.innerHTML = ""; snap.forEach(function (d) { var u = d.data(); var row = document.createElement("div"); row.className = "checkitem"; row.innerHTML = "<span class=\"grow\">" + HK.esc(u.displayName) + " <span class=\"tiny muted\">" + HK.esc(u.email) + " - " + HK.esc(u.role) + (u.active ? "" : " - inactive") + "</span></span>"; if (u.uid !== HK.state.user.uid) { var tog = document.createElement("button"); tog.className = "btn btn-sm btn-secondary"; tog.textContent = u.active ? "Deactivate" : "Reactivate"; tog.onclick = function () { HK.orgRef().collection("users").doc(u.uid).update({ active: !u.active }).then(function () { HK.audit("user.updated", u.displayName + " active=" + (!u.active)); HK.toast("Updated.", "success"); loadUserList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); }; row.appendChild(tog); } el.appendChild(row); }); }).catch(function (err) { document.getElementById("userList").innerHTML = "<p class=\"muted\">" + HK.esc(err.message) + "</p>"; }); }
     }
     function renderBranding(p) {
-      var b = hotel.branding || {};
-      var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">Branding (white-label)</div><p class=\"small muted mb16\">Branding is stored at organisation level.</p><div class=\"field\"><label>App name</label><input id=\"bName\" value=\"" + HK.esc(b.appName || "Housekeeping Hub") + "\"></div><div class=\"field\"><label>Primary colour (hex)</label><input id=\"bColor\" value=\"" + HK.esc(b.primaryColor || "#0e9591") + "\"></div><div class=\"field\"><label>Logo URL</label><input id=\"bLogo\" value=\"" + HK.esc(b.logoUrl || "") + "\"></div><button class=\"btn btn-accent\" id=\"saveBrand\">Save branding</button>";
+      var b = (HK.state.org && HK.state.org.branding) || {};
+      var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">Branding (white-label)</div><p class=\"small muted mb16\">Your app name, colour and logo appear across every page for your whole team.</p><div class=\"field\"><label>App name</label><input id=\"bName\" maxlength=\"40\" value=\"" + HK.esc(b.appName || "Housekeeping Hub") + "\"></div><div class=\"field\"><label>Primary colour</label><div class=\"row\"><input id=\"bPick\" type=\"color\" value=\"" + HK.esc(/^#[0-9a-fA-F]{6}$/.test(b.primaryColor || "") ? b.primaryColor : "#0e9591") + "\" style=\"width:56px;padding:2px\"><input id=\"bColor\" value=\"" + HK.esc(b.primaryColor || "#0e9591") + "\"></div></div><div class=\"field\"><label>Logo web address (https://...)</label><input id=\"bLogo\" value=\"" + HK.esc(b.logoUrl || "") + "\"></div><button class=\"btn btn-accent\" id=\"saveBrand\">Save branding</button>";
       p.appendChild(c);
-      document.getElementById("saveBrand").onclick = function () { var btn = this; btn.disabled = true; btn.textContent = "Saving..."; HK.orgRef().update({ "branding.appName": document.getElementById("bName").value.trim(), "branding.primaryColor": document.getElementById("bColor").value.trim(), "branding.logoUrl": document.getElementById("bLogo").value.trim() }).then(function () { HK.audit("settings.changed", "Branding updated"); HK.toast("Branding saved. Reload to see changes.", "success"); btn.disabled = false; btn.textContent = "Save branding"; }).catch(function (err) { btn.disabled = false; btn.textContent = "Save branding"; HK.toast("Save failed: " + err.message, "error"); }); };
+      document.getElementById("bPick").oninput = function () { document.getElementById("bColor").value = this.value; };
+      document.getElementById("saveBrand").onclick = function () {
+        var btn = this;
+        var name = document.getElementById("bName").value.trim().slice(0, 40);
+        var color = document.getElementById("bColor").value.trim();
+        var logo = document.getElementById("bLogo").value.trim();
+        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) { HK.toast("Colour must look like #0e9591.", "error"); return; }
+        if (logo && !/^https:\/\//.test(logo)) { HK.toast("The logo address must start with https://", "error"); return; }
+        btn.disabled = true; btn.textContent = "Saving...";
+        HK.orgRef().update({ "branding.appName": name, "branding.primaryColor": color, "branding.logoUrl": logo }).then(function () {
+          HK.state.org.branding = { appName: name, primaryColor: color, logoUrl: logo };
+          HK.audit("settings.changed", "Branding updated");
+          HK.toast("Branding saved.", "success");
+          setTimeout(function () { window.location.reload(); }, 700);
+        }).catch(function (err) { btn.disabled = false; btn.textContent = "Save branding"; HK.toast("Save failed: " + err.message, "error"); });
+      };
     }
     function renderExport(p) {
       var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">Data export (GDPR)</div><p class=\"small muted mb16\">Download each collection as CSV.</p>";

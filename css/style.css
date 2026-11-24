@@ -216,3 +216,21 @@ tbody tr:hover { background: var(--canvas); }
   .auth-brand h1 { font-size: 30px; line-height: 1.2; }
   .auth-card { max-width: 400px; }
 }
+
+/* ---- Free trial bar + plan page + branding logo (stage 1) ---- */
+.trial-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between;
+  background: var(--accent-soft); color: var(--accent-dark); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; margin-bottom: 16px; font-size: var(--fs-4); font-weight: 600; }
+.trial-bar.trial-soon { background: var(--amber-soft); color: var(--amber); }
+.trial-bar.trial-ended { background: var(--red-soft); color: var(--red); }
+.trial-cta { background: var(--navy); color: #fff !important; padding: 6px 12px; border-radius: var(--radius-sm); font-weight: 700; white-space: nowrap; }
+.trial-cta:hover { text-decoration: none; opacity: 0.9; }
+.brand-logo { height: 26px; width: auto; vertical-align: middle; margin-right: 8px; border-radius: 4px; }
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.plan-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
+.plan-card.featured { border: 2px solid var(--accent); }
+.plan-card .plan-price { font-size: 30px; font-weight: 800; color: var(--ink); }
+.plan-card .plan-price small { font-size: 14px; font-weight: 500; color: var(--slate); }
+.plan-card ul { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
+.plan-card li::before { content: "\2713"; color: var(--accent); font-weight: 800; margin-right: 8px; }
+.plan-card .btn { margin-top: auto; }

@@ -2,13 +2,14 @@
 
 Do the Firebase setup in README first (Auth on, Firestore + Storage rules published). Then follow these in order.
 
-## 0. First admin + onboarding
-1. In Firebase Console > Authentication > Add user: create your admin email + password.
-2. Open the deployed app, sign in. You have no profile yet, so you land on **onboarding**.
-3. Step 1: enter company + hotel name, floors, timezone > Continue.
-4. Step 2: set floors 1-3, rooms 1-10, pick a default type > Generate block (expect 30 rooms) > add a single room 401 > Continue.
-5. Step 3: review daily + deep-clean checklists, add/remove one each > Finish setup.
-6. Expect a success toast then the **dashboard** with your rooms.
+## 0. Website, sign-up + onboarding
+1. Open the deployed site. The home page shows features, three plans and "Start free trial".
+2. Start free trial > enter name, email, password (8+), tick the privacy box > Start free trial.
+3. You land on **onboarding** (it says the 14-day trial starts when you finish).
+4. Step 1: business + property name > Continue. Step 2: Generate block (expect 12 rooms) > Continue.
+5. Step 3: review checklists > Finish setup. Expect the **dashboard** with "Free trial - 14 days left" at the top.
+6. Plan (admin menu): status card, the plan that fits your room count is highlighted; Choose it > "we will be in touch".
+7. Trial end check (optional): in Firestore set `orgs/{id}.trialEndsAt` to yesterday > reload > red bar; try to change a room status > refused. Set it back.
 
 ## 1. Quick demo data (optional)
 - Visit `seed.html`. If the hotel is empty it seeds 30 rooms, 3 staff profiles, and a week of assignments/notes/maintenance, then sends you to the dashboard. Re-visiting refuses to run (protects data).
