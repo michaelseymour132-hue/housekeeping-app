@@ -47,7 +47,7 @@
 </div>
 <label class="row small" style="align-items:flex-start;gap:8px;font-weight:400;margin-bottom:16px">
 <input type="checkbox" id="agree" style="width:auto;margin-top:3px">
-<span>I agree to the <a href="privacy.html" target="_blank" rel="noopener">privacy policy</a>.</span>
+<span>I agree to the <a href="terms.html" target="_blank" rel="noopener">terms of service</a> and <a href="privacy.html" target="_blank" rel="noopener">privacy policy</a>.</span>
 </label>
 <button type="submit" id="signup-btn" class="btn btn-accent btn-block btn-lg">Start free trial</button>
 </form>
@@ -80,7 +80,7 @@
     if (!name) { HK.toast("Enter your name.", "error"); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { HK.toast("Enter a valid email address.", "error"); return; }
     if (pass.length < 8) { HK.toast("Use a password of at least 8 characters.", "error"); return; }
-    if (!document.getElementById("agree").checked) { HK.toast("Please tick to agree to the privacy policy.", "error"); return; }
+    if (!document.getElementById("agree").checked) { HK.toast("Please tick to agree to the terms and privacy policy.", "error"); return; }
     creating = true;
     btn.disabled = true; btn.textContent = "Creating your account...";
     auth.createUserWithEmailAndPassword(email, pass).then(function () {

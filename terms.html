@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service - Housekeeping Hub</title>
+<meta name="description" content="The terms for using Housekeeping Hub: free trial, plans, payment, cancelling and your data.">
+<link rel="canonical" href="https://www.housekeepinghub.app/terms.html">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="main" style="max-width:760px;margin:0 auto;">
+<div class="card hidden" id="draftNote" style="background:var(--amber-soft);border-color:var(--amber);"><strong>Draft.</strong> The business name and contact address for these terms have not been filled in yet (js/site-config.js). Have the wording checked before relying on it.</div>
+<p class="small mt16"><a href="index.html">Housekeeping Hub</a></p>
+<h1 class="mt8">Terms of Service</h1>
+<p class="muted small">Last updated: 24 November 2026</p>
+<div class="card mt16">
+
+<h2>1. Who we are</h2>
+<p class="small">Housekeeping Hub ("the service") is provided by <span class="js-company">the operator of Housekeeping Hub</span> ("we", "us", "our"). <span id="addrLine" class="hidden">Our business address is <span id="addr"></span>. </span>You can contact us at <span class="js-email">the address shown in the app</span>.</p>
+
+<h2 class="mt16">2. Who these terms are for</h2>
+<p class="small">The service is for businesses such as hotels, guest houses and B&amp;Bs. By creating an account you confirm that you are acting for a business and that you are allowed to agree to these terms on its behalf ("you"). These terms, together with our <a href="privacy.html">privacy policy</a>, are the whole agreement between us about the service.</p>
+
+<h2 class="mt16">3. Free trial</h2>
+<p class="small">A new account starts with a free trial of <span class="js-trial">14</span> days with every feature switched on. No card is needed and nothing is charged when the trial ends. If you have not chosen a plan by then, your account becomes read-only: you can still sign in and see everything you set up, but changes are paused until you choose a plan.</p>
+
+<h2 class="mt16">4. Plans and prices</h2>
+<p class="small">The plans, their prices and the number of rooms each one covers are shown on our website and on the Plan page inside the service. The price shown when you subscribe is the price you pay unless we tell you otherwise before you subscribe. You must be on a plan that covers the number of active rooms you have set up.</p>
+
+<h2 class="mt16">5. Paying</h2>
+<p class="small">Paid plans are monthly subscriptions, charged in advance to your card on the same day each month until you cancel. Payments are taken by our payment provider, Stripe. Your card details are entered on Stripe's page and are never seen or stored by Housekeeping Hub. If a payment fails, Stripe will try again and email you; if it cannot be collected, your subscription ends and your account becomes read-only, as at the end of a trial.</p>
+
+<h2 class="mt16">6. Changing plan or cancelling</h2>
+<p class="small">You can change plan, update your card, download invoices or cancel at any time from Plan &gt; Manage billing. If you cancel, your plan carries on until the end of the month you have already paid for and is not renewed. We do not refund part of a month, except where the law says we must. After a subscription ends your account becomes read-only and you can subscribe again whenever you like.</p>
+
+<h2 class="mt16">7. Your information</h2>
+<p class="small">Everything you and your team put into the service stays yours. We store it and use it only to provide the service to you, as described in our <a href="privacy.html">privacy policy</a>. Administrators can export their data from Settings at any time. You are responsible for what your team records, for having the right to record it (for example staff and guest details), and for who you give access to.</p>
+
+<h2 class="mt16">8. Using the service fairly</h2>
+<p class="small">You agree to keep sign-in details private and give each person their own account; not to try to get into other customers' information or disrupt the service; not to use it for anything unlawful; and not to copy or resell it. We may suspend an account that puts the service or other customers at risk, and we will tell you why.</p>
+
+<h2 class="mt16">9. Availability and changes to the service</h2>
+<p class="small">We work to keep the service running and your information safe, and we improve it regularly, so features may change. We do not promise that it will be available without interruption or free of faults. The service is a tool to help you organise housekeeping; you remain responsible for the standard of cleaning, safety checks and anything the law requires of your business.</p>
+
+<h2 class="mt16">10. Our responsibility to you</h2>
+<p class="small">Nothing in these terms limits our responsibility for death or personal injury caused by our negligence, for fraud, or for anything else that cannot legally be limited. Otherwise, we are not responsible for loss of profit, loss of business, or losses we could not reasonably have expected, and our total responsibility to you in any 12-month period is limited to the amount you paid us for the service in that period.</p>
+
+<h2 class="mt16">11. Ending the agreement</h2>
+<p class="small">You can stop using the service at any time by cancelling your subscription. We can end the agreement if you seriously or repeatedly break these terms, or with at least 30 days' notice for any other reason. When an account is closed we delete its records as described in the privacy policy; ask us if you would like a copy first or want them deleted sooner.</p>
+
+<h2 class="mt16">12. Changes to these terms or prices</h2>
+<p class="small">If we change these terms or the price of your plan, we will tell you by email or in the service at least 30 days before the change applies. If you do not agree, you can cancel before it takes effect.</p>
+
+<h2 class="mt16">13. Law</h2>
+<p class="small">These terms are governed by the law of England and Wales, and the courts of England and Wales deal with any dispute about them.</p>
+
+<h2 class="mt16">Contact</h2>
+<p class="small">Questions about these terms: <span class="js-email">the address shown in the app</span>.</p>
+<p class="mt16"><a href="privacy.html">Privacy policy</a> &middot; <a href="login.html">Sign in</a> &middot; <a href="index.html">Home</a></p>
+</div>
+</div>
+<script src="js/site-config.js"></script>
+<script>
+(function () {
+  var i, els;
+  if (HH_SITE.companyName) { els = document.querySelectorAll(".js-company"); for (i = 0; i < els.length; i++) { els[i].textContent = HH_SITE.companyName; } }
+  els = document.querySelectorAll(".js-trial"); for (i = 0; i < els.length; i++) { els[i].textContent = HH_SITE.trialDays; }
+  if (HH_SITE.companyAddress) { document.getElementById("addr").textContent = HH_SITE.companyAddress; document.getElementById("addrLine").className = ""; }
+  if (HH_SITE.supportEmail) {
+    els = document.querySelectorAll(".js-email");
+    for (i = 0; i < els.length; i++) {
+      var a = document.createElement("a"); a.href = "mailto:" + HH_SITE.supportEmail; a.textContent = HH_SITE.supportEmail;
+      els[i].textContent = ""; els[i].appendChild(a);
+    }
+  }
+  if (!HH_SITE.companyName || !HH_SITE.supportEmail) { document.getElementById("draftNote").className = "card"; }
+})();
+</script>
+</body>
+</html>

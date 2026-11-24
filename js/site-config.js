@@ -14,7 +14,11 @@ var HH_SITE = {
   supportEmail: "hello@housekeepinghub.app",
 
   // The legal name of the business that sells Housekeeping Hub (shown in the privacy policy).
-  companyName: "",
+  companyName: "Michael Seymour, trading as Housekeeping Hub",
+
+  // The business's postal address, shown in the terms of service. UK law expects a
+  // trader to give one. Leave empty to hide the line until it is decided.
+  companyAddress: "",
 
   // Free trial length in days. Must match the 15-day ceiling in firestore.rules (trial <= 15 days).
   trialDays: 14,
