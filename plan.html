@@ -166,7 +166,7 @@
         if (current) { b.textContent = "Your current plan"; b.disabled = true; }
         else if (tooSmall) { b.textContent = "Too small for " + roomCount + " rooms"; b.disabled = true; }
         else if (pl.price === null) { b.textContent = "Get in touch"; b.onclick = function () { request(pl, b); }; }
-        else if (paid) { b.textContent = "Switch in Manage billing"; b.onclick = function () { manage(b); }; }
+        else if (paid) { b.textContent = "Switch to " + pl.name; b.onclick = function () { switchPlan(pl); }; }
         else { b.textContent = "Choose " + pl.name; b.onclick = function () { choose(pl, b); }; }
         c.appendChild(b);
         host.appendChild(c);
@@ -203,6 +203,18 @@
         btn.disabled = false; btn.textContent = label;
         HK.toast("Could not open billing. Please check your connection and try again.", "error");
       });
+    }
+
+    // Already paying and wants a different plan: we make the change for them, so the
+    // room limit is checked and they are charged the right amount.
+    function switchPlan(pl) {
+      HK.audit("plan.switch_asked", pl.name);
+      if (HH_SITE.supportEmail) {
+        HK.toast("Email us and we will switch you to " + pl.name + " - usually the same day.", "info");
+        window.location.href = "mailto:" + HH_SITE.supportEmail + "?subject=" + encodeURIComponent("Housekeeping Hub - switch to " + pl.name + " for " + ((HK.state.org && HK.state.org.name) || "my property"));
+      } else {
+        HK.toast("Please contact us to switch to " + pl.name + ".", "info");
+      }
     }
 
     // Record that this property wants a plan and open an email to us.
