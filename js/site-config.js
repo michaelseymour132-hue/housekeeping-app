@@ -6,9 +6,12 @@ var HH_SITE = {
   productName: "Housekeeping Hub",
   tagline: "Every room ready. Every time.",
 
+  // The site's home address (custom domain on Vercel).
+  siteUrl: "https://www.housekeepinghub.app",
+
   // Contact address shown on the website, the plan page and the privacy policy.
-  // Leave empty until a real mailbox exists - contact links stay hidden while it is empty.
-  supportEmail: "",
+  // Business mailbox (Zoho Mail, hello@housekeepinghub.app). Leave empty to hide contact links.
+  supportEmail: "hello@housekeepinghub.app",
 
   // The legal name of the business that sells Housekeeping Hub (shown in the privacy policy).
   companyName: "",
