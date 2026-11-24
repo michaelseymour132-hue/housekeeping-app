@@ -3,7 +3,7 @@
 // WITHOUT ever caching Firebase/auth/data requests (those must hit the network).
 // Style note: this file runs in the service-worker scope, not the page.
 
-var CACHE = "hk-shell-v5";
+var CACHE = "hk-shell-v6";
 var SHELL = [
   "./",
   "./index.html",
@@ -65,17 +65,17 @@ self.addEventListener("fetch", function (e) {
     return;
   }
 
-  // Static assets (css/js/svg/etc): stale-while-revalidate.
+  // Static assets (css/js/svg/etc): network-first, so a new version of the app is
+  // used as soon as it is published; the saved copy is only a fallback when offline.
   e.respondWith(
-    caches.match(req).then(function (hit) {
-      var net = fetch(req).then(function (res) {
-        if (res && res.status === 200 && res.type === "basic") {
-          var copy = res.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, copy); });
-        }
-        return res;
-      }).catch(function () { return hit; });
-      return hit || net;
+    fetch(req).then(function (res) {
+      if (res && res.status === 200 && res.type === "basic") {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copy); });
+      }
+      return res;
+    }).catch(function () {
+      return caches.match(req).then(function (hit) { return hit || Response.error(); });
     })
   );
 });
