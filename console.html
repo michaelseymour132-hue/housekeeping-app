@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendant console - Housekeeping Hub</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head">
+        <div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Attendant console</h1></div>
+        <div class="small muted right" id="updated">Live</div>
+      </div>
+      <div id="alerts"></div>
+      <div class="kpi-grid six" id="totals"></div>
+      <div class="att-grid" id="grid"><div class="card skeleton" style="height:160px"></div></div>
+      <div id="empty" class="empty hidden"><div class="empty-icon">&#9783;</div><div>No task sheets for today yet. <a href="assign.html">Create task sheets</a>.</div></div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/hk-model.js"></script>
+  <script>
+  (function () {
+    var jobs = [], people = {}, alerts = [], unsubs = [];
+    var TS = function () { return firebase.firestore.FieldValue.serverTimestamp(); };
+
+    HK.requireAuth(["admin", "supervisor"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      HK.mount("console");
+      unsubs.push(HK.col("assignments").where("date", "==", HK.todayStr()).onSnapshot(function (snap) {
+        jobs = []; snap.forEach(function (d) { var a = d.data(); a.id = d.id; jobs.push(a); }); render();
+      }, function (err) { HK.toast("Could not load task sheets: " + err.message, "error"); }));
+      unsubs.push(HK.orgRef().collection("users").where("active", "==", true).onSnapshot(function (snap) {
+        people = {}; snap.forEach(function (d) { var u = d.data(); people[u.uid] = u; }); render();
+      }, function () {}));
+      unsubs.push(HK.col("alerts").where("status", "==", "open").onSnapshot(function (snap) {
+        alerts = []; snap.forEach(function (d) { var a = d.data(); a.id = d.id; alerts.push(a); }); renderAlerts(); render();
+      }, function () {}));
+      setInterval(render, 30000);
+    });
+    window.addEventListener("beforeunload", function () { unsubs.forEach(function (u) { u(); }); });
+
+    function renderAlerts() {
+      var host = document.getElementById("alerts"); host.innerHTML = "";
+      alerts.sort(function (a, b) { return ((a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0) - ((b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0); });
+      alerts.forEach(function (a) {
+        var d = document.createElement("div"); d.className = "alert-item";
+        var t = document.createElement("div");
+        var b = document.createElement("strong"); b.textContent = (a.fromName || "Someone") + " needs help" + (a.roomNumber ? " - room " + a.roomNumber : ""); t.appendChild(b);
+        var m = document.createElement("div"); m.className = "small"; m.textContent = a.message + " (" + (HK.minutesSince(a.createdAt) || 0) + " min ago)"; t.appendChild(m);
+        var btn = document.createElement("button"); btn.className = "btn btn-sm btn-danger"; btn.textContent = "Dealt with";
+        btn.onclick = function () {
+          btn.disabled = true;
+          HK.col("alerts").doc(a.id).update({ status: "resolved", resolvedByUid: HK.state.user.uid, resolvedByName: HK.state.profile.displayName || "", resolvedAt: TS() })
+            .catch(function (err) { btn.disabled = false; HK.toast("Could not update: " + err.message, "error"); });
+        };
+        d.appendChild(t); d.appendChild(btn); host.appendChild(d);
+      });
+    }
+
+    function kpi(host, val, label) {
+      var d = document.createElement("div"); d.className = "kpi";
+      var v = document.createElement("div"); v.className = "kpi-val"; v.textContent = val;
+      var l = document.createElement("div"); l.className = "kpi-label"; l.textContent = label;
+      d.appendChild(v); d.appendChild(l); host.appendChild(d);
+    }
+
+    function render() {
+      document.getElementById("updated").textContent = "Live - " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      var by = {};
+      jobs.forEach(function (j) { (by[j.assignedToUid] = by[j.assignedToUid] || []).push(j); });
+      var uids = Object.keys(by);
+      var tot = document.getElementById("totals"); tot.innerHTML = "";
+      var done = jobs.filter(function (j) { return j.status === "complete"; });
+      var crAll = jobs.reduce(function (s, j) { return s + (j.credits || 0); }, 0);
+      var crDone = done.reduce(function (s, j) { return s + (j.credits || 0); }, 0);
+      var durs = done.filter(function (j) { return j.durationMinutes; }).map(function (j) { return j.durationMinutes; });
+      kpi(tot, done.length + "/" + jobs.length, "Rooms done");
+      kpi(tot, crAll ? Math.round(crDone / crAll * 100) + "%" : "-", "Credits done");
+      kpi(tot, jobs.filter(function (j) { return j.status === "inprogress"; }).length, "In rooms now");
+      kpi(tot, durs.length ? Math.round(durs.reduce(function (a, b) { return a + b; }, 0) / durs.length) + "m" : "-", "Avg per room");
+      kpi(tot, jobs.filter(function (j) { return j.status === "dnd"; }).length, "DND waiting");
+      kpi(tot, alerts.length, "Help requests");
+
+      var grid = document.getElementById("grid"); grid.innerHTML = "";
+      document.getElementById("empty").className = uids.length ? "empty hidden" : "empty";
+      uids.sort(function (a, b) { return String((people[a] || {}).displayName || by[a][0].assignedToName).localeCompare(String((people[b] || {}).displayName || by[b][0].assignedToName)); });
+      uids.forEach(function (u) {
+        var list = by[u], p = people[u] || {}, live = p.live || {};
+        var c = document.createElement("div"); c.className = "card att-card";
+        var head = document.createElement("div"); head.className = "row";
+        var n = document.createElement("h2"); n.className = "grow"; n.textContent = p.displayName || list[0].assignedToName || "Attendant"; head.appendChild(n);
+        var cur = list.filter(function (j) { return j.status === "inprogress"; })[0];
+        var st = document.createElement("span");
+        if (live.onBreak) { st.className = "badge badge-purple"; st.textContent = "On break" + (live.breakSince ? " " + HK.minutesSince(live.breakSince) + "m" : ""); }
+        else if (cur) { st.className = "badge badge-amber"; st.textContent = "In " + cur.roomNumber; }
+        else if (list.every(function (j) { return j.status === "complete" || j.status === "declined"; })) { st.className = "badge badge-green"; st.textContent = "Finished"; }
+        else { st.className = "badge badge-grey"; st.textContent = "Between rooms"; }
+        head.appendChild(st); c.appendChild(head);
+        var dn = list.filter(function (j) { return j.status === "complete"; });
+        var cA = list.reduce(function (s, j) { return s + (j.credits || 0); }, 0), cD = dn.reduce(function (s, j) { return s + (j.credits || 0); }, 0);
+        var big = document.createElement("div"); big.className = "big"; big.textContent = dn.length + " / " + list.length + " rooms"; c.appendChild(big);
+        var pr = document.createElement("div"); pr.className = "progress mt8"; var bar = document.createElement("span"); bar.style.width = (cA ? Math.round(cD / cA * 100) : (list.length ? Math.round(dn.length / list.length * 100) : 0)) + "%"; pr.appendChild(bar); c.appendChild(pr);
+        var info = document.createElement("p"); info.className = "small muted mt8";
+        var d2 = dn.filter(function (j) { return j.durationMinutes; }).map(function (j) { return j.durationMinutes; });
+        var bits = [cD + " of " + cA + " credits"];
+        if (d2.length) { bits.push("avg " + Math.round(d2.reduce(function (a, b) { return a + b; }, 0) / d2.length) + " min/room"); }
+        if (cur) { bits.push("room " + cur.roomNumber + " for " + (HK.minutesSince(cur.startedAt) || 0) + " min"); }
+        var dnd = list.filter(function (j) { return j.status === "dnd"; }).length; if (dnd) { bits.push(dnd + " DND"); }
+        var dec = list.filter(function (j) { return j.status === "declined"; }).length; if (dec) { bits.push(dec + " declined"); }
+        info.textContent = bits.join(" - "); c.appendChild(info);
+        var rooms = document.createElement("div"); rooms.className = "row wrap mt8";
+        list.slice().sort(function (a, b) { return (a.seq || 999) - (b.seq || 999); }).forEach(function (j) {
+          var b = document.createElement("span");
+          b.className = "badge " + ({ complete: "badge-green", inprogress: "badge-amber", dnd: "badge-purple", declined: "badge-grey" }[j.status] || "badge-grey");
+          b.textContent = j.roomNumber + (j.type === "turndown" ? " TD" : "") + (j.priority ? " ★" : "");
+          b.title = HK.taskLabel(j.type) + " - " + j.status;
+          rooms.appendChild(b);
+        });
+        c.appendChild(rooms);
+        grid.appendChild(c);
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

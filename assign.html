@@ -3,149 +3,262 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assign - Housekeeping Hub</title>
+  <title>Task sheets - Housekeeping Hub</title>
+  <meta name="robots" content="noindex">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-  <style> .sel-room { cursor:pointer; } .sel-room.picked { outline:3px solid var(--accent); } </style>
 </head>
 <body>
   <div class="app">
     <main class="main">
-      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Assign rooms</h1></div></div>
-      <div class="card mb16">
+      <div class="page-head no-print"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Task sheets</h1></div></div>
+
+      <div class="card mb16 no-print">
+        <div class="card-title">1. Day and team</div>
         <div class="field-row">
-          <div class="field"><label>Date</label><input type="date" id="date"></div>
-          <div class="field"><label>Assign to</label><select id="hk"></select></div>
-          <div class="field"><label>Type</label><select id="type"><option value="daily">Daily clean</option><option value="deepclean">Deep clean</option><option value="reclean">Re-clean</option></select></div>
+          <div class="field"><label for="date">Date</label><input type="date" id="date"></div>
+          <div class="field"><label>Settings</label><div class="small muted" id="settingsLine">Loading...</div></div>
         </div>
-        <div class="row wrap"><button class="btn btn-secondary btn-sm" id="copyYest">Copy yesterday</button><button class="btn btn-secondary btn-sm" id="selectAll">Select all dirty</button><button class="btn btn-secondary btn-sm" id="clearSel">Clear</button></div>
+        <label>Attendants working</label>
+        <div id="attendants" class="row wrap mb8"></div>
+        <p class="tiny muted">Tick everyone cleaning rooms on this date. Rooms are shared out by credits so everyone gets a fair load, and each person keeps to one area.</p>
       </div>
-      <div class="card mb16"><div class="card-title">Workload for selected date</div><div id="workload" class="row wrap small">Loading...</div></div>
-      <div class="card">
-        <div class="row mb16"><strong class="grow" id="selCount">0 rooms selected</strong><button class="btn btn-accent" id="assignBtn">Assign selected</button></div>
-        <div id="grid" class="room-grid"></div>
+
+      <div class="card mb16 no-print">
+        <div class="row mb8"><div class="card-title grow" style="margin:0">2. Rooms needing service</div><span class="small muted" id="needLine"></span></div>
+        <div id="needList" class="small">Loading...</div>
+      </div>
+
+      <div class="card mb16">
+        <div class="row mb8 no-print">
+          <div class="card-title grow" style="margin:0">3. Task sheets</div>
+          <button class="btn btn-secondary btn-sm" id="printBtn">Print</button>
+          <button class="btn btn-accent" id="genBtn">Create task sheets</button>
+        </div>
+        <div id="sheets"><p class="muted small">Tick at least one attendant to preview sheets.</p></div>
+      </div>
+
+      <div class="card mb16 no-print">
+        <div class="card-title">Today's sheets so far</div>
+        <div id="workload" class="row wrap small">Loading...</div>
+      </div>
+
+      <div class="card no-print">
+        <div class="card-title">Add a single job by hand</div>
+        <div class="field-row">
+          <div class="field"><label for="mRoom">Room</label><select id="mRoom"></select></div>
+          <div class="field"><label for="mUser">Attendant</label><select id="mUser"></select></div>
+          <div class="field"><label for="mTask">Task</label><select id="mTask"></select></div>
+        </div>
+        <button class="btn btn-secondary" id="mAdd">Add job</button>
       </div>
     </main>
   </div>
   <div id="toast-host"></div>
   <script src="js/firebase-config.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/hk-model.js"></script>
   <script>
   (function () {
-    var rooms = [], users = [], picked = {}, assignmentsForDate = [];
-      function occupiedNoClean(r) {
-        var today = HK.todayStr();
-        var occ = (r.occStatus || "").toString().toLowerCase();
-        var inHouse = (occ === "inhouse" || occ === "in-house" || occ === "occupied" || occ === "stayover");
-        if (!inHouse) { return false; }
-        if (r.departure && r.departure === today) { return false; }
-        return true;
-      }
+    var rooms = [], users = [], hotel = {}, settings = HK.hkSettings({}), existing = [], chosen = {}, plan = null;
+    var TS = function () { return firebase.firestore.FieldValue.serverTimestamp(); };
+
     HK.requireAuth(["admin", "supervisor"], function (state) {
       if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
       HK.mount("assign");
       document.getElementById("date").value = HK.todayStr();
-      loadUsers().then(loadRooms).then(function () { loadAssignmentsForDate(); });
+      Promise.all([loadHotel(), loadUsers(), loadRooms()]).then(loadExisting);
     });
-    document.getElementById("date").onchange = function () { loadAssignmentsForDate(); };
-    document.getElementById("copyYest").onclick = copyYesterday;
-    document.getElementById("selectAll").onclick = function () { rooms.forEach(function (r) { if (r.status === "dirty" && !occupiedNoClean(r)) { picked[r.id] = true; } }); renderGrid(); updateCount(); };
-    document.getElementById("clearSel").onclick = function () { picked = {}; renderGrid(); updateCount(); };
-    document.getElementById("assignBtn").onclick = doAssign;
+    document.getElementById("date").onchange = loadExisting;
+    document.getElementById("genBtn").onclick = createSheets;
+    document.getElementById("printBtn").onclick = function () { window.print(); };
+    document.getElementById("mAdd").onclick = addManual;
+
+    function dateVal() { return document.getElementById("date").value || HK.todayStr(); }
+
+    function loadHotel() {
+      return HK.hotelRef().get().then(function (h) {
+        hotel = h.exists ? h.data() : {}; settings = HK.hkSettings(hotel);
+        var c = settings.credits;
+        document.getElementById("settingsLine").textContent = "Credits: departure " + c.departure + ", stayover " + c.stayover + ", pickup " + c.pickup +
+          ". Linen every " + (settings.linenDays || "-") + " nights. " + (settings.maxCredits ? "Max " + settings.maxCredits + " credits per sheet." : "No credit cap.") + " (Change in Settings > Housekeeping.)";
+      });
+    }
     function loadUsers() {
       return HK.orgRef().collection("users").where("active", "==", true).get().then(function (snap) {
-        users = []; var sel = document.getElementById("hk"); sel.innerHTML = "";
-        snap.forEach(function (d) { var u = d.data(); if ((u.hotelIds || []).indexOf(HK.state.hotelId) !== -1) { users.push(u); var o = document.createElement("option"); o.value = u.uid; o.textContent = u.displayName + " (" + u.role + ")"; sel.appendChild(o); } });
-        if (!users.length) { HK.toast("No staff found. Add users in Settings.", "info"); }
+        users = [];
+        snap.forEach(function (d) { var u = d.data(); if ((u.hotelIds || []).indexOf(HK.state.hotelId) !== -1) { users.push(u); } });
+        users.sort(function (a, b) { return (a.role === "housekeeper" ? 0 : 1) - (b.role === "housekeeper" ? 0 : 1) || String(a.displayName).localeCompare(String(b.displayName)); });
+        var host = document.getElementById("attendants"); host.innerHTML = "";
+        var mu = document.getElementById("mUser"); mu.innerHTML = "";
+        users.forEach(function (u) {
+          var l = document.createElement("label"); l.className = "badge badge-grey"; l.style.cursor = "pointer"; l.style.padding = "8px 12px";
+          var cb = document.createElement("input"); cb.type = "checkbox"; cb.style.width = "auto"; cb.style.marginRight = "6px";
+          cb.checked = u.role === "housekeeper"; if (cb.checked) { chosen[u.uid] = true; }
+          cb.onchange = function () { if (cb.checked) { chosen[u.uid] = true; } else { delete chosen[u.uid]; } preview(); };
+          l.appendChild(cb); l.appendChild(document.createTextNode(u.displayName + (u.role !== "housekeeper" ? " (" + u.role + ")" : ""))); host.appendChild(l);
+          var o = document.createElement("option"); o.value = u.uid; o.textContent = u.displayName; mu.appendChild(o);
+        });
+        if (!users.length) { host.textContent = "No team members yet - add them in Settings > Users."; }
       });
     }
     function loadRooms() {
       return HK.col("rooms").where("active", "==", true).get().then(function (snap) {
         rooms = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; rooms.push(r); });
-        rooms.sort(function (a, b) { return (a.roomNumber > b.roomNumber) ? 1 : -1; }); renderGrid();
+        rooms.sort(HK.roomCompare);
+        var mr = document.getElementById("mRoom"); mr.innerHTML = "";
+        rooms.forEach(function (r) { var o = document.createElement("option"); o.value = r.id; o.textContent = "Room " + r.roomNumber + " - " + HK.statusInfo(r.status).label; mr.appendChild(o); });
+        var mt = document.getElementById("mTask"); mt.innerHTML = "";
+        ["departure", "stayover", "pickup", "turndown", "reclean", "deepclean"].forEach(function (t) { var o = document.createElement("option"); o.value = t; o.textContent = HK.taskLabel(t) + " (" + settings.credits[t] + " cr)"; mt.appendChild(o); });
       });
     }
-    function loadAssignmentsForDate() {
-      var date = document.getElementById("date").value;
-      HK.col("assignments").where("date", "==", date).get().then(function (snap) {
-        assignmentsForDate = []; snap.forEach(function (d) { assignmentsForDate.push(d.data()); });
-        renderWorkload(); renderGrid();
-      }).catch(function (err) { HK.toast("Could not load assignments: " + err.message, "error"); });
+    function loadExisting() {
+      return HK.col("assignments").where("date", "==", dateVal()).get().then(function (snap) {
+        existing = []; snap.forEach(function (d) { var a = d.data(); a.id = d.id; existing.push(a); });
+        renderWorkload(); preview();
+      }).catch(function (err) { HK.toast("Could not load task sheets: " + err.message, "error"); });
     }
-    function renderWorkload() {
-      var counts = {}; assignmentsForDate.forEach(function (a) { counts[a.assignedToUid] = (counts[a.assignedToUid] || 0) + 1; });
-      var host = document.getElementById("workload"); host.innerHTML = "";
-      if (!users.length) { host.textContent = "No staff."; return; }
-      users.forEach(function (u) { var span = document.createElement("span"); span.className = "badge badge-blue"; span.textContent = u.displayName + ": " + (counts[u.uid] || 0); host.appendChild(span); });
-    }
-    function renderGrid() {
-      var assignedRoomIds = {}; assignmentsForDate.forEach(function (a) { assignedRoomIds[a.roomId] = a.assignedToName; });
-      var grid = document.getElementById("grid"); grid.innerHTML = "";
+
+    function needed() {
+      var d = dateVal();
+      var taken = {}; existing.forEach(function (a) { if (a.type !== "turndown") { taken[a.roomId] = true; } });
+      var tdTaken = {}; existing.forEach(function (a) { if (a.type === "turndown") { tdTaken[a.roomId] = true; } });
+      var out = [];
       rooms.forEach(function (r) {
-        var occ = occupiedNoClean(r);
-        var t = document.createElement("div");
-        if (occ) {
-          if (picked[r.id]) { delete picked[r.id]; }
-          t.className = "room-tile sel-room st-occupied occ-locked";
-          t.style.opacity = "0.55"; t.style.cursor = "not-allowed";
-          var until = r.departure ? (" until " + HK.esc(r.departure)) : "";
-          t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span><span class=\"tiny\">Occupied" + until + " - no clean</span>";
-          t.title = "Guest in-house" + until + " - room does not need cleaning";
-          t.onclick = function () { HK.toast("Room " + r.roomNumber + " is occupied" + until + " - no clean needed.", "info"); };
-          grid.appendChild(t); return;
+        var task = HK.taskFor(r, d);
+        if (task && !taken[r.id]) {
+          out.push({ room: r, task: task, credits: settings.credits[task] || 0, priority: HK.isPriority(r, d), linen: task === "stayover" && HK.linenDue(r, d, settings.linenDays) });
         }
-        t.className = "room-tile sel-room st-" + r.status + (picked[r.id] ? " picked" : "");
-        var tag = assignedRoomIds[r.id] ? "<span class=\"tiny\">" + HK.esc(assignedRoomIds[r.id]) + "</span>" : "<span class=\"rt\">" + HK.esc(r.type) + "</span>";
-        t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span>" + tag;
-        t.onclick = function () { picked[r.id] = !picked[r.id]; if (!picked[r.id]) { delete picked[r.id]; } t.className = "room-tile sel-room st-" + r.status + (picked[r.id] ? " picked" : ""); updateCount(); };
-        grid.appendChild(t);
+        if (r.turndown === "requested" && !tdTaken[r.id]) {
+          out.push({ room: r, task: "turndown", credits: settings.credits.turndown || 0, priority: false, linen: false });
+        }
       });
+      return out;
     }
-    function updateCount() { document.getElementById("selCount").textContent = Object.keys(picked).length + " rooms selected"; }
-    function doAssign() {
-      var ids = Object.keys(picked); if (!ids.length) { HK.toast("Select at least one room.", "error"); return; }
-      ids = ids.filter(function (id) { var rr = rooms.filter(function (x) { return x.id === id; })[0]; return rr && !occupiedNoClean(rr); });
-      if (!ids.length) { HK.toast("Selected rooms are occupied - no clean needed.", "info"); return; }
-      var hkUid = document.getElementById("hk").value; if (!hkUid) { HK.toast("Choose a staff member.", "error"); return; }
-      var hkUser = users.filter(function (u) { return u.uid === hkUid; })[0]; var date = document.getElementById("date").value; var type = document.getElementById("type").value;
-      var dupes = ids.filter(function (id) { return assignmentsForDate.some(function (a) { return a.roomId === id; }); });
-      var proceed = Promise.resolve(true);
-      if (dupes.length) { proceed = HK.confirm("Duplicate assignments", dupes.length + " of the selected rooms are already assigned on this date. Assign anyway?", "Assign anyway", false); }
-      proceed.then(function (go) {
-        if (!go) { return; }
-        var btn = document.getElementById("assignBtn"); btn.disabled = true; btn.textContent = "Assigning...";
-        HK.hotelRef().get().then(function (hd) {
-          var checklist = ((hd.data().settings || {}).dailyChecklist || []).map(function (i) { return { item: i, done: false }; });
-          if (type === "deepclean") { checklist = ((hd.data().settings || {}).deepCleanChecklist || []).map(function (i) { return { item: i, done: false }; }); }
-          var b = db.batch();
-          ids.forEach(function (id) {
-            var r = rooms.filter(function (x) { return x.id === id; })[0];
-            var ref = HK.col("assignments").doc();
-            b.set(ref, { date: date, roomId: id, roomNumber: r.roomNumber, assignedToUid: hkUid, assignedToName: hkUser.displayName, type: type, status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: checklist, createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+    function preview() {
+      var items = needed();
+      var total = items.reduce(function (s, x) { return s + x.credits; }, 0);
+      document.getElementById("needLine").textContent = items.length + " job" + (items.length === 1 ? "" : "s") + " - " + total + " credits";
+      var nl = document.getElementById("needList"); nl.innerHTML = "";
+      if (!items.length) { nl.innerHTML = "<p class=\"muted\">Nothing left to put on a sheet for this date. Rooms need service when they are Dirty or Pickup (and not out of order or declined).</p>"; }
+      else {
+        var counts = {}; items.forEach(function (x) { counts[x.task] = (counts[x.task] || 0) + 1; });
+        var wrap = document.createElement("div"); wrap.className = "row wrap";
+        Object.keys(counts).forEach(function (t) { var b = document.createElement("span"); b.className = "badge " + (HK.TASKS[t] || {}).badge; b.textContent = counts[t] + " x " + HK.taskLabel(t); wrap.appendChild(b); });
+        var pr = items.filter(function (x) { return x.priority; }).length;
+        if (pr) { var pb = document.createElement("span"); pb.className = "badge badge-amber"; pb.textContent = "★ " + pr + " priority"; wrap.appendChild(pb); }
+        nl.appendChild(wrap);
+      }
+      var att = users.filter(function (u) { return chosen[u.uid]; });
+      plan = HK.buildSheets(items, att, settings.maxCredits);
+      renderSheets();
+    }
+
+    function renderSheets() {
+      var host = document.getElementById("sheets"); host.innerHTML = "";
+      if (!plan || !plan.sheets.length) { host.innerHTML = "<p class=\"muted small\">Tick at least one attendant to preview sheets.</p>"; return; }
+      var d = dateVal();
+      plan.sheets.forEach(function (s, i) {
+        var card = document.createElement("div"); card.className = "card sheet mb16";
+        var h = document.createElement("div"); h.className = "row";
+        var t = document.createElement("h2"); t.className = "grow"; t.textContent = "Sheet " + (i + 1) + " - " + s.attendant.displayName; h.appendChild(t);
+        var c = document.createElement("span"); c.className = "badge badge-blue"; c.textContent = s.items.length + " rooms - " + s.credits + " credits"; h.appendChild(c);
+        card.appendChild(h);
+        var sub = document.createElement("p"); sub.className = "small muted"; sub.textContent = (hotel.name || "") + " - " + d; card.appendChild(sub);
+        if (!s.items.length) { var e = document.createElement("p"); e.className = "muted small"; e.textContent = "No rooms on this sheet."; card.appendChild(e); host.appendChild(card); return; }
+        var tb = document.createElement("table");
+        tb.innerHTML = "<thead><tr><th>#</th><th>Room</th><th>Task</th><th>Cr</th><th>Front office</th><th>Notes</th><th class=\"no-print\"></th></tr></thead>";
+        var body = document.createElement("tbody");
+        s.items.forEach(function (x, j) {
+          var tr = document.createElement("tr");
+          var notes = [];
+          if (x.priority) { notes.push("★ Priority"); }
+          if (x.linen) { notes.push("Change linen"); }
+          if (x.room.guestService === "mur") { notes.push("Make up room"); }
+          if (x.room.instructions) { notes.push(x.room.instructions); }
+          [String(j + 1), x.room.roomNumber, HK.taskLabel(x.task), String(x.credits), HK.FO_LABELS[HK.foState(x.room, d)], notes.join(" - ")].forEach(function (v) {
+            var td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
           });
-          return b.commit();
-        }).then(function () {
-          HK.audit("assignment.created", ids.length + " rooms assigned to " + hkUser.displayName + " on " + date);
-          HK.toast(ids.length + " rooms assigned to " + hkUser.displayName + ".", "success");
-          picked = {}; updateCount(); loadAssignmentsForDate();
-          document.getElementById("assignBtn").disabled = false; document.getElementById("assignBtn").textContent = "Assign selected";
-        }).catch(function (err) { document.getElementById("assignBtn").disabled = false; document.getElementById("assignBtn").textContent = "Assign selected"; HK.toast("Assign failed: " + err.message, "error"); });
+          var mv = document.createElement("td"); mv.className = "no-print";
+          if (plan.sheets.length > 1) {
+            var sel = document.createElement("select"); sel.style.minHeight = "32px"; sel.style.fontSize = "12px";
+            plan.sheets.forEach(function (o, k) { var op = document.createElement("option"); op.value = k; op.textContent = (k === i ? "On " : "Move to ") + o.attendant.displayName; if (k === i) { op.selected = true; } sel.appendChild(op); });
+            sel.onchange = function () { var k = Number(sel.value); s.items.splice(j, 1); s.credits -= x.credits; plan.sheets[k].items.push(x); plan.sheets[k].credits += x.credits; renderSheets(); };
+            mv.appendChild(sel);
+          }
+          tr.appendChild(mv);
+          body.appendChild(tr);
+        });
+        tb.appendChild(body); card.appendChild(tb); host.appendChild(card);
+      });
+      if (plan.unassigned.length) {
+        var w = document.createElement("p"); w.className = "small"; w.style.color = "var(--red)";
+        w.textContent = plan.unassigned.length + " job(s) did not fit under the credit cap: " + plan.unassigned.map(function (x) { return x.room.roomNumber; }).join(", ") + ". Tick another attendant or raise the cap.";
+        host.appendChild(w);
+      }
+    }
+
+    function checklistFor(task) {
+      var st = hotel.settings || {};
+      var list = task === "deepclean" ? (st.deepCleanChecklist || []) : (task === "turndown" ? ["Turn down bed", "Close curtains", "Lights and lamp on", "Empty bins", "Replace used towels"] : (st.dailyChecklist || []));
+      return list.map(function (i) { return { item: i, done: false }; });
+    }
+    function jobDoc(room, user, task, credits, seq, priority, linen) {
+      return { date: dateVal(), roomId: room.id, roomNumber: room.roomNumber, floor: room.floor || null, assignedToUid: user.uid, assignedToName: user.displayName,
+               type: task, credits: credits, seq: seq, priority: !!priority, linen: !!linen, instructions: room.instructions || "",
+               status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: checklistFor(task),
+               createdByUid: HK.state.user.uid, createdAt: TS() };
+    }
+
+    function createSheets() {
+      if (!plan || !plan.sheets.length) { HK.toast("Tick at least one attendant.", "error"); return; }
+      var jobs = [];
+      plan.sheets.forEach(function (s) {
+        var base = existing.filter(function (a) { return a.assignedToUid === s.attendant.uid; }).length;
+        s.items.forEach(function (x, j) { jobs.push(jobDoc(x.room, s.attendant, x.task, x.credits, base + j + 1, x.priority, x.linen)); });
+      });
+      if (!jobs.length) { HK.toast("No rooms to put on sheets.", "info"); return; }
+      var btn = document.getElementById("genBtn"); btn.disabled = true; btn.textContent = "Creating...";
+      var chunks = [], i;
+      for (i = 0; i < jobs.length; i += 400) { chunks.push(jobs.slice(i, i + 400)); }
+      chunks.reduce(function (p, chunk) {
+        return p.then(function () { var b = db.batch(); chunk.forEach(function (j) { b.set(HK.col("assignments").doc(), j); }); return b.commit(); });
+      }, Promise.resolve()).then(function () {
+        HK.audit("tasksheets.created", jobs.length + " jobs on " + plan.sheets.length + " sheets for " + dateVal());
+        HK.toast(jobs.length + " jobs on " + plan.sheets.length + " task sheet(s). Attendants see them in My Tasks.", "success");
+        btn.disabled = false; btn.textContent = "Create task sheets";
+        loadExisting();
+      }).catch(function (err) { btn.disabled = false; btn.textContent = "Create task sheets"; HK.toast("Could not create sheets: " + err.message, "error"); });
+    }
+
+    function addManual() {
+      var room = rooms.filter(function (r) { return r.id === document.getElementById("mRoom").value; })[0];
+      var user = users.filter(function (u) { return u.uid === document.getElementById("mUser").value; })[0];
+      var task = document.getElementById("mTask").value;
+      if (!room || !user) { HK.toast("Choose a room and an attendant.", "error"); return; }
+      var dup = existing.some(function (a) { return a.roomId === room.id && a.type === task && a.status !== "complete"; });
+      var go = dup ? HK.confirm("Already on a sheet", "Room " + room.roomNumber + " already has an open " + HK.taskLabel(task) + " job today. Add another?", "Add anyway") : Promise.resolve(true);
+      go.then(function (ok) {
+        if (!ok) { return; }
+        var seq = existing.filter(function (a) { return a.assignedToUid === user.uid; }).length + 1;
+        HK.col("assignments").add(jobDoc(room, user, task, settings.credits[task] || 0, seq, HK.isPriority(room, dateVal()), task === "stayover" && HK.linenDue(room, dateVal(), settings.linenDays))).then(function () {
+          HK.audit("assignment.created", HK.taskLabel(task) + " room " + room.roomNumber + " to " + user.displayName);
+          HK.toast("Added room " + room.roomNumber + " to " + user.displayName + "'s sheet.", "success");
+          loadExisting();
+        }).catch(function (err) { HK.toast("Could not add: " + err.message, "error"); });
       });
     }
-    function copyYesterday() {
-      var cy = document.getElementById("copyYest"); cy.disabled = true;
-      function reenable() { cy.disabled = false; }
-      var date = document.getElementById("date").value; var d = new Date(date + "T00:00:00"); var y = HK.dateStr(HK.addDays(d, -1));
-      HK.col("assignments").where("date", "==", y).get().then(function (snap) {
-        if (snap.empty) { HK.toast("No assignments found for " + y + ".", "info"); reenable(); return; }
-        var b = db.batch(); var n = 0;
-        snap.forEach(function (doc) { var a = doc.data(); var exists = assignmentsForDate.some(function (x) { return x.roomId === a.roomId; }); if (exists) { return; } n++; var ref = HK.col("assignments").doc(); b.set(ref, { date: date, roomId: a.roomId, roomNumber: a.roomNumber, assignedToUid: a.assignedToUid, assignedToName: a.assignedToName, type: a.type, status: "pending", startedAt: null, completedAt: null, durationMinutes: null, checklist: (a.checklist || []).map(function (c) { return { item: c.item, done: false }; }), createdByUid: HK.state.user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() }); });
-        if (!n) { HK.toast("Everything from yesterday is already assigned.", "info"); reenable(); return; }
-        b.commit().then(function () { HK.audit("assignment.created", "Copied " + n + " assignments from " + y); HK.toast("Copied " + n + " assignments from yesterday.", "success"); loadAssignmentsForDate(); reenable(); }).catch(function (err) { HK.toast("Copy failed: " + err.message, "error"); reenable(); });
-      }).catch(function (err) { HK.toast("Could not read yesterday: " + err.message, "error"); reenable(); });
+
+    function renderWorkload() {
+      var host = document.getElementById("workload"); host.innerHTML = "";
+      if (!existing.length) { host.textContent = "No sheets created for this date yet."; return; }
+      var by = {};
+      existing.forEach(function (a) { var k = a.assignedToName || "?"; by[k] = by[k] || { n: 0, done: 0, cr: 0 }; by[k].n++; by[k].cr += (a.credits || 0); if (a.status === "complete") { by[k].done++; } });
+      Object.keys(by).forEach(function (k) { var s = document.createElement("span"); s.className = "badge badge-blue"; s.textContent = k + ": " + by[k].done + "/" + by[k].n + " rooms - " + by[k].cr + " cr"; host.appendChild(s); });
     }
   })();
   </script>

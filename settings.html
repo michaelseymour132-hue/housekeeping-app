@@ -16,7 +16,7 @@
     <main class="main">
       <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Settings</h1></div></div>
       <div class="tabs-nav">
-        <button data-t="hotel" class="active">Hotel</button><button data-t="checklists">Checklists</button><button data-t="rooms">Rooms</button><button data-t="users">Users</button><button data-t="branding">Branding</button><button data-t="export">Data export</button><button data-t="audit">Audit log</button>
+        <button data-t="hotel" class="active">Hotel</button><button data-t="checklists">Checklists</button><button data-t="hk">Housekeeping</button><button data-t="rooms">Rooms</button><button data-t="users">Users</button><button data-t="branding">Branding</button><button data-t="export">Data export</button><button data-t="audit">Audit log</button>
       </div>
       <div id="pane">Loading...</div>
     </main>
@@ -25,6 +25,7 @@
   <div id="modal-host"></div>
   <script src="js/firebase-config.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/hk-model.js"></script>
   <script>
   (function () {
     var hotel = null, cur = "hotel";
@@ -36,12 +37,54 @@
     var btns = document.querySelectorAll(".tabs-nav button");
     for (var i = 0; i < btns.length; i++) { btns[i].onclick = (function (b) { return function () { cur = b.getAttribute("data-t"); setActive(); render(); }; })(btns[i]); }
     function setActive() { var bs = document.querySelectorAll(".tabs-nav button"); for (var j = 0; j < bs.length; j++) { bs[j].className = (bs[j].getAttribute("data-t") === cur) ? "active" : ""; } }
-    function render() { var p = document.getElementById("pane"); if (!hotel) { p.innerHTML = "Loading..."; return; } p.innerHTML = ""; if (cur === "hotel") { renderHotel(p); } else if (cur === "checklists") { renderChecklists(p); } else if (cur === "rooms") { renderRooms(p); } else if (cur === "users") { renderUsers(p); } else if (cur === "branding") { renderBranding(p); } else if (cur === "export") { renderExport(p); } else if (cur === "audit") { renderAudit(p); } }
+    function render() { var p = document.getElementById("pane"); if (!hotel) { p.innerHTML = "Loading..."; return; } p.innerHTML = ""; if (cur === "hotel") { renderHotel(p); } else if (cur === "checklists") { renderChecklists(p); } else if (cur === "hk") { renderHk(p); } else if (cur === "rooms") { renderRooms(p); } else if (cur === "users") { renderUsers(p); } else if (cur === "branding") { renderBranding(p); } else if (cur === "export") { renderExport(p); } else if (cur === "audit") { renderAudit(p); } }
     function renderHotel(p) {
       var c = document.createElement("div"); c.className = "card";
       c.innerHTML = "<div class=\"card-title\">Hotel details</div><div class=\"field\"><label>Name</label><input id=\"hName\" value=\"" + HK.esc(hotel.name) + "\"></div><div class=\"field\"><label>Address</label><input id=\"hAddr\" value=\"" + HK.esc(hotel.address || "") + "\"></div><div class=\"field-row\"><div class=\"field\"><label>Floors</label><input id=\"hFloors\" type=\"number\" value=\"" + (hotel.floorsCount || 1) + "\"></div><div class=\"field\"><label>Deep clean interval (days)</label><input id=\"hInterval\" type=\"number\" value=\"" + (hotel.settings.deepCleanIntervalDays || 90) + "\"></div></div><button class=\"btn btn-accent\" id=\"saveHotel\">Save</button>";
       p.appendChild(c);
       document.getElementById("saveHotel").onclick = function () { var btn = this; btn.disabled = true; btn.textContent = "Saving..."; HK.hotelRef().update({ name: document.getElementById("hName").value.trim(), address: document.getElementById("hAddr").value.trim(), floorsCount: parseInt(document.getElementById("hFloors").value, 10) || 1, "settings.deepCleanIntervalDays": parseInt(document.getElementById("hInterval").value, 10) || 90 }).then(function () { hotel.name = document.getElementById("hName").value.trim(); HK.audit("settings.changed", "Hotel details updated"); HK.toast("Saved.", "success"); btn.disabled = false; btn.textContent = "Save"; }).catch(function (err) { btn.disabled = false; btn.textContent = "Save"; HK.toast("Save failed: " + err.message, "error"); }); };
+    }
+    function renderHk(p) {
+      var st = HK.hkSettings(hotel);
+      var c = document.createElement("div"); c.className = "card";
+      var title = document.createElement("div"); title.className = "card-title"; title.textContent = "Task sheet credits"; c.appendChild(title);
+      var help = document.createElement("p"); help.className = "small muted mb16";
+      help.textContent = "Credits measure how much work a job is (like OPERA). Task sheets share rooms out so each attendant gets a fair number of credits. A rough guide: 1 credit = about 10 minutes.";
+      c.appendChild(help);
+      var grid = document.createElement("div"); grid.className = "field-row"; grid.style.flexWrap = "wrap"; c.appendChild(grid);
+      var inputs = {};
+      ["departure", "stayover", "pickup", "turndown", "reclean", "deepclean"].forEach(function (k) {
+        var f = document.createElement("div"); f.className = "field"; f.style.minWidth = "140px";
+        var l = document.createElement("label"); l.textContent = HK.taskLabel(k); f.appendChild(l);
+        var i = document.createElement("input"); i.type = "number"; i.min = "0"; i.step = "0.5"; i.value = st.credits[k]; f.appendChild(i);
+        inputs[k] = i; grid.appendChild(f);
+      });
+      var row = document.createElement("div"); row.className = "field-row"; c.appendChild(row);
+      function num(labelText, val, hint) {
+        var f = document.createElement("div"); f.className = "field";
+        var l = document.createElement("label"); l.textContent = labelText; f.appendChild(l);
+        var i = document.createElement("input"); i.type = "number"; i.min = "0"; i.value = val; f.appendChild(i);
+        var h = document.createElement("div"); h.className = "tiny muted"; h.textContent = hint; f.appendChild(h);
+        row.appendChild(f); return i;
+      }
+      var linen = num("Change stayover linen every (nights)", st.linenDays, "0 = never flag a linen change");
+      var cap = num("Most credits on one task sheet", st.maxCredits, "0 = no limit");
+      var save = document.createElement("button"); save.className = "btn btn-accent mt8"; save.textContent = "Save housekeeping settings"; c.appendChild(save);
+      p.appendChild(c);
+      save.onclick = function () {
+        var credits = {}, bad = false;
+        Object.keys(inputs).forEach(function (k) { var v = parseFloat(inputs[k].value); if (isNaN(v) || v < 0 || v > 50) { bad = true; } credits[k] = v; });
+        credits.daily = credits.stayover;
+        var ld = parseInt(linen.value, 10), mc = parseFloat(cap.value);
+        if (bad || isNaN(ld) || ld < 0 || ld > 30 || isNaN(mc) || mc < 0 || mc > 500) { HK.toast("Check the numbers - credits 0-50, linen 0-30 nights, cap 0-500.", "error"); return; }
+        save.disabled = true; save.textContent = "Saving...";
+        var hk = { credits: credits, linenDays: ld, maxCredits: mc };
+        HK.hotelRef().update({ "settings.hk": hk }).then(function () {
+          hotel.settings = hotel.settings || {}; hotel.settings.hk = hk;
+          HK.audit("settings.changed", "Housekeeping credits updated");
+          HK.toast("Housekeeping settings saved.", "success"); save.disabled = false; save.textContent = "Save housekeeping settings";
+        }).catch(function (err) { save.disabled = false; save.textContent = "Save housekeeping settings"; HK.toast("Save failed: " + err.message, "error"); });
+      };
     }
     function renderChecklists(p) {
       var daily = (hotel.settings.dailyChecklist || []).slice(); var deep = (hotel.settings.deepCleanChecklist || []).slice();

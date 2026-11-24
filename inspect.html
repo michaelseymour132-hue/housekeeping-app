@@ -37,7 +37,7 @@
         // Filter out any already inspected today
         HK.col("inspections").where("createdAt", ">=", startOfToday()).get().then(function (isnap) {
           var inspected = {}; isnap.forEach(function (i) { inspected[i.data().assignmentId] = true; });
-          queue = queue.filter(function (a) { return !inspected[a.id]; });
+          queue = queue.filter(function (a) { return !inspected[a.id] && a.type !== "turndown"; });
           render();
         }).catch(function () { render(); });
       }).catch(function (err) { document.getElementById("skeleton").className = "hidden"; HK.toast("Could not load queue: " + err.message, "error"); });

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lost and found - Housekeeping Hub</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="page-head"><div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Lost and found</h1></div></div>
+      <div class="card mb16">
+        <div class="card-title">Log an item</div>
+        <div class="field-row">
+          <div class="field"><label for="where">Room or place found</label><input id="where" maxlength="40" placeholder="e.g. 104 or Breakfast room"></div>
+          <div class="field"><label for="stored">Where it is kept now</label><input id="stored" maxlength="60" placeholder="e.g. Office safe, shelf 2"></div>
+        </div>
+        <div class="field"><label for="what">What is it?</label><input id="what" maxlength="200" placeholder="e.g. Black phone charger, iPhone cable"></div>
+        <button class="btn btn-accent" id="logBtn">Log item</button>
+      </div>
+      <div class="card">
+        <div class="row mb16">
+          <div class="card-title grow" style="margin:0">Register</div>
+          <select id="fStatus" style="max-width:180px"><option value="open">Still held</option><option value="all">All items</option><option value="returned">Returned</option><option value="disposed">Disposed / donated</option></select>
+        </div>
+        <div id="list">Loading...</div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-host"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/hk-model.js"></script>
+  <script>
+  (function () {
+    var items = [], staff = false, unsub = null;
+    var TS = function () { return firebase.firestore.FieldValue.serverTimestamp(); };
+    HK.requireAuth(["admin", "supervisor", "housekeeper"], function (state) {
+      if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
+      staff = state.profile.role === "admin" || state.profile.role === "supervisor";
+      HK.mount("lostfound");
+      var r = HK.qs("room"); if (r) { document.getElementById("where").value = r; document.getElementById("what").focus(); }
+      unsub = HK.col("lostfound").orderBy("createdAt", "desc").limit(300).onSnapshot(function (snap) {
+        items = []; snap.forEach(function (d) { var x = d.data(); x.id = d.id; items.push(x); }); render();
+      }, function (err) { document.getElementById("list").textContent = "Could not load: " + err.message; });
+    });
+    window.addEventListener("beforeunload", function () { if (unsub) { unsub(); } });
+    document.getElementById("fStatus").onchange = render;
+    document.getElementById("logBtn").onclick = function () {
+      var where = document.getElementById("where").value.trim(), what = document.getElementById("what").value.trim(), stored = document.getElementById("stored").value.trim();
+      if (!where || !what) { HK.toast("Say where it was found and what it is.", "error"); return; }
+      var b = this; b.disabled = true;
+      HK.col("lostfound").add({ where: where, what: what, storedAt: stored, status: "held", foundByUid: HK.state.user.uid, foundByName: HK.state.profile.displayName || "",
+                                createdAt: TS(), date: HK.todayStr() }).then(function () {
+        HK.audit("lostfound.logged", what.slice(0, 60) + " (" + where + ")");
+        HK.toast("Item logged.", "success"); b.disabled = false;
+        document.getElementById("what").value = ""; document.getElementById("stored").value = "";
+      }).catch(function (err) { b.disabled = false; HK.toast("Could not log: " + err.message, "error"); });
+    };
+    function render() {
+      var f = document.getElementById("fStatus").value;
+      var shown = items.filter(function (x) { return f === "all" || (f === "open" ? x.status === "held" : x.status === f); });
+      var host = document.getElementById("list"); host.innerHTML = "";
+      if (!shown.length) { host.innerHTML = "<p class=\"muted small\">Nothing here.</p>"; return; }
+      shown.forEach(function (x) {
+        var row = document.createElement("div"); row.className = "checkitem"; row.style.alignItems = "flex-start";
+        var t = document.createElement("div"); t.className = "grow";
+        var s = document.createElement("strong"); s.textContent = x.what; t.appendChild(s);
+        var m = document.createElement("div"); m.className = "small muted";
+        m.textContent = "Found " + (x.date || "") + " in " + x.where + " by " + (x.foundByName || "?") + (x.storedAt ? " - kept: " + x.storedAt : "") +
+          (x.status === "returned" ? " - returned to " + (x.returnedTo || "guest") : "") + (x.status === "disposed" ? " - disposed / donated" : "");
+        t.appendChild(m); row.appendChild(t);
+        var badge = document.createElement("span"); badge.className = "badge " + ({ held: "badge-amber", returned: "badge-green", disposed: "badge-grey" }[x.status] || "badge-grey");
+        badge.textContent = { held: "Held", returned: "Returned", disposed: "Disposed" }[x.status] || x.status; row.appendChild(badge);
+        if (staff && x.status === "held") {
+          var rb = document.createElement("button"); rb.className = "btn btn-sm btn-secondary"; rb.textContent = "Returned";
+          rb.onclick = function () {
+            set(x, { status: "returned", returnedTo: (document.getElementById("rt-" + x.id) || {}).value || "", closedAt: TS(), closedByName: HK.state.profile.displayName || "" });
+          };
+          var inp = document.createElement("input"); inp.id = "rt-" + x.id; inp.placeholder = "Returned to (name)"; inp.maxLength = 60; inp.style.maxWidth = "160px"; inp.style.minHeight = "34px";
+          var db2 = document.createElement("button"); db2.className = "btn btn-sm btn-secondary"; db2.textContent = "Disposed";
+          db2.onclick = function () { set(x, { status: "disposed", closedAt: TS(), closedByName: HK.state.profile.displayName || "" }); };
+          row.appendChild(inp); row.appendChild(rb); row.appendChild(db2);
+        }
+        host.appendChild(row);
+      });
+    }
+    function set(x, data) {
+      HK.col("lostfound").doc(x.id).update(data).then(function () { HK.audit("lostfound." + data.status, x.what.slice(0, 60)); HK.toast("Updated.", "success"); })
+        .catch(function (err) { HK.toast("Could not update: " + err.message, "error"); });
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -29,6 +29,15 @@ rules_version = "2";
 //     blocked (rooms, assignments, inspections, notes, documents, new users)
 //     until the org is moved to a paid plan. Orgs created before trials
 //     existed (no trialEndsAt field) are treated as active.
+//
+// OPERA-STYLE HOUSEKEEPING (stage 2, Nov 2026):
+// 10. Supervisors may stamp the hotel's lastDayRoll ("Start today") and nothing
+//     else on the hotel record; admins keep full control.
+// 11. Housekeepers may also set the guest-service flag (DND / make up room /
+//     declined), their housekeeping check (found vacant / occupied) and the
+//     turndown state on a room - still never its configuration.
+// 12. alerts (assistance requests) and lostfound (lost property register):
+//     any member logs one in their own name; supervisors close them.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -138,7 +147,8 @@ service cloud.firestore {
       match /hotels/{hotelId} {
         allow create: if (isAdmin(orgId) || isOrgOwner(orgId)) && orgLive(orgId);
         allow read: if member(orgId);
-        allow update: if isAdmin(orgId) && orgLive(orgId);
+        allow update: if orgLive(orgId) && (isAdmin(orgId)
+          || (isStaff(orgId) && onlyChanges(["lastDayRoll"])));
         allow delete: if false;
 
         // Staff manage rooms fully. Housekeepers may change ONLY the live
@@ -148,7 +158,8 @@ service cloud.firestore {
           allow create: if isStaff(orgId) && orgLive(orgId);
           allow update: if orgLive(orgId) && (isStaff(orgId)
             || (member(orgId)
-                && onlyChanges(["status", "updatedAt", "lastCleanedAt"])));
+                && onlyChanges(["status", "updatedAt", "lastCleanedAt", "guestService",
+                                "hkStatus", "hkStatusAt", "hkStatusBy", "turndown"])));
           allow delete: if false;
         }
 
@@ -190,6 +201,27 @@ service cloud.firestore {
           allow read: if member(orgId);
           allow create, update: if isStaff(orgId) && orgLive(orgId);
           allow delete: if isAdmin(orgId);
+        }
+
+        // Assistance requests from the Task Companion: raised in your own name,
+        // closed by a supervisor from the Attendant console.
+        match /alerts/{alertId} {
+          allow read: if member(orgId);
+          allow create: if member(orgId) && orgLive(orgId)
+            && request.resource.data.fromUid == request.auth.uid
+            && request.resource.data.status == "open";
+          allow update: if isStaff(orgId);
+          allow delete: if false;
+        }
+
+        // Lost property register.
+        match /lostfound/{itemId} {
+          allow read: if member(orgId);
+          allow create: if member(orgId) && orgLive(orgId)
+            && request.resource.data.foundByUid == request.auth.uid
+            && request.resource.data.status == "held";
+          allow update: if isStaff(orgId) && orgLive(orgId);
+          allow delete: if false;
         }
 
         // Activity timeline: any member can append (stamped with their own uid);

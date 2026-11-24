@@ -3,39 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Housekeeping Hub</title>
+  <title>Housekeeping board - Housekeeping Hub</title>
+  <meta name="robots" content="noindex">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-
 </head>
 <body>
   <div class="app">
     <main class="main">
       <div class="page-head">
-        <div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Dashboard</h1></div>
-        <a href="assign.html" class="btn btn-accent right">Assign rooms</a>
+        <div class="titles"><div class="breadcrumb">Housekeeping Hub</div><h1>Housekeeping board</h1></div>
+        <div class="row right">
+          <a href="console.html" class="btn btn-secondary">Attendant console</a>
+          <a href="assign.html" class="btn btn-accent">Task sheets</a>
+        </div>
       </div>
-      <div class="kpi-grid" id="kpis">
-        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Clean</div></div>
-        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Remaining</div></div>
-        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Deep cleans due</div></div>
-        <div class="kpi"><div class="kpi-val skeleton" style="height:28px;width:60px;">&nbsp;</div><div class="kpi-label">Open maintenance</div></div>
-      </div>
+      <div id="dayBanner" class="day-banner hidden"></div>
+      <div class="kpi-grid six" id="kpis"></div>
       <div class="card">
         <div class="row wrap mb16">
-          <input id="search" placeholder="Search room number" style="max-width:200px;">
-          <select id="fFloor" style="max-width:140px;"><option value="">All floors</option></select>
-          <select id="fStatus" style="max-width:160px;"><option value="">All statuses</option><option value="clean">Clean</option><option value="dirty">Dirty</option><option value="inprogress">In progress</option><option value="inspected">Inspected</option><option value="ooo">Out of order</option><option value="dnd">Do not disturb</option></select>
-          <select id="fOcc" style="max-width:160px;"><option value="">All occupancy</option><option value="vacant">Vacant</option><option value="occupied">Occupied</option><option value="checkout">Checkout</option><option value="stayover">Stayover</option></select>
+          <input id="search" placeholder="Room number" style="max-width:150px;">
+          <select id="fFloor" style="max-width:130px;"><option value="">All floors</option></select>
+          <select id="fStatus" style="max-width:170px;"><option value="">All room statuses</option></select>
+          <select id="fFo" style="max-width:170px;"><option value="">All front office</option><option value="vacant">Vacant</option><option value="arrival">Arrival today</option><option value="stayover">Stayover</option><option value="dueout">Due out</option></select>
+          <select id="fFlag" style="max-width:170px;"><option value="">All rooms</option><option value="service">Needs service</option><option value="priority">Priority</option><option value="disc">Discrepancies</option><option value="dnd">Do not disturb</option><option value="mur">Make up room</option><option value="turndown">Turndown</option></select>
+          <button class="btn btn-secondary btn-sm" id="bulkToggle">Select rooms</button>
         </div>
-        <div class="row wrap mb16 small">
-          <span class="badge badge-green">Clean</span><span class="badge badge-red">Dirty</span><span class="badge badge-amber">In progress</span><span class="badge badge-blue">Inspected</span><span class="badge badge-grey">Out of order</span><span class="badge badge-purple">Do not disturb</span>
-        </div>
+        <div class="legend small mb16" id="legend"></div>
         <div id="grid" class="room-grid"></div>
-        <div id="gridEmpty" class="empty hidden"><div class="empty-icon">\u25A6</div><div>No rooms match your filters.</div></div>
+        <div id="gridEmpty" class="empty hidden"><div class="empty-icon">&#9638;</div><div>No rooms match your filters.</div></div>
+        <div id="bulkBar" class="bulk-bar hidden">
+          <strong id="bulkCount">0 selected</strong>
+          <select id="bulkStatus"><option value="">Set room status...</option></select>
+          <button class="btn btn-sm btn-accent" id="bulkApply">Apply</button>
+          <button class="btn btn-sm btn-secondary" id="bulkPriority">Mark priority</button>
+          <button class="btn btn-sm btn-secondary" id="bulkDone">Done</button>
+        </div>
       </div>
     </main>
   </div>
@@ -43,97 +49,262 @@
   <div id="popover-host"></div>
   <script src="js/firebase-config.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/hk-model.js"></script>
   <script>
   (function () {
-    var allRooms = [], unsub = null;
+    var allRooms = [], hotel = null, openRepairs = 0, unsub = null, bulk = false, picked = {};
+    var TS = function () { return firebase.firestore.FieldValue.serverTimestamp(); };
+
     HK.requireAuth(["admin", "supervisor"], function (state) {
       if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
       HK.mount("dashboard");
+      buildStaticBits();
+      HK.hotelRef().get().then(function (h) { hotel = h.exists ? h.data() : {}; dayBanner(); }).catch(function () { hotel = {}; });
       start();
     });
     window.addEventListener("beforeunload", function () { if (unsub) { unsub(); } });
-    ["search", "fFloor", "fStatus", "fOcc"].forEach(function (id) { document.addEventListener("input", function (e) { if (e.target.id === id) { render(); } }); });
+    ["search", "fFloor", "fStatus", "fFo", "fFlag"].forEach(function (id) {
+      document.getElementById(id).addEventListener("input", render);
+      document.getElementById(id).addEventListener("change", render);
+    });
+
+    function buildStaticBits() {
+      var fs = document.getElementById("fStatus"), bs = document.getElementById("bulkStatus"), lg = document.getElementById("legend");
+      HK.STATUSES.forEach(function (s) {
+        var o = document.createElement("option"); o.value = s.id; o.textContent = s.label; fs.appendChild(o);
+        if (s.id !== "inprogress") { var o2 = document.createElement("option"); o2.value = s.id; o2.textContent = s.label; bs.appendChild(o2); }
+        var b = document.createElement("span"); b.className = "badge " + s.badge; b.innerHTML = "<span class=\"code\">" + s.code + "</span>"; b.appendChild(document.createTextNode(s.label)); lg.appendChild(b);
+      });
+      var hint = document.createElement("span"); hint.className = "muted";
+      hint.textContent = "Corner: V vacant, ARR arrival, SO stayover, DO due out. ★ priority, ⛔ DND, ✨ make up room, ⚠ discrepancy, ↻ linen change.";
+      lg.appendChild(hint);
+      document.getElementById("bulkToggle").onclick = function () { bulk = !bulk; picked = {}; this.textContent = bulk ? "Cancel selecting" : "Select rooms"; render(); };
+      document.getElementById("bulkDone").onclick = function () { bulk = false; picked = {}; document.getElementById("bulkToggle").textContent = "Select rooms"; render(); };
+      document.getElementById("bulkApply").onclick = function () { var st = document.getElementById("bulkStatus").value; if (!st) { HK.toast("Choose a status first.", "error"); return; } bulkUpdate({ status: st }, "Status set to " + HK.statusInfo(st).label); };
+      document.getElementById("bulkPriority").onclick = function () { bulkUpdate({ priority: true }, "Marked priority"); };
+    }
 
     function start() {
       unsub = HK.col("rooms").where("active", "==", true).onSnapshot(function (snap) {
         allRooms = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; allRooms.push(r); });
-        allRooms.sort(function (a, b) { return (a.roomNumber > b.roomNumber) ? 1 : -1; });
-        populateFloors(); render(); renderKpis();
+        allRooms.sort(HK.roomCompare);
+        populateFloors(); render(); renderKpis(); dayBanner();
       }, function (err) { HK.toast("Could not load rooms: " + err.message, "error"); });
       HK.col("roomnotes").where("isMaintenanceIssue", "==", true).where("maintenanceStatus", "in", ["open", "inprogress"]).get().then(function (s) {
-        document.querySelectorAll(".kpi-val")[3].textContent = s.size; document.querySelectorAll(".kpi-val")[3].className = "kpi-val";
+        openRepairs = s.size; renderKpis();
       }).catch(function () {});
     }
+
     function populateFloors() {
       var sel = document.getElementById("fFloor"); if (sel.dataset.done) { return; }
       var floors = {}; allRooms.forEach(function (r) { floors[r.floor] = true; });
       Object.keys(floors).sort(function (a, b) { return a - b; }).forEach(function (f) { var o = document.createElement("option"); o.value = f; o.textContent = "Floor " + f; sel.appendChild(o); });
       sel.dataset.done = "1";
     }
+
+    function kpi(host, val, label, onClick) {
+      var d = document.createElement("div"); d.className = "kpi" + (onClick ? " clickable" : "");
+      var v = document.createElement("div"); v.className = "kpi-val"; v.textContent = val;
+      var l = document.createElement("div"); l.className = "kpi-label"; l.textContent = label;
+      d.appendChild(v); d.appendChild(l); if (onClick) { d.onclick = onClick; } host.appendChild(d);
+    }
+    function setFilter(id, v) { ["fStatus", "fFo", "fFlag"].forEach(function (x) { document.getElementById(x).value = ""; }); document.getElementById(id).value = v; render(); }
     function renderKpis() {
-      var vals = document.querySelectorAll(".kpi-val");
-      var total = allRooms.length; var clean = allRooms.filter(function (r) { return r.status === "clean" || r.status === "inspected"; }).length;
-      var remaining = allRooms.filter(function (r) { return r.status === "dirty" || r.status === "inprogress"; }).length;
-      var now = new Date(); var due = allRooms.filter(function (r) { return r.nextDeepCleanDue && r.nextDeepCleanDue.toDate && r.nextDeepCleanDue.toDate() <= now; }).length;
-      vals[0].textContent = total ? Math.round(clean / total * 100) + "%" : "-"; vals[0].className = "kpi-val";
-      vals[1].textContent = remaining; vals[1].className = "kpi-val";
-      vals[2].textContent = due; vals[2].className = "kpi-val";
+      var host = document.getElementById("kpis"); host.innerHTML = "";
+      var sellable = allRooms.filter(function (r) { return !HK.isOut(r); });
+      var ready = sellable.filter(HK.isReady).length;
+      var toService = allRooms.filter(function (r) { return !!HK.taskFor(r); }).length;
+      var inService = allRooms.filter(function (r) { return r.status === "inprogress"; }).length;
+      var arrivalsWaiting = allRooms.filter(function (r) { return HK.foState(r) === "arrival" && !HK.isReady(r); }).length;
+      var disc = allRooms.filter(function (r) { return !!HK.discrepancy(r); }).length;
+      kpi(host, sellable.length ? Math.round(ready / sellable.length * 100) + "%" : "-", "Rooms ready", function () { setFilter("fStatus", "inspected"); });
+      kpi(host, toService, "To service", function () { setFilter("fFlag", "service"); });
+      kpi(host, inService, "Being serviced", function () { setFilter("fStatus", "inprogress"); });
+      kpi(host, arrivalsWaiting, "Arrivals not ready", function () { setFilter("fFo", "arrival"); });
+      kpi(host, disc, "Discrepancies", function () { setFilter("fFlag", "disc"); });
+      kpi(host, openRepairs, "Open repairs", function () { window.location.href = "maintenance.html"; });
     }
-    // Live occupancy lands in occStatus (occupied/vacant) via the allocation CSV
-    // import; the older occupancy field is only the seed default. Derive the
-    // bucket the dashboard filter uses from the live data, matching allocation.
-    function occBucket(r) {
+
+    function dayBanner() {
+      var el = document.getElementById("dayBanner");
+      if (!hotel || !allRooms.length) { return; }
       var today = HK.todayStr();
-      var occ = r.occStatus || r.occupancy || "vacant";
-      if (r.departure && r.departure === today) { return "checkout"; }
-      if (occ === "occupied" && r.departure && r.departure > today) { return "stayover"; }
-      if (occ === "occupied") { return "occupied"; }
-      return "vacant";
+      if (hotel.lastDayRoll === today) { el.className = "day-banner hidden"; return; }
+      var ups = HK.dayRollUpdates(allRooms, today);
+      el.innerHTML = "";
+      var t = document.createElement("span");
+      t.textContent = hotel.lastDayRoll
+        ? "New day. Start today to put stayover rooms back to Dirty and clear yesterday's DND, make-up and turndown flags (" + ups.length + " room" + (ups.length === 1 ? "" : "s") + ")."
+        : "Start each day here: stayover rooms go back to Dirty and yesterday's DND, make-up and turndown flags are cleared (" + ups.length + " room" + (ups.length === 1 ? "" : "s") + " to update).";
+      var b = document.createElement("button"); b.className = "btn btn-sm btn-accent"; b.textContent = "Start today";
+      b.onclick = function () { rollDay(b); };
+      el.appendChild(t); el.appendChild(b); el.className = "day-banner";
     }
-    function render() {
+    function rollDay(btn) {
+      btn.disabled = true; btn.textContent = "Starting...";
+      var today = HK.todayStr();
+      var ups = HK.dayRollUpdates(allRooms, today);
+      var chunks = [], i;
+      for (i = 0; i < ups.length; i += 400) { chunks.push(ups.slice(i, i + 400)); }
+      chunks.reduce(function (p, chunk) {
+        return p.then(function () {
+          var b = db.batch();
+          chunk.forEach(function (u) { u.data.updatedAt = TS(); b.update(HK.col("rooms").doc(u.id), u.data); });
+          return b.commit();
+        });
+      }, Promise.resolve()).then(function () {
+        return HK.hotelRef().update({ lastDayRoll: today });
+      }).then(function () {
+        hotel.lastDayRoll = today;
+        HK.audit("day.started", ups.length + " rooms updated for " + today);
+        HK.toast("Today started - " + ups.length + " room(s) updated.", "success");
+        dayBanner();
+      }).catch(function (err) { btn.disabled = false; btn.textContent = "Start today"; HK.toast("Could not start the day: " + err.message, "error"); });
+    }
+
+    function matches(r) {
       var q = (document.getElementById("search").value || "").toLowerCase();
-      var ff = document.getElementById("fFloor").value, fs = document.getElementById("fStatus").value, fo = document.getElementById("fOcc").value;
+      var ff = document.getElementById("fFloor").value, fs = document.getElementById("fStatus").value;
+      var fo = document.getElementById("fFo").value, fl = document.getElementById("fFlag").value;
+      if (q && String(r.roomNumber).toLowerCase().indexOf(q) === -1) { return false; }
+      if (ff && String(r.floor) !== ff) { return false; }
+      if (fs && HK.statusInfo(r.status).id !== fs) { return false; }
+      if (fo && HK.foState(r) !== fo) { return false; }
+      if (fl === "service" && !HK.taskFor(r)) { return false; }
+      if (fl === "priority" && !HK.isPriority(r)) { return false; }
+      if (fl === "disc" && !HK.discrepancy(r)) { return false; }
+      if ((fl === "dnd" || fl === "mur") && r.guestService !== fl) { return false; }
+      if (fl === "turndown" && r.turndown !== "requested") { return false; }
+      return true;
+    }
+
+    function render() {
       var grid = document.getElementById("grid"); grid.innerHTML = "";
-      var shown = allRooms.filter(function (r) {
-        if (q && r.roomNumber.toLowerCase().indexOf(q) === -1) { return false; }
-        if (ff && String(r.floor) !== ff) { return false; }
-        if (fs && r.status !== fs) { return false; }
-        if (fo && occBucket(r) !== fo) { return false; }
-        return true;
-      });
+      var shown = allRooms.filter(matches);
       document.getElementById("gridEmpty").className = shown.length ? "empty hidden" : "empty";
+      var settings = HK.hkSettings(hotel);
       shown.forEach(function (r) {
-        var t = document.createElement("div"); t.className = "room-tile st-" + r.status;
-        t.innerHTML = "<span class=\"rn\">" + HK.esc(r.roomNumber) + "</span><span class=\"rt\">" + HK.esc(r.type) + "</span>";
-        t.onclick = function () { popover(r, t); };
+        var si = HK.statusInfo(r.status), fo = HK.foState(r), disc = HK.discrepancy(r);
+        var t = document.createElement("div");
+        t.className = "room-tile st-" + si.id + (disc ? " has-disc" : "") + (bulk && picked[r.id] ? " picked-bulk" : "");
+        t.setAttribute("data-room", r.roomNumber);
+        var foEl = document.createElement("span"); foEl.className = "fo"; foEl.textContent = HK.FO_CODES[fo]; t.appendChild(foEl);
+        var flags = "";
+        if (HK.isPriority(r)) { flags += "★"; }
+        if (r.guestService === "dnd") { flags += "⛔"; }
+        if (r.guestService === "mur") { flags += "✨"; }
+        if (disc) { flags += "⚠"; }
+        if (HK.linenDue(r, null, settings.linenDays)) { flags += "↻"; }
+        if (flags) { var fl = document.createElement("span"); fl.className = "flags"; fl.textContent = flags; t.appendChild(fl); }
+        var rn = document.createElement("span"); rn.className = "rn"; rn.textContent = r.roomNumber; t.appendChild(rn);
+        var rs = document.createElement("span"); rs.className = "rs"; rs.textContent = si.code + " · " + (r.type || ""); t.appendChild(rs);
+        t.title = "Room " + r.roomNumber + " - " + si.label + " - " + HK.FO_LABELS[fo] + (disc ? " - " + disc + " discrepancy" : "");
+        t.onclick = function () {
+          if (bulk) { if (picked[r.id]) { delete picked[r.id]; } else { picked[r.id] = true; } render(); return; }
+          popover(r);
+        };
         grid.appendChild(t);
       });
+      var n = Object.keys(picked).length;
+      document.getElementById("bulkBar").className = bulk ? "bulk-bar" : "bulk-bar hidden";
+      document.getElementById("bulkCount").textContent = n + " selected";
     }
-    function popover(r, anchor) {
+
+    function bulkUpdate(data, label) {
+      var ids = Object.keys(picked);
+      if (!ids.length) { HK.toast("Tap rooms to select them first.", "error"); return; }
+      var b = db.batch();
+      ids.forEach(function (id) { var d = {}; Object.keys(data).forEach(function (k) { d[k] = data[k]; }); d.updatedAt = TS(); b.update(HK.col("rooms").doc(id), d); });
+      b.commit().then(function () {
+        ids.forEach(function (id) { var r = allRooms.filter(function (x) { return x.id === id; })[0]; if (r) { HK.history(r.id, r.roomNumber, "statuschange", label, null); } });
+        HK.audit("room.bulkupdate", label + " - " + ids.length + " rooms");
+        HK.toast(label + " - " + ids.length + " room(s).", "success");
+        picked = {}; render();
+      }).catch(function (err) { HK.toast("Update failed: " + err.message, "error"); });
+    }
+
+    function field(box, labelText, el) {
+      var w = document.createElement("div"); w.className = "field";
+      var l = document.createElement("label"); l.textContent = labelText; w.appendChild(l); w.appendChild(el); box.appendChild(w); return el;
+    }
+    function selectOf(pairs, cur) {
+      var s = document.createElement("select");
+      pairs.forEach(function (p) { var o = document.createElement("option"); o.value = p[0]; o.textContent = p[1]; if (String(p[0]) === String(cur || "")) { o.selected = true; } s.appendChild(o); });
+      return s;
+    }
+
+    function popover(r) {
       var host = document.getElementById("popover-host"); host.innerHTML = "";
       var back = document.createElement("div"); back.className = "modal-backdrop";
-      var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "360px";
-      box.innerHTML = "<h2>Room " + HK.esc(r.roomNumber) + "</h2><p class=\"muted small mb16\">" + HK.esc(r.type) + " - " + HK.esc(r.status) + " - " + HK.esc(occBucket(r)) + "</p>";
-      var view = document.createElement("a"); view.href = "room.html?id=" + r.id; view.className = "btn btn-secondary btn-block mb8"; view.textContent = "View room profile"; box.appendChild(view);
-      var label = document.createElement("label"); label.textContent = "Change status"; box.appendChild(label);
-      var sel = document.createElement("select");
-      ["clean", "dirty", "inprogress", "inspected", "ooo", "dnd"].forEach(function (st) { var o = document.createElement("option"); o.value = st; o.textContent = st; if (st === r.status) { o.selected = true; } sel.appendChild(o); });
-      box.appendChild(sel);
+      var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "440px"; box.style.maxHeight = "90vh"; box.style.overflowY = "auto";
+      var h = document.createElement("h2"); h.textContent = "Room " + r.roomNumber; box.appendChild(h);
+      var fo = HK.foState(r), disc = HK.discrepancy(r);
+      var sub = document.createElement("p"); sub.className = "muted small mb16";
+      sub.textContent = (r.type || "") + " - " + HK.FO_LABELS[fo] + (r.guestName ? " - " + r.guestName : "") + (r.departure ? " - departs " + r.departure : "");
+      box.appendChild(sub);
+      if (disc) {
+        var dw = document.createElement("div"); dw.className = "instr";
+        dw.textContent = disc === "skip" ? "Skip: bookings say this room is occupied, but housekeeping found it empty. Check with front desk." : "Sleep: bookings say this room is empty, but housekeeping found it in use. Check with front desk.";
+        box.appendChild(dw);
+      }
+
+      var lab = document.createElement("label"); lab.className = "mt16"; lab.textContent = "Room status"; box.appendChild(lab);
+      var seg = document.createElement("div"); seg.className = "seg"; var chosen = HK.statusInfo(r.status).id;
+      HK.STATUSES.forEach(function (s) {
+        if (s.id === "inprogress" && chosen !== "inprogress") { return; }
+        var b = document.createElement("button"); b.type = "button"; b.textContent = s.code + " " + s.label; b.setAttribute("data-st", s.id);
+        if (s.id === chosen) { b.className = "on"; }
+        b.onclick = function () { chosen = s.id; Array.prototype.forEach.call(seg.children, function (c) { c.className = c.getAttribute("data-st") === chosen ? "on" : ""; }); oooWrap.className = (chosen === "ooo" || chosen === "oos") ? "" : "hidden"; };
+        seg.appendChild(b);
+      });
+      box.appendChild(seg);
+      var oooWrap = document.createElement("div"); oooWrap.className = (chosen === "ooo" || chosen === "oos") ? "" : "hidden";
+      var reason = field(oooWrap, "Out of order / service reason", document.createElement("input")); reason.value = r.oooReason || ""; reason.maxLength = 120;
+      var until = field(oooWrap, "Back in use on", document.createElement("input")); until.type = "date"; until.value = r.oooUntil || "";
+      box.appendChild(oooWrap);
+
+      var occ = field(box, "Front office (bookings)", selectOf([["vacant", "Vacant"], ["occupied", "Occupied (guest staying)"]], (r.occStatus === "occupied") ? "occupied" : "vacant"));
+      var row = document.createElement("div"); row.className = "field-row"; box.appendChild(row);
+      var arr = field(row, "Arrival", document.createElement("input")); arr.type = "date"; arr.value = r.arrival || "";
+      var dep = field(row, "Departure", document.createElement("input")); dep.type = "date"; dep.value = r.departure || "";
+      var gs = field(box, "Guest service", selectOf([["", "No request"], ["dnd", "Do not disturb"], ["mur", "Make up room"], ["declined", "Service declined"]], r.guestService));
+      var td = field(box, "Turndown", selectOf([["", "Not requested"], ["requested", "Requested"], ["done", "Done"]], r.turndown));
+      var hk = field(box, "Housekeeping check", selectOf([["", "Not checked"], ["vacant", "Found vacant"], ["occupied", "Found occupied"]], r.hkStatus));
+      var prRow = document.createElement("label"); prRow.className = "row small mb16"; prRow.style.gap = "8px";
+      var pr = document.createElement("input"); pr.type = "checkbox"; pr.style.width = "auto"; pr.checked = !!r.priority;
+      prRow.appendChild(pr); prRow.appendChild(document.createTextNode("Priority room (service first)")); box.appendChild(prRow);
+      var ins = field(box, "Instructions for the attendant", document.createElement("textarea")); ins.value = r.instructions || ""; ins.maxLength = 300;
+
       var acts = document.createElement("div"); acts.className = "modal-actions";
+      var view = document.createElement("a"); view.href = "room.html?id=" + r.id; view.className = "btn btn-secondary"; view.textContent = "Room profile";
       var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Close";
       var save = document.createElement("button"); save.className = "btn btn-accent"; save.textContent = "Save";
       cancel.onclick = function () { host.innerHTML = ""; };
       back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
       save.onclick = function () {
+        if ((chosen === "ooo" || chosen === "oos") && !reason.value.trim()) { HK.toast("Give a reason for taking the room out of use.", "error"); return; }
+        if (dep.value && arr.value && dep.value < arr.value) { HK.toast("Departure is before arrival.", "error"); return; }
+        var data = {
+          status: chosen, occStatus: occ.value, arrival: arr.value, departure: dep.value,
+          guestService: gs.value, turndown: td.value, hkStatus: hk.value, priority: pr.checked,
+          instructions: ins.value.trim().slice(0, 300), updatedAt: TS()
+        };
+        if (chosen === "ooo" || chosen === "oos") { data.oooReason = reason.value.trim().slice(0, 120); data.oooUntil = until.value; }
+        else { data.oooReason = ""; data.oooUntil = ""; }
+        if (hk.value !== (r.hkStatus || "")) { data.hkStatusAt = TS(); data.hkStatusBy = HK.state.profile.displayName || ""; }
         save.disabled = true; save.textContent = "Saving...";
-        var ns = sel.value;
-        HK.col("rooms").doc(r.id).update({ status: ns, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function () {
-          HK.history(r.id, r.roomNumber, "statuschange", "Status set to " + ns, null);
-          HK.audit("room.statuschange", "Room " + r.roomNumber + " -> " + ns);
-          HK.toast("Room " + r.roomNumber + " updated.", "success"); host.innerHTML = "";
-        }).catch(function (err) { save.disabled = false; save.textContent = "Save"; HK.toast("Update failed: " + err.message, "error"); });
+        HK.col("rooms").doc(r.id).update(data).then(function () {
+          var bits = [];
+          if (chosen !== HK.statusInfo(r.status).id) { bits.push("status " + HK.statusInfo(chosen).label); }
+          if (gs.value !== (r.guestService || "")) { bits.push(HK.GUEST_SERVICE[gs.value]); }
+          if (occ.value !== (r.occStatus || "vacant")) { bits.push(occ.value); }
+          if (bits.length) { HK.history(r.id, r.roomNumber, "statuschange", "Updated: " + bits.join(", "), null); }
+          HK.audit("room.updated", "Room " + r.roomNumber + (bits.length ? " - " + bits.join(", ") : ""));
+          HK.toast("Room " + r.roomNumber + " saved.", "success"); host.innerHTML = "";
+        }).catch(function (err) { save.disabled = false; save.textContent = "Save"; HK.toast("Save failed: " + err.message, "error"); });
       };
-      acts.appendChild(cancel); acts.appendChild(save); box.appendChild(acts); back.appendChild(box); host.appendChild(back);
+      acts.appendChild(view); acts.appendChild(cancel); acts.appendChild(save); box.appendChild(acts);
+      back.appendChild(box); host.appendChild(back);
     }
   })();
   </script>

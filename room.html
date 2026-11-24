@@ -40,6 +40,7 @@
   <input type="file" accept="image/*" capture="environment" id="photoInput" class="photo-input">
   <script src="js/firebase-config.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/hk-model.js"></script>
   <script>
   (function () {
     var roomId = HK.qs("id"), room = null, role = null, canEdit = false;
@@ -70,9 +71,9 @@
     }
     function renderOverview() {
       var p = document.getElementById("pane-overview");
-      var statusBadge = { clean:"badge-green", dirty:"badge-red", inprogress:"badge-amber", inspected:"badge-blue", ooo:"badge-grey", dnd:"badge-purple" }[room.status] || "badge-grey";
+      var statusBadge = HK.statusInfo(room.status).badge;
       var html = "<div class=\"card\"><div class=\"card-title\">Details</div>";
-      html += "<div class=\"row wrap mb16\"><span class=\"badge " + statusBadge + "\">" + HK.esc(room.status) + "</span><span class=\"badge badge-grey\">" + HK.esc(room.occStatus || room.occupancy || "vacant") + "</span></div>";
+      html += "<div class=\"row wrap mb16\"><span class=\"badge " + statusBadge + "\">" + HK.esc(HK.statusInfo(room.status).label) + "</span><span class=\"badge badge-grey\">" + HK.esc(HK.FO_LABELS[HK.foState(room)]) + "</span>" + (room.oooReason ? "<span class=\"badge badge-grey\">" + HK.esc(room.oooReason) + (room.oooUntil ? " until " + HK.esc(room.oooUntil) : "") + "</span>" : "") + (room.instructions ? "<span class=\"badge badge-amber\">" + HK.esc(room.instructions) + "</span>" : "") + "</div>";
       html += "<div class=\"field\"><label>Type</label>" + (canEdit ? "<select id=\"eType\"></select>" : "<div>" + HK.esc(room.type) + "</div>") + "</div>";
       html += "<div class=\"field\"><label>Bed configuration</label>" + (canEdit ? "<input id=\"eBed\" value=\"" + HK.esc(room.bedConfig) + "\">" : "<div>" + HK.esc(room.bedConfig || "-") + "</div>") + "</div>";
       html += "<div class=\"field\"><label>Notes</label>" + (canEdit ? "<textarea id=\"eNotes\">" + HK.esc(room.notes) + "</textarea>" : "<div>" + HK.esc(room.notes || "-") + "</div>") + "</div>";

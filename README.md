@@ -12,13 +12,15 @@ signup.html         Self-serve sign-up for a free trial (creates the admin login
 login.html          Sign in (split-screen, password reset)
 onboarding.html     First-run wizard: property, bulk rooms, checklists; starts the trial
 plan.html           Admin: trial status, plans, "choose a plan" request
-dashboard.html      KPIs + real-time room grid (supervisor/admin)
+dashboard.html      Housekeeping board: room status, front-office state, flags, start of day, bulk updates
 room.html           Room profile: overview, history, documents, maintenance
-mytasks.html        Housekeeper daily flow: start, checklist, complete
-assign.html         Assignments: multi-select, workload, copy yesterday
+mytasks.html        Task Companion: timer, checklist, DND/declined, repair, help, finish + next room
+console.html        Attendant console: live progress, current room, breaks, help requests
+assign.html         Task sheets: auto-split by credits, priority first, print; single jobs by hand
 inspect.html        Inspection queue: pass / fail-reclean
 deepcleans.html     Deep clean planner + before/after photo flow
 maintenance.html    Maintenance queue (open/in-progress/resolved)
+lostfound.html      Lost property register
 documents.html      Document library (PDF/image upload)
 reports.html        Analytics, SVG charts, CSV export, print
 settings.html       Admin console (7 sections)
@@ -29,6 +31,7 @@ allocation.html     Occupancy-driven room allocation (CSV import)
 css/style.css       App design system + print styles
 css/site.css        Public website styles
 js/site-config.js   Prices, plans, trial length, contact details (edit here)
+js/hk-model.js      Housekeeping rules: statuses, front-office state, tasks, credits, discrepancies, start of day
 js/firebase-config.js   Firebase config (with Console locations)
 js/common.js        Auth guard, roles, toast, dates, photo upload, shell
 firestore.rules     Firestore security rules (paste into Console)
@@ -46,6 +49,17 @@ README.md TESTING.md ROADMAP.md
 - "Choose a plan" records `planRequest` on the organisation (visible in Firestore). Card payments are stage 2.
 - To move a customer to paid by hand: Firestore > `orgs/{orgId}` > set `plan` to `"active"` (only possible from the console or the server - the app itself cannot change `plan`).
 - Organisations created before trials existed have no `trialEndsAt` and are treated as active.
+
+## How a housekeeping day runs (OPERA-style)
+
+1. **Start today** on the board (supervisor): stayover rooms go back to Dirty; DND, make-up, turndown and housekeeping checks reset.
+2. **Arrivals**: import the day's arrivals/departures, or set them per room on the board.
+3. **Task sheets**: tick who is working, check the split, Create. Credits per task are in Settings > Housekeeping.
+4. **My Tasks** on each attendant's phone; supervisors watch the **Console** and answer help requests.
+5. **Inspect** finished rooms; failures go back as re-cleans.
+
+Room statuses: Dirty, Pickup, Being serviced, Clean, Inspected, Out of order, Out of service.
+Front office states: Vacant, Arrival, Stayover, Due out. Discrepancies: Skip (booked but found empty), Sleep (empty on the books but in use).
 
 ## Roles
 

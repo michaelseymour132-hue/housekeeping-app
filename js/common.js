@@ -148,6 +148,7 @@ HK.trialBar = function () {
   var t = HK.trial();
   if (!t.onTrial) { return null; }
   var role = (HK.state.profile || {}).role;
+  if (role !== "admin" && !t.ended) { return null; }   // the team only hear about it if work is paused
   var bar = document.createElement("div");
   bar.className = "trial-bar" + (t.ended ? " trial-ended" : (t.daysLeft <= 3 ? " trial-soon" : ""));
   var msg = document.createElement("span");
@@ -262,14 +263,16 @@ HK.uploadPhoto = function (file, storagePath, onProgress) {
 // active = key of current page. Call after profile is loaded.
 HK.navItems = function (role) {
   var all = [
-    { key: "dashboard", label: "Dashboard", href: "dashboard.html", ic: "grid", roles: ["admin", "supervisor"] },
-    { key: "allocation", label: "Allocation", href: "allocation.html", ic: "board", roles: ["admin", "supervisor"] },
-    { key: "mytasks", label: "My Tasks", href: "mytasks.html", ic: "check", roles: ["admin", "supervisor", "housekeeper"] },
-    { key: "assign", label: "Assign", href: "assign.html", ic: "list", roles: ["admin", "supervisor"] },
+    { key: "dashboard", label: "Board", href: "dashboard.html", ic: "grid", roles: ["admin", "supervisor"] },
+    { key: "console", label: "Console", href: "console.html", ic: "people", roles: ["admin", "supervisor"] },
+    { key: "assign", label: "Task sheets", href: "assign.html", ic: "list", roles: ["admin", "supervisor"] },
     { key: "inspect", label: "Inspect", href: "inspect.html", ic: "eye", roles: ["admin", "supervisor"] },
+    { key: "mytasks", label: "My Tasks", href: "mytasks.html", ic: "check", roles: ["admin", "supervisor", "housekeeper"] },
+    { key: "allocation", label: "Arrivals", href: "allocation.html", ic: "board", roles: ["admin", "supervisor"] },
     { key: "deepcleans", label: "Deep Cleans", href: "deepcleans.html", ic: "star", roles: ["admin", "supervisor"] },
     { key: "calendar", label: "Calendar", href: "calendar.html", ic: "cal", roles: ["admin", "supervisor"] },
     { key: "maintenance", label: "Maintenance", href: "maintenance.html", ic: "wrench", roles: ["admin", "supervisor"] },
+    { key: "lostfound", label: "Lost & found", href: "lostfound.html", ic: "box", roles: ["admin", "supervisor", "housekeeper"] },
     { key: "documents", label: "Documents", href: "documents.html", ic: "doc", roles: ["admin", "supervisor", "housekeeper"] },
     { key: "reports", label: "Reports", href: "reports.html", ic: "chart", roles: ["admin", "supervisor"] },
     { key: "settings", label: "Settings", href: "settings.html", ic: "gear", roles: ["admin"] },
@@ -279,7 +282,7 @@ HK.navItems = function (role) {
 };
 
 HK.icon = function (name) {
-  var m = { plan: "\u00A3", board: "\uD83D\uDCCB", cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
+  var m = { people: "\u263A", box: "\u25A3", plan: "\u00A3", board: "\uD83D\uDCCB", cal: "\uD83D\uDCC5", grid: "\u25A6", check: "\u2713", list: "\u2261", eye: "\u25C9", star: "\u2605", wrench: "\u2692", doc: "\u25A4", chart: "\u2637", gear: "\u2699" };
   return m[name] || "\u2022";
 };
 
