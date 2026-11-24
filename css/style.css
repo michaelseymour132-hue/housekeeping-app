@@ -129,7 +129,8 @@ tbody tr:hover { background: var(--canvas); }
 /* KPI cards */
 .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 18px; }
 .kpi { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
-.kpi .kpi-val { font-size: var(--fs-1); font-weight: 700; }
+.kpi .kpi-val { font-size: var(--fs-1); font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
+.kpi .kpi-val:not(.skeleton) { height: auto !important; width: auto !important; }
 .kpi .kpi-label { font-size: var(--fs-5); color: var(--slate); text-transform: uppercase; letter-spacing: .04em; }
 
 /* Room grid */
