@@ -3,7 +3,7 @@
 // WITHOUT ever caching Firebase/auth/data requests (those must hit the network).
 // Style note: this file runs in the service-worker scope, not the page.
 
-var CACHE = "hk-shell-v8";
+var CACHE = "hk-shell-v9";
 var SHELL = [
   "./",
   "./index.html",

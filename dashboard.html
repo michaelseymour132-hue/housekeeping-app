@@ -177,6 +177,8 @@
         if (!p.job) { return; }
         var after = {}; Object.keys(r).forEach(function (k) { after[k] = r[k]; }); Object.keys(data).forEach(function (k) { after[k] = data[k]; });
         var task = p.jobTask || HK.taskFor(after, today) || "departure";
+        // One person cannot be in four rooms: only the first "being serviced" room is theirs.
+        if (p.job === "inprogress" && i !== 1) { p.job = "pending"; }
         var done = p.job === "complete", going = p.job === "inprogress";
         var mins = 18 + (i % 4) * 4;
         seq += 1;
