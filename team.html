@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team sign in - Housekeeping Hub</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+  .team-wrap { min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 28px 16px 40px; background: var(--canvas); }
+  .team-card { width: 100%; max-width: 420px; }
+  .team-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .team-head .auth-logo-mark { flex: 0 0 auto; }
+  .team-prop { font-size: 13px; color: var(--slate); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .team-title { font-size: 22px; font-weight: 800; margin: 2px 0 0; }
+  .name-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .name-btn { min-height: 64px; border-radius: 12px; border: 1px solid var(--border); background: #fff; font-size: 18px; font-weight: 700; color: var(--ink); cursor: pointer; padding: 10px; }
+  .name-btn:hover, .name-btn:focus-visible { border-color: var(--accent); outline: 3px solid var(--accent-soft); }
+  .pin-dots { display: flex; justify-content: center; gap: 14px; margin: 18px 0 8px; min-height: 22px; }
+  .pin-dots span { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--navy); }
+  .pin-dots span.on { background: var(--navy); }
+  .keypad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+  .key { min-height: 62px; border-radius: 12px; border: 1px solid var(--border); background: #fff; font-size: 24px; font-weight: 700; color: var(--ink); cursor: pointer; }
+  .key:active { background: var(--accent-soft); }
+  .key.alt { font-size: 15px; color: var(--slate); }
+  .team-msg { text-align: center; color: var(--slate); font-size: 15px; line-height: 1.5; }
+  .team-err { color: #b42318; text-align: center; min-height: 22px; font-weight: 600; font-size: 15px; }
+  .linkish { background: none; border: none; color: var(--accent-dark); font-weight: 600; cursor: pointer; padding: 8px; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="team-wrap">
+  <div class="team-card">
+    <div class="team-head">
+      <span class="auth-logo-mark">HH</span>
+      <div><div class="team-prop" id="propName">Housekeeping Hub</div><div class="team-title" id="title">Loading...</div></div>
+    </div>
+
+    <div class="card hidden" id="paneContinue">
+      <p class="team-msg mb16">You are signed in as <strong id="meName"></strong>.</p>
+      <button class="btn btn-accent btn-lg btn-block" id="goOn">Go to my tasks</button>
+      <p class="mt16" style="text-align:center"><button class="linkish" id="switchUser">Not you? Switch person</button></p>
+    </div>
+
+    <div class="card hidden" id="paneNames">
+      <p class="team-msg mb16">Tap your name.</p>
+      <div class="name-grid" id="names"></div>
+      <p class="team-msg small mt16 hidden" id="noNames">Nobody has been set up for PIN sign-in yet. Ask your manager to add you in Settings, Users.</p>
+    </div>
+
+    <div class="card hidden" id="panePin">
+      <p class="team-msg">Hello <strong id="pickedName"></strong>. Enter your PIN.</p>
+      <div class="pin-dots" id="dots" aria-hidden="true"></div>
+      <label for="pinInput" class="sr-only" style="position:absolute;left:-9999px">PIN</label>
+      <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="6" style="position:absolute;left:-9999px" aria-label="PIN">
+      <div class="team-err" id="pinErr" role="alert"></div>
+      <div class="keypad" id="keypad"></div>
+      <button class="btn btn-accent btn-lg btn-block mt16" id="signIn" disabled>Sign in</button>
+      <p class="mt8" style="text-align:center"><button class="linkish" id="back">Back to names</button></p>
+    </div>
+
+    <div class="card hidden" id="paneBad">
+      <p class="team-msg" id="badMsg">This team link is not valid. Ask your manager for the new one.</p>
+      <p class="mt16" style="text-align:center"><a href="login.html">Managers sign in here</a></p>
+    </div>
+
+    <p class="tiny muted mt16" style="text-align:center">Managers and supervisors: <a href="login.html">sign in with email</a></p>
+  </div>
+</div>
+<div id="toast-host"></div>
+<script src="js/firebase-config.js"></script>
+<script src="js/common.js"></script>
+<script>
+(function () {
+  var token = HK.qs("t") || "";
+  try { if (!token) { token = localStorage.getItem("hk_team_token") || ""; } } catch (x) {}
+  var picked = null, pin = "", busy = false, started = false;
+
+  function show(id) {
+    ["paneContinue", "paneNames", "panePin", "paneBad"].forEach(function (p) {
+      document.getElementById(p).className = p === id ? "card" : "card hidden";
+    });
+  }
+  function bad(msg) {
+    document.getElementById("title").textContent = "Team sign in";
+    document.getElementById("badMsg").textContent = msg || "This team link is not valid. Ask your manager for the new one.";
+    show("paneBad");
+  }
+  function api(body) {
+    return fetch("/api/team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); });
+  }
+
+  if (!token) { bad("Open the team link or scan the QR code your manager gave you."); return; }
+
+  // Someone already signed in on this phone? Offer to carry on, or switch person.
+  auth.onAuthStateChanged(function (user) {
+    if (started) { return; }
+    started = true;
+    if (!user) { loadNames(); return; }
+    HK.loadProfile(user).then(function (ok) {
+      if (!ok) { auth.signOut().then(loadNames); return; }
+      document.getElementById("meName").textContent = HK.state.profile.displayName || "you";
+      document.getElementById("title").textContent = "Welcome back";
+      show("paneContinue");
+      document.getElementById("goOn").onclick = function () { window.location.href = HK.homeForRole(HK.state.profile.role); };
+      document.getElementById("switchUser").onclick = function () { auth.signOut().then(loadNames); };
+    }).catch(function () { loadNames(); });
+  });
+
+  function loadNames() {
+    document.getElementById("title").textContent = "Loading...";
+    api({ action: "staff", token: token }).then(function (r) {
+      if (!r.ok) { bad(r.data && r.data.error); return; }
+      try { localStorage.setItem("hk_team_token", token); } catch (x) {}
+      document.getElementById("propName").textContent = r.data.property || "Housekeeping Hub";
+      document.getElementById("title").textContent = "Team sign in";
+      var host = document.getElementById("names"); host.innerHTML = "";
+      (r.data.staff || []).forEach(function (m) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "name-btn"; b.textContent = m.name;
+        b.onclick = function () { pickName(m); };
+        host.appendChild(b);
+      });
+      document.getElementById("noNames").className = (r.data.staff || []).length ? "team-msg small mt16 hidden" : "team-msg small mt16";
+      show("paneNames");
+    }).catch(function () { bad("Could not reach Housekeeping Hub. Check your signal and try again."); });
+  }
+
+  function pickName(m) {
+    picked = m; pin = ""; drawDots(); setErr("");
+    document.getElementById("pickedName").textContent = m.name;
+    show("panePin");
+    var inp = document.getElementById("pinInput"); inp.value = "";
+    try { inp.focus({ preventScroll: true }); } catch (x) {}
+  }
+
+  function drawDots() {
+    var d = document.getElementById("dots"); d.innerHTML = "";
+    var n = Math.max(4, pin.length), i;
+    for (i = 0; i < n; i++) { var s = document.createElement("span"); if (i < pin.length) { s.className = "on"; } d.appendChild(s); }
+    document.getElementById("signIn").disabled = pin.length < 4 || busy;
+  }
+  function setErr(m) { document.getElementById("pinErr").textContent = m || ""; }
+  function press(k) {
+    if (busy) { return; }
+    if (k === "del") { pin = pin.slice(0, -1); }
+    else if (k === "clear") { pin = ""; }
+    else if (pin.length < 6) { pin += k; }
+    setErr(""); drawDots();
+  }
+
+  (function buildPad() {
+    var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"];
+    var host = document.getElementById("keypad");
+    keys.forEach(function (k) {
+      var b = document.createElement("button"); b.type = "button";
+      b.className = "key" + (k === "clear" || k === "del" ? " alt" : "");
+      b.textContent = k === "del" ? "Delete" : (k === "clear" ? "Clear" : k);
+      if (k === "del") { b.setAttribute("aria-label", "Delete last number"); }
+      b.onclick = function () { press(k); };
+      host.appendChild(b);
+    });
+  })();
+
+  // A physical or on-screen keyboard works too.
+  document.getElementById("pinInput").addEventListener("input", function () {
+    pin = this.value.replace(/[^0-9]/g, "").slice(0, 6); this.value = pin; setErr(""); drawDots();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (document.getElementById("panePin").className.indexOf("hidden") !== -1) { return; }
+    if (document.activeElement && document.activeElement.id === "pinInput") {
+      if (e.key === "Enter" && pin.length >= 4) { signIn(); }
+      return;
+    }
+    if (/^[0-9]$/.test(e.key)) { press(e.key); }
+    else if (e.key === "Backspace") { press("del"); }
+    else if (e.key === "Enter" && pin.length >= 4) { signIn(); }
+  });
+
+  document.getElementById("back").onclick = function () { picked = null; pin = ""; show("paneNames"); };
+  document.getElementById("signIn").onclick = signIn;
+
+  function signIn() {
+    if (!picked || pin.length < 4 || busy) { return; }
+    busy = true; drawDots();
+    var btn = document.getElementById("signIn"); btn.textContent = "Signing in...";
+    api({ action: "login", token: token, uid: picked.uid, pin: pin }).then(function (r) {
+      if (!r.ok) { throw new Error((r.data && r.data.error) || "Could not sign in."); }
+      try { localStorage.setItem("hk_hotel_" + r.data.orgId, r.data.hotelId); localStorage.setItem("hk_team_token", token); } catch (x) {}
+      started = true;
+      return auth.signInWithCustomToken(r.data.customToken);
+    }).then(function () {
+      window.location.href = "mytasks.html";
+    }).catch(function (err) {
+      busy = false; pin = ""; btn.textContent = "Sign in"; drawDots();
+      document.getElementById("pinInput").value = "";
+      setErr(err.message);
+    });
+  }
+})();
+</script>
+</body>
+</html>

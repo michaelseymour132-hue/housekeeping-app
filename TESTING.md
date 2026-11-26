@@ -75,3 +75,12 @@ Do the Firebase setup in README first (Auth on, Firestore + Storage rules publis
 ## 13. Robustness
 - Kill your network mid-save: you get an error toast, not a silent failure, and your input is preserved.
 - Resize to 360px wide: no horizontal scroll; bottom tab bar appears; 44px tap targets.
+
+## Team link and PIN sign-in
+1. Settings > Users > "Show team link and QR code". Expect a link, a QR code, Copy link, Print staff-room poster and (admin) Make a new link.
+2. Add a team member: name "Test Cleaner", role Housekeeper, "Team link and PIN", PIN 5829 > Create. Expect "is set up" and the list shows "team link + PIN". Try PIN 1234: refused as too easy.
+3. Open the team link in a private window (or scan the QR with a phone). Expect the property name and a "Test" button.
+4. Tap it, type 5829, Sign in > lands on My Tasks.
+5. Sign out > back on the team page, not the email sign-in page.
+6. Type a wrong PIN 5 times > "Too many wrong PINs" lock. Settings > Reset PIN > sign in again with the new PIN.
+7. Make a new link > the old link now says "not valid".

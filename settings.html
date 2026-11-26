@@ -106,33 +106,182 @@
       function loadRoomList() { HK.col("rooms").where("active", "==", true).get().then(function (snap) { var el = document.getElementById("roomList"); el.innerHTML = ""; var arr = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; arr.push(r); }); arr.sort(function (a, b) { return (a.roomNumber > b.roomNumber) ? 1 : -1; }); if (!arr.length) { el.innerHTML = "<p class=\"muted small\">No rooms.</p>"; return; } arr.forEach(function (r) { var row = document.createElement("div"); row.className = "checkitem"; row.innerHTML = "<span class=\"grow\">Room " + HK.esc(r.roomNumber) + " <span class=\"tiny muted\">" + HK.esc(r.type) + " - floor " + r.floor + "</span></span>"; var del = document.createElement("button"); del.className = "btn btn-sm btn-danger"; del.textContent = "Deactivate"; del.onclick = function () { HK.confirm("Deactivate room " + r.roomNumber + "?", "It will be hidden from boards but its history is kept.", "Deactivate", true).then(function (go) { if (!go) { return; } HK.col("rooms").doc(r.id).update({ active: false }).then(function () { HK.audit("room.deactivated", "Room " + r.roomNumber); HK.toast("Deactivated.", "success"); loadRoomList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); }); }; row.appendChild(del); el.appendChild(row); }); }).catch(function (err) { document.getElementById("roomList").innerHTML = "<p class=\"muted\">" + HK.esc(err.message) + "</p>"; }); }
     }
     function renderUsers(p) {
-      var note = document.createElement("div"); note.className = "card mb16"; note.innerHTML = "<div class=\"card-title\">Add a team member</div><p class=\"small\">Enter their name, email and role, then press Create. Their login is set up automatically and they are emailed a link to choose their own password - no Firebase Console step needed.</p>";
-      var c = document.createElement("div"); c.className = "card"; c.innerHTML = "<div class=\"card-title\">New user</div><div class=\"field\"><label>Display name</label><input id=\"uName\"></div><div class=\"field\"><label>Email</label><input id=\"uEmail\" type=\"email\" autocomplete=\"off\"></div><div class=\"field\"><label>Role</label><select id=\"uRole\"><option value=\"housekeeper\">Housekeeper</option><option value=\"supervisor\">Supervisor</option><option value=\"admin\">Admin</option></select></div><button class=\"btn btn-accent btn-sm\" id=\"addUser\">Create user</button><div id=\"userList\" class=\"mt16\">Loading...</div>";
-      p.appendChild(note); p.appendChild(c);
+      // ---- Team link (PIN sign-in for housekeepers) ----
+      var tl = document.createElement("div"); tl.className = "card mb16";
+      tl.innerHTML = "<div class=\"card-title\">Team link for housekeepers</div>" +
+        "<p class=\"small mb16\">Housekeepers do not need an email. Share this link or put the QR code up in the staff room: they open it, tap their name and type their PIN. Keep it private - anyone with the link sees your team's first names.</p>" +
+        "<div id=\"tlBody\"><button class=\"btn btn-accent btn-sm\" id=\"tlShow\">Show team link and QR code</button></div>";
+      p.appendChild(tl);
+      document.getElementById("tlShow").onclick = function () { loadTeamLink(false, this); };
+
+      // ---- Add a team member ----
+      var c = document.createElement("div"); c.className = "card";
+      c.innerHTML = "<div class=\"card-title\">Add a team member</div>" +
+        "<div class=\"field\"><label for=\"uName\">Full name</label><input id=\"uName\" maxlength=\"60\" autocomplete=\"off\"></div>" +
+        "<div class=\"field\"><label for=\"uRole\">Role</label><select id=\"uRole\"><option value=\"housekeeper\">Housekeeper</option><option value=\"supervisor\">Supervisor</option><option value=\"admin\">Admin</option></select></div>" +
+        "<div class=\"field\" id=\"uTypeWrap\"><label for=\"uType\">How they sign in</label><select id=\"uType\"><option value=\"pin\">Team link and PIN (no email needed)</option><option value=\"email\">Email and password</option></select></div>" +
+        "<div class=\"field\" id=\"uPinWrap\"><label for=\"uPin\">PIN (4 to 6 numbers) - tell them in person</label><input id=\"uPin\" inputmode=\"numeric\" maxlength=\"6\" autocomplete=\"off\" placeholder=\"e.g. 5829\"></div>" +
+        "<div class=\"field hidden\" id=\"uEmailWrap\"><label for=\"uEmail\">Email</label><input id=\"uEmail\" type=\"email\" autocomplete=\"off\"></div>" +
+        "<button class=\"btn btn-accent btn-sm\" id=\"addUser\">Create team member</button>" +
+        "<div class=\"card-title mt16\">Your team</div><div id=\"userList\">Loading...</div>";
+      p.appendChild(c);
+
+      function syncType() {
+        var role = document.getElementById("uRole").value;
+        var typeWrap = document.getElementById("uTypeWrap");
+        if (role !== "housekeeper") { document.getElementById("uType").value = "email"; typeWrap.className = "field hidden"; }
+        else { typeWrap.className = "field"; }
+        var pin = document.getElementById("uType").value === "pin";
+        document.getElementById("uPinWrap").className = pin ? "field" : "field hidden";
+        document.getElementById("uEmailWrap").className = pin ? "field hidden" : "field";
+      }
+      document.getElementById("uRole").onchange = function () { if (this.value === "housekeeper") { document.getElementById("uType").value = "pin"; } syncType(); };
+      document.getElementById("uType").onchange = syncType;
+      syncType();
+
       document.getElementById("addUser").onclick = function () {
-        var btn = this; var name = document.getElementById("uName").value.trim(); var email = document.getElementById("uEmail").value.trim(); var role = document.getElementById("uRole").value;
-        if (!name || !email) { HK.toast("Enter a name and email.", "error"); return; }
+        var btn = this;
+        var name = document.getElementById("uName").value.trim();
+        var role = document.getElementById("uRole").value;
+        var type = role === "housekeeper" ? document.getElementById("uType").value : "email";
+        var email = document.getElementById("uEmail").value.trim();
+        var pin = document.getElementById("uPin").value.trim();
+        if (!name) { HK.toast("Enter their name.", "error"); return; }
+        if (type === "email" && !email) { HK.toast("Enter their email.", "error"); return; }
+        if (type === "pin" && !/^[0-9]{4,6}$/.test(pin)) { HK.toast("A PIN is 4 to 6 numbers.", "error"); return; }
         btn.disabled = true; btn.textContent = "Creating...";
-        var user = firebase.auth().currentUser;
-        if (!user) { btn.disabled = false; btn.textContent = "Create user"; HK.toast("Please sign in again.", "error"); return; }
-        user.getIdToken().then(function (token) {
-          return fetch("/api/create-user", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ orgId: HK.state.orgId, hotelId: HK.state.hotelId, email: email, displayName: name, role: role }) });
-        }).then(function (resp) {
-          return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
-        }).then(function (r) {
-          if (!r.ok) { throw new Error((r.data && r.data.error) || "Could not create the user."); }
-          // Ask Firebase to email the new user a link to set their own password.
-          return auth.sendPasswordResetEmail(email).catch(function () {}).then(function () {
-            HK.audit("user.created", name + " (" + role + ")");
-            HK.toast("User created. They have been emailed a link to set their password.", "success");
-            document.getElementById("uName").value = ""; document.getElementById("uEmail").value = "";
-            btn.disabled = false; btn.textContent = "Create user";
-            loadUserList();
-          });
-        }).catch(function (err) { btn.disabled = false; btn.textContent = "Create user"; HK.toast("Failed: " + err.message, "error"); });
+        var payload = { orgId: HK.state.orgId, hotelId: HK.state.hotelId, displayName: name, role: role, loginType: type };
+        if (type === "pin") { payload.pin = pin; } else { payload.email = email; }
+        callApi("/api/create-user", payload).then(function () {
+          if (type === "email") { return auth.sendPasswordResetEmail(email).catch(function () {}); }
+        }).then(function () {
+          HK.audit("user.created", name + " (" + role + ", " + (type === "pin" ? "PIN" : "email") + ")");
+          HK.toast(type === "pin" ? name + " is set up. They sign in from the team link with their PIN." : "User created. They have been emailed a link to set their password.", "success");
+          document.getElementById("uName").value = ""; document.getElementById("uEmail").value = ""; document.getElementById("uPin").value = "";
+          btn.disabled = false; btn.textContent = "Create team member";
+          loadUserList();
+        }).catch(function (err) { btn.disabled = false; btn.textContent = "Create team member"; HK.toast("Failed: " + err.message, "error"); });
       };
       loadUserList();
-      function loadUserList() { HK.orgRef().collection("users").get().then(function (snap) { var el = document.getElementById("userList"); el.innerHTML = ""; snap.forEach(function (d) { var u = d.data(); var row = document.createElement("div"); row.className = "checkitem"; row.innerHTML = "<span class=\"grow\">" + HK.esc(u.displayName) + " <span class=\"tiny muted\">" + HK.esc(u.email) + " - " + HK.esc(u.role) + (u.active ? "" : " - inactive") + "</span></span>"; if (u.uid !== HK.state.user.uid) { var tog = document.createElement("button"); tog.className = "btn btn-sm btn-secondary"; tog.textContent = u.active ? "Deactivate" : "Reactivate"; tog.onclick = function () { HK.orgRef().collection("users").doc(u.uid).update({ active: !u.active }).then(function () { HK.audit("user.updated", u.displayName + " active=" + (!u.active)); HK.toast("Updated.", "success"); loadUserList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); }; row.appendChild(tog); } el.appendChild(row); }); }).catch(function (err) { document.getElementById("userList").innerHTML = "<p class=\"muted\">" + HK.esc(err.message) + "</p>"; }); }
+
+      function callApi(url, payload) {
+        var user = firebase.auth().currentUser;
+        if (!user) { return Promise.reject(new Error("Please sign in again.")); }
+        return user.getIdToken().then(function (token) {
+          return fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify(payload) });
+        }).then(function (resp) {
+          return resp.json().catch(function () { return {}; }).then(function (data) {
+            if (!resp.ok) { throw new Error((data && data.error) || "Something went wrong."); }
+            return data;
+          });
+        });
+      }
+
+      function loadTeamLink(rotate, btn) {
+        if (btn) { btn.disabled = true; btn.textContent = rotate ? "Making a new link..." : "Loading..."; }
+        callApi("/api/team", { action: "link", orgId: HK.state.orgId, hotelId: HK.state.hotelId, rotate: !!rotate }).then(function (d) {
+          if (rotate) { HK.audit("teamlink.rotated", "New team link made"); HK.toast("New team link made. The old one no longer works.", "success"); }
+          var body = document.getElementById("tlBody"); body.innerHTML = "";
+          var wrap = document.createElement("div"); wrap.className = "row wrap"; wrap.style.alignItems = "flex-start"; wrap.style.gap = "20px";
+          var qr = document.createElement("div"); qr.style.width = "170px"; qr.style.flex = "0 0 auto"; qr.innerHTML = d.qrSvg;
+          var svg = qr.querySelector("svg"); if (svg) { svg.setAttribute("width", "170"); svg.setAttribute("height", "170"); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "QR code for the team link"); }
+          var right = document.createElement("div"); right.className = "grow"; right.style.minWidth = "220px";
+          var inp = document.createElement("input"); inp.readOnly = true; inp.value = d.url; inp.setAttribute("aria-label", "Team link");
+          inp.onclick = function () { this.select(); };
+          var acts = document.createElement("div"); acts.className = "row wrap mt8";
+          var copy = document.createElement("button"); copy.className = "btn btn-sm btn-accent"; copy.textContent = "Copy link";
+          copy.onclick = function () {
+            var done = function () { HK.toast("Team link copied.", "success"); };
+            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(d.url).then(done).catch(function () { inp.select(); document.execCommand("copy"); done(); }); }
+            else { inp.select(); document.execCommand("copy"); done(); }
+          };
+          var print = document.createElement("button"); print.className = "btn btn-sm btn-secondary"; print.textContent = "Print staff-room poster";
+          print.onclick = function () { printPoster(d); };
+          acts.appendChild(copy); acts.appendChild(print);
+          if (HK.state.profile.role === "admin") {
+            var rot = document.createElement("button"); rot.className = "btn btn-sm btn-secondary"; rot.textContent = "Make a new link";
+            rot.onclick = function () {
+              HK.confirm("Make a new team link?", "The old link and printed QR codes stop working straight away. Use this if the link has been shared with someone who should not have it.", "Make new link", true).then(function (go) { if (go) { loadTeamLink(true, rot); } });
+            };
+            acts.appendChild(rot);
+          }
+          var hint = document.createElement("p"); hint.className = "tiny muted mt8";
+          hint.textContent = "Tip: once a housekeeper has signed in, their phone remembers them. Add the page to the home screen so it opens like an app.";
+          right.appendChild(inp); right.appendChild(acts); right.appendChild(hint);
+          wrap.appendChild(qr); wrap.appendChild(right); body.appendChild(wrap);
+        }).catch(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = rotate ? "Make a new link" : "Show team link and QR code"; }
+          HK.toast("Could not load the team link: " + err.message, "error");
+        });
+      }
+
+      function printPoster(d) {
+        var w = window.open("", "_blank");
+        if (!w) { HK.toast("Allow pop-ups to print the poster.", "error"); return; }
+        var prop = HK.esc((hotel && hotel.name) || "Our team");
+        w.document.write("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><title>Team sign in - " + prop + "</title>" +
+          "<style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#12222f;text-align:center}" +
+          ".p{padding:56px 48px}h1{font-size:46px;margin:0 0 8px}h2{font-size:22px;margin:0 0 30px;color:#0b7673;font-weight:700}" +
+          ".q svg{width:340px;height:340px}ol{text-align:left;display:inline-block;font-size:22px;line-height:1.7;margin:28px auto 0;padding-left:28px}" +
+          ".f{margin-top:36px;font-size:14px;color:#46586a}@page{size:A4;margin:12mm}</style></head><body><div class=\"p\">" +
+          "<h1>Housekeeping sign in</h1><h2>" + prop + "</h2><div class=\"q\">" + d.qrSvg + "</div>" +
+          "<ol><li>Scan the code with your phone camera</li><li>Tap your name</li><li>Type your PIN</li></ol>" +
+          "<div class=\"f\">Forgotten your PIN? Ask your supervisor to reset it. Please do not share this code outside the team.</div>" +
+          "</div><script>window.onload=function(){window.print();};<\/script></body></html>");
+        w.document.close();
+      }
+
+      function pinModal(u) {
+        var host = document.getElementById("modal-host"); host.innerHTML = "";
+        var back = document.createElement("div"); back.className = "modal-backdrop";
+        var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "380px";
+        var h = document.createElement("h2"); h.textContent = "New PIN for " + u.displayName; box.appendChild(h);
+        var pEl = document.createElement("p"); pEl.className = "small muted mb16"; pEl.textContent = "4 to 6 numbers. Tell them in person - it also unlocks them if they were locked out."; box.appendChild(pEl);
+        var f = document.createElement("div"); f.className = "field";
+        var l = document.createElement("label"); l.textContent = "New PIN"; l.setAttribute("for", "newPin");
+        var inp = document.createElement("input"); inp.id = "newPin"; inp.inputMode = "numeric"; inp.maxLength = 6; inp.autocomplete = "off";
+        f.appendChild(l); f.appendChild(inp); box.appendChild(f);
+        var acts = document.createElement("div"); acts.className = "modal-actions";
+        var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Cancel";
+        var save = document.createElement("button"); save.className = "btn btn-accent"; save.textContent = "Save PIN";
+        cancel.onclick = function () { host.innerHTML = ""; };
+        back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+        save.onclick = function () {
+          var v = inp.value.trim();
+          if (!/^[0-9]{4,6}$/.test(v)) { HK.toast("A PIN is 4 to 6 numbers.", "error"); return; }
+          save.disabled = true; save.textContent = "Saving...";
+          callApi("/api/team", { action: "setpin", orgId: HK.state.orgId, uid: u.uid, pin: v }).then(function () {
+            HK.audit("user.pinreset", u.displayName);
+            HK.toast("PIN updated for " + u.displayName + ".", "success"); host.innerHTML = "";
+          }).catch(function (err) { save.disabled = false; save.textContent = "Save PIN"; HK.toast("Failed: " + err.message, "error"); });
+        };
+        acts.appendChild(cancel); acts.appendChild(save); box.appendChild(acts);
+        back.appendChild(box); host.appendChild(back);
+        setTimeout(function () { inp.focus(); }, 50);
+      }
+
+      function loadUserList() {
+        HK.orgRef().collection("users").get().then(function (snap) {
+          var el = document.getElementById("userList"); el.innerHTML = "";
+          var arr = []; snap.forEach(function (d) { arr.push(d.data()); });
+          arr.sort(function (a, b) { return String(a.displayName || "").toLowerCase() < String(b.displayName || "").toLowerCase() ? -1 : 1; });
+          arr.forEach(function (u) {
+            var row = document.createElement("div"); row.className = "checkitem";
+            var how = u.loginType === "pin" ? "team link + PIN" : (u.email || "email");
+            row.innerHTML = "<span class=\"grow\">" + HK.esc(u.displayName) + " <span class=\"tiny muted\">" + HK.esc(how) + " - " + HK.esc(u.role) + (u.active ? "" : " - inactive") + "</span></span>";
+            if (u.loginType === "pin" && u.active) {
+              var rp = document.createElement("button"); rp.className = "btn btn-sm btn-secondary"; rp.textContent = "Reset PIN";
+              rp.onclick = function () { pinModal(u); }; row.appendChild(rp);
+            }
+            if (u.uid !== HK.state.user.uid) {
+              var tog = document.createElement("button"); tog.className = "btn btn-sm btn-secondary"; tog.textContent = u.active ? "Deactivate" : "Reactivate";
+              tog.onclick = function () { HK.orgRef().collection("users").doc(u.uid).update({ active: !u.active }).then(function () { HK.audit("user.updated", u.displayName + " active=" + (!u.active)); HK.toast("Updated.", "success"); loadUserList(); }).catch(function (err) { HK.toast("Failed: " + err.message, "error"); }); };
+              row.appendChild(tog);
+            }
+            el.appendChild(row);
+          });
+        }).catch(function (err) { document.getElementById("userList").innerHTML = "<p class=\"muted\">" + HK.esc(err.message) + "</p>"; });
+      }
     }
     function renderBranding(p) {
       var b = (HK.state.org && HK.state.org.branding) || {};

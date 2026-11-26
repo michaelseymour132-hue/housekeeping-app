@@ -10,6 +10,7 @@ The housekeeping app for guest houses and small hotels: room status, daily clean
 index.html          Public website: features, pricing, FAQ, "Start free trial"
 signup.html         Self-serve sign-up for a free trial (creates the admin login)
 login.html          Sign in (split-screen, password reset)
+team.html           Team sign-in for housekeepers: tap your name, type your PIN (no email)
 onboarding.html     First-run wizard: property, bulk rooms, checklists; starts the trial
 plan.html           Admin: trial status, plans, "choose a plan" request
 dashboard.html      Housekeeping board: room status, front-office state, flags, start of day, bulk updates
@@ -91,6 +92,17 @@ The app can create staff logins for you (Settings > Users) instead of you making
 4. **Redeploy.** Vercel > Deployments > latest deployment > "..." menu > Redeploy, so the new variable is picked up. `firebase-admin` installs automatically from `package.json` - you run nothing yourself.
 
 Until this is done, the "Create user" button reports a "Server not configured" error, and you can add people the old way (Firebase Console > Authentication > Add user).
+
+## Team link and PIN sign-in (housekeepers without email)
+
+Not every housekeeper has, or wants to use, an email address. So:
+
+- **Settings > Users > Team link for housekeepers** shows the property's private link and QR code, with a printable staff-room poster. "Make a new link" (admin) kills the old one at once.
+- **Add a team member** as a Housekeeper with "Team link and PIN": no email, just a 4-6 number PIN (obvious ones like 1234 and 0000 are refused). "Reset PIN" on the list sets a new one and clears any lock.
+- The housekeeper opens the link (`team.html?t=...`), taps their name and types their PIN. The server checks it and returns a one-time Firebase sign-in token, so every page and security rule works as for an email login. Their phone stays signed in; Sign out takes them back to the team page.
+- 5 wrong PINs lock that person for 15 minutes.
+- Server function: `api/team.js` (helpers in `api/_team.js`). Secrets live in Firestore paths that `firestore.rules` never matches, so the app cannot read them: `teamlinks/{token}`, `teamlinkByHotel/{orgId}_{hotelId}` and `orgs/{orgId}/pins/{uid}` (salted scrypt hashes, never the PIN itself).
+- Needs only the `FIREBASE_SERVICE_ACCOUNT` variable already set for user creation. The `qrcode` package installs automatically from `package.json`.
 
 ## Card payments (Stripe)
 

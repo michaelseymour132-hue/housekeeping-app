@@ -87,7 +87,7 @@ HK.addDays = function (d, n) { var x = new Date(d.getTime()); x.setDate(x.getDat
 // signed in or if role not permitted. Loads org membership + profile.
 HK.requireAuth = function (allowedRoles, onReady) {
   auth.onAuthStateChanged(function (user) {
-    if (!user) { window.location.href = "login.html"; return; }
+    if (!user) { window.location.href = HK.signInPage(); return; }
     HK.state.user = user;
     HK.loadProfile(user).then(function (ok) {
       if (!ok) { HK.toast("Your account has no access. Contact your administrator.", "error"); auth.signOut(); return; }
@@ -198,7 +198,22 @@ HK.homeForRole = function (role) {
   return "dashboard.html";
 };
 
-HK.signOut = function () { auth.signOut().then(function () { window.location.href = "login.html"; }); };
+// Housekeepers who sign in with a PIN go back to their property's team page,
+// everyone else to the email sign-in page.
+HK.teamToken = function () {
+  try { return localStorage.getItem("hk_team_token") || ""; } catch (x) { return ""; }
+};
+HK.signInPage = function () {
+  var t = HK.teamToken();
+  return t ? "team.html?t=" + encodeURIComponent(t) : "login.html";
+};
+HK.signOut = function () {
+  var pinUser = !!(HK.state.profile && HK.state.profile.loginType === "pin");
+  auth.signOut().then(function () {
+    if (!pinUser) { try { localStorage.removeItem("hk_team_token"); } catch (x) {} }
+    window.location.href = HK.signInPage();
+  });
+};
 
 // Convenience path builders -------------------------------------------------
 HK.orgRef = function () { return db.collection("orgs").doc(HK.state.orgId); };

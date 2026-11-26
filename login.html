@@ -46,7 +46,7 @@
 </form>
 <p class="small mt16"><a href="#" id="forgot">Forgot password?</a></p>
 <p class="small mt16">New to Housekeeping Hub? <a href="signup.html"><strong>Start a free trial</strong></a></p>
-<p class="tiny muted mt8">Team members: your manager adds you from Settings and you get an email to set your password.</p>
+<p class="tiny muted mt8">Housekeepers: no email needed. Open your team link or scan the QR code from your manager, tap your name and type your PIN.</p>
 <div class="auth-foot">
 <span class="auth-foot-brand">Housekeeping Hub</span>
 <span class="auth-foot-sep">&middot;</span>
@@ -90,6 +90,8 @@
     if (!email || !pass) { HK.toast("Enter your email and password.", "error"); return; }
     btn.disabled = true; btn.textContent = "Signing in...";
     auth.signInWithEmailAndPassword(email, pass).then(function () {
+      // An email login on this device: stop sending sign-outs to a team page.
+      try { localStorage.removeItem("hk_team_token"); } catch (x) {}
     }).catch(function (err) {
       btn.disabled = false; btn.textContent = "Sign in";
       var msg = "Could not sign in.";
