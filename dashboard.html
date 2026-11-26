@@ -189,7 +189,7 @@
                     checklist: daily.map(function (item, k) { return { item: item, done: done || (going && k < 3) }; }),
                     createdByUid: me.uid, createdAt: TS(), sample: true };
         ops.push(function (b) { b.set(HK.col("assignments").doc(), job); });
-        if (p.repair) {
+        if (p.repair && i === 5) {
           ops.push(function (b) {
             b.set(HK.col("roomnotes").doc(), { roomId: r.id, roomNumber: r.roomNumber, text: "Dripping tap in the bathroom sink", category: "damage",
               isMaintenanceIssue: true, maintenanceStatus: "open", photoUrls: [], createdByUid: me.uid, createdByName: myName,
