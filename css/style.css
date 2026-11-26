@@ -252,6 +252,10 @@ tbody tr:hover { background: var(--canvas); }
 .seg button.on { background: var(--navy); color: #fff; border-color: var(--navy); }
 .day-banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--blue-soft); color: var(--blue);
   border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; font-weight: 600; font-size: var(--fs-4); }
+.sample-banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); color: var(--accent-dark);
+  border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; font-size: var(--fs-4); line-height: 1.45; }
+.sample-banner .grow { flex: 1 1 320px; }
+.sample-banner .row { gap: 8px; }
 .bulk-bar { position: sticky; bottom: 70px; z-index: 5; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--navy); color: #fff; padding: 10px 14px; border-radius: var(--radius); margin-top: 12px; }
 .bulk-bar select { max-width: 180px; min-height: 38px; }
 .kpi.clickable { cursor: pointer; }

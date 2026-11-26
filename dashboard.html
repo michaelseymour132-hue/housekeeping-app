@@ -21,6 +21,7 @@
           <a href="assign.html" class="btn btn-accent">Task sheets</a>
         </div>
       </div>
+      <div id="sampleBanner" class="sample-banner hidden"></div>
       <div id="dayBanner" class="day-banner hidden"></div>
       <div class="kpi-grid six" id="kpis"></div>
       <div class="card">
@@ -59,7 +60,7 @@
       if (!state.hotelId) { window.location.href = "onboarding.html"; return; }
       HK.mount("dashboard");
       buildStaticBits();
-      HK.hotelRef().get().then(function (h) { hotel = h.exists ? h.data() : {}; dayBanner(); }).catch(function () { hotel = {}; });
+      HK.hotelRef().get().then(function (h) { hotel = h.exists ? h.data() : {}; dayBanner(); sampleBanner(); }).catch(function () { hotel = {}; });
       start();
     });
     window.addEventListener("beforeunload", function () { if (unsub) { unsub(); } });
@@ -88,11 +89,147 @@
       unsub = HK.col("rooms").where("active", "==", true).onSnapshot(function (snap) {
         allRooms = []; snap.forEach(function (d) { var r = d.data(); r.id = d.id; allRooms.push(r); });
         allRooms.sort(HK.roomCompare);
-        populateFloors(); render(); renderKpis(); dayBanner();
+        populateFloors(); render(); renderKpis(); dayBanner(); sampleBanner();
       }, function (err) { HK.toast("Could not load rooms: " + err.message, "error"); });
+      refreshRepairs();
+    }
+    function refreshRepairs() {
       HK.col("roomnotes").where("isMaintenanceIssue", "==", true).where("maintenanceStatus", "in", ["open", "inprogress"]).get().then(function (s) {
         openRepairs = s.size; renderKpis();
       }).catch(function () {});
+    }
+
+    // ---- Sample day ---------------------------------------------------------
+    // A new trial starts with every room clean and empty, which shows nothing of
+    // what the app does. Admins can fill their own rooms with a realistic day
+    // (departures, stayovers, an arrival not ready, DND, a repair, task sheets
+    // assigned to themselves) and clear it again with one tap. Everything the
+    // sample writes is marked sample:true so clearing only removes sample work.
+    function isAdmin() { return !!(HK.state.profile && HK.state.profile.role === "admin"); }
+    function untouched() {
+      return allRooms.length > 0 && allRooms.every(function (r) {
+        return r.status === "clean" && HK.foState(r) === "vacant" && !r.guestService && !r.priority;
+      });
+    }
+    function sampleBanner() {
+      var el = document.getElementById("sampleBanner");
+      if (!hotel || !allRooms.length || !isAdmin()) { el.className = "sample-banner hidden"; return; }
+      el.innerHTML = "";
+      var txt = document.createElement("div"); txt.className = "grow";
+      var acts = document.createElement("div"); acts.className = "row";
+      if (hotel.sampleDay) {
+        txt.innerHTML = "<strong>You are looking at a sample day.</strong> Tap any room, open Task sheets, or try My Tasks on your phone - the sample jobs are assigned to you. When you are ready to use your own rooms, clear it.";
+        var clr = document.createElement("button"); clr.className = "btn btn-sm btn-secondary"; clr.textContent = "Clear sample day";
+        clr.onclick = function () { clearSample(clr); };
+        acts.appendChild(clr);
+      } else if (untouched() && !hotel.sampleDismissed) {
+        txt.innerHTML = "<strong>New here? See a real day in 10 seconds.</strong> We will fill your rooms with a sample day - departures, stayovers, an arrival that is not ready, a repair and task sheets - so you can try everything. One tap clears it.";
+        var load = document.createElement("button"); load.className = "btn btn-sm btn-accent"; load.textContent = "Load a sample day";
+        load.onclick = function () { loadSample(load); };
+        var no = document.createElement("button"); no.className = "btn btn-sm btn-secondary"; no.textContent = "No thanks";
+        no.onclick = function () {
+          HK.hotelRef().update({ sampleDismissed: true }).then(function () { hotel.sampleDismissed = true; sampleBanner(); })
+            .catch(function (err) { HK.toast("Could not save: " + err.message, "error"); });
+        };
+        acts.appendChild(load); acts.appendChild(no);
+      } else { el.className = "sample-banner hidden"; return; }
+      el.appendChild(txt); el.appendChild(acts); el.className = "sample-banner";
+    }
+
+    function commitInChunks(ops) {
+      var chunks = [], i;
+      for (i = 0; i < ops.length; i += 400) { chunks.push(ops.slice(i, i + 400)); }
+      return chunks.reduce(function (p, chunk) {
+        return p.then(function () { var b = db.batch(); chunk.forEach(function (op) { op(b); }); return b.commit(); });
+      }, Promise.resolve());
+    }
+    function minsAgo(m) { return firebase.firestore.Timestamp.fromDate(new Date(Date.now() - m * 60000)); }
+
+    // Room plans cycle every 8 rooms so any size of property gets a mixed board.
+    var SAMPLE_GUESTS = ["Mr & Mrs Patel", "Ms Jones", "Mr Walsh", "The Taylor family", "Mr Okafor", "Mrs Hughes", "Ms Novak", "Mr Byrne"];
+    function samplePlan(i, today) {
+      var before = function (n) { return HK.dateStr(HK.addDays(new Date(), -n)); };
+      var after = function (n) { return HK.dateStr(HK.addDays(new Date(), n)); };
+      var guest = SAMPLE_GUESTS[i % SAMPLE_GUESTS.length];
+      switch (i % 8) {
+        case 0: return { room: { status: "dirty", occStatus: "occupied", arrival: before(2), departure: today, guestName: guest }, job: "pending" };
+        case 1: return { room: { status: "inprogress", occStatus: "occupied", arrival: before(1), departure: after(2), guestName: guest }, job: "inprogress" };
+        case 2: return { room: { status: "inspected", occStatus: "vacant", arrival: today, departure: after(3), guestName: guest, instructions: "Anniversary stay - extra towels and a card on the bed." }, job: "complete", jobTask: "departure" };
+        case 3: return { room: { status: "dirty", occStatus: "vacant", arrival: today, departure: after(1), guestName: guest }, job: "pending" };
+        case 4: return { room: { status: "dirty", occStatus: "occupied", arrival: before(3), departure: after(1), guestName: guest, guestService: "dnd" }, job: "" };
+        case 5: return { room: { status: "clean", occStatus: "vacant" }, job: "complete", jobTask: "departure", repair: true };
+        case 6: return { room: { status: "pickup", occStatus: "vacant" }, job: "pending" };
+        default: return { room: { status: "dirty", occStatus: "occupied", arrival: before(1), departure: after(3), guestName: guest, guestService: "mur" }, job: "pending" };
+      }
+    }
+
+    function loadSample(btn) {
+      btn.disabled = true; btn.textContent = "Loading...";
+      var today = HK.todayStr(), me = HK.state.user, myName = (HK.state.profile && HK.state.profile.displayName) || "You";
+      var settings = HK.hkSettings(hotel), daily = (hotel.settings && hotel.settings.dailyChecklist) || ["Strip and remake beds", "Clean and sanitise bathroom", "Final visual check"];
+      var ops = [], seq = 0;
+      allRooms.forEach(function (r, i) {
+        var p = samplePlan(i, today);
+        var data = { status: p.room.status, occStatus: p.room.occStatus, arrival: p.room.arrival || "", departure: p.room.departure || "",
+                     guestName: p.room.guestName || "", guestService: p.room.guestService || "", instructions: p.room.instructions || "",
+                     hkStatus: "", turndown: "", priority: false, updatedAt: TS() };
+        ops.push(function (b) { b.update(HK.col("rooms").doc(r.id), data); });
+        if (!p.job) { return; }
+        var after = {}; Object.keys(r).forEach(function (k) { after[k] = r[k]; }); Object.keys(data).forEach(function (k) { after[k] = data[k]; });
+        var task = p.jobTask || HK.taskFor(after, today) || "departure";
+        var done = p.job === "complete", going = p.job === "inprogress";
+        var mins = 18 + (i % 4) * 4;
+        seq += 1;
+        var job = { date: today, roomId: r.id, roomNumber: r.roomNumber, floor: r.floor || null, assignedToUid: me.uid, assignedToName: myName,
+                    type: task, credits: settings.credits[task] || 0, seq: seq, priority: HK.isPriority(after, today), linen: false,
+                    instructions: data.instructions, status: p.job,
+                    startedAt: (done || going) ? minsAgo(done ? 90 + i : 14) : null,
+                    completedAt: done ? minsAgo(90 + i - mins) : null,
+                    durationMinutes: done ? mins : null,
+                    checklist: daily.map(function (item, k) { return { item: item, done: done || (going && k < 3) }; }),
+                    createdByUid: me.uid, createdAt: TS(), sample: true };
+        ops.push(function (b) { b.set(HK.col("assignments").doc(), job); });
+        if (p.repair) {
+          ops.push(function (b) {
+            b.set(HK.col("roomnotes").doc(), { roomId: r.id, roomNumber: r.roomNumber, text: "Dripping tap in the bathroom sink", category: "damage",
+              isMaintenanceIssue: true, maintenanceStatus: "open", photoUrls: [], createdByUid: me.uid, createdByName: myName,
+              createdAt: TS(), sample: true });
+          });
+        }
+      });
+      // Mark the day as started so "Start today" does not undo the sample.
+      ops.push(function (b) { b.update(HK.hotelRef(), { sampleDay: today, lastDayRoll: today }); });
+      commitInChunks(ops).then(function () {
+        hotel.sampleDay = today; hotel.lastDayRoll = today;
+        HK.audit("sample.loaded", "Sample day loaded on " + allRooms.length + " rooms");
+        HK.toast("Sample day loaded - have a look around.", "success");
+        sampleBanner(); dayBanner(); refreshRepairs();
+      }).catch(function (err) { btn.disabled = false; btn.textContent = "Load a sample day"; HK.toast("Could not load the sample: " + err.message, "error"); });
+    }
+
+    function clearSample(btn) {
+      btn.disabled = true; btn.textContent = "Clearing...";
+      var ops = [];
+      Promise.all([
+        HK.col("assignments").where("sample", "==", true).get(),
+        HK.col("roomnotes").where("sample", "==", true).get()
+      ]).then(function (res) {
+        res[0].forEach(function (d) { ops.push(function (b) { b.delete(d.ref); }); });
+        res[1].forEach(function (d) { ops.push(function (b) { b.update(d.ref, { maintenanceStatus: "resolved" }); }); });
+        allRooms.forEach(function (r) {
+          ops.push(function (b) {
+            b.update(HK.col("rooms").doc(r.id), { status: "clean", occStatus: "vacant", arrival: "", departure: "", guestName: "",
+              guestService: "", hkStatus: "", turndown: "", priority: false, instructions: "", updatedAt: TS() });
+          });
+        });
+        ops.push(function (b) { b.update(HK.hotelRef(), { sampleDay: "", sampleDismissed: true }); });
+        return commitInChunks(ops);
+      }).then(function () {
+        hotel.sampleDay = ""; hotel.sampleDismissed = true;
+        HK.audit("sample.cleared", "Sample day cleared");
+        HK.toast("Sample cleared - your rooms are ready for real use.", "success");
+        sampleBanner(); refreshRepairs();
+      }).catch(function (err) { btn.disabled = false; btn.textContent = "Clear sample day"; HK.toast("Could not clear the sample: " + err.message, "error"); });
     }
 
     function populateFloors() {
