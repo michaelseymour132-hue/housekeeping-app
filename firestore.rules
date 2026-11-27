@@ -30,6 +30,10 @@ rules_version = "2";
 //     until the org is moved to a paid plan. Orgs created before trials
 //     existed (no trialEndsAt field) are treated as active.
 //
+// FOUNDING MEMBERS (Nov 2026):
+// 13. founding / foundingUntil / foundingGrantedAt / signupNotifiedAt on the org
+//     are set only by the server (api/owner.js), never from the app.
+//
 // OPERA-STYLE HOUSEKEEPING (stage 2, Nov 2026):
 // 10. Supervisors may stamp the hotel's lastDayRoll ("Start today") and nothing
 //     else on the hotel record; admins keep full control.
@@ -107,7 +111,8 @@ service cloud.firestore {
       // the trial dates, the owner or billing.
       allow update: if isAdmin(orgId)
         && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(["plan", "trialEndsAt", "trialStartedAt", "ownerUid", "billing"]);
+              .hasAny(["plan", "trialEndsAt", "trialStartedAt", "ownerUid", "billing",
+                       "founding", "foundingUntil", "foundingGrantedAt", "signupNotifiedAt"]);
       allow delete: if false;
 
       // ---- users -------------------------------------------------------

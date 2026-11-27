@@ -10,6 +10,7 @@ The housekeeping app for guest houses and small hotels: room status, daily clean
 index.html          Public website: features, pricing, FAQ, "Start free trial"
 signup.html         Self-serve sign-up for a free trial (creates the admin login)
 login.html          Sign in (split-screen, password reset)
+owner.html          Owner only: every sign-up, founding members (6 months free)
 team.html           Team sign-in for housekeepers: tap your name, type your PIN (no email)
 onboarding.html     First-run wizard: property, bulk rooms, checklists; starts the trial
 plan.html           Admin: trial status, plans, "choose a plan" request
@@ -103,6 +104,16 @@ Not every housekeeper has, or wants to use, an email address. So:
 - 5 wrong PINs lock that person for 15 minutes.
 - Server function: `api/team.js` (helpers in `api/_team.js`). Secrets live in Firestore paths that `firestore.rules` never matches, so the app cannot read them: `teamlinks/{token}`, `teamlinkByHotel/{orgId}_{hotelId}` and `orgs/{orgId}/pins/{uid}` (salted scrypt hashes, never the PIN itself).
 - Needs only the `FIREBASE_SERVICE_ACCOUNT` variable already set for user creation. The `qrcode` package installs automatically from `package.json`.
+
+## Owner page: sign-ups and founding members
+
+`owner.html` is for you, the seller - not for customers. Sign in with your own account and open https://www.housekeepinghub.app/owner.html.
+
+- Lists every business that has signed up: date, business and property, admin email, rooms, staff, last active, and status (trial, trial ended, founding member, paying).
+- **Make founding member** gives a business 1-12 months free (default 6) with no card needed. It extends their free period on the server and the app shows "Founding member - every feature free until ...". When it ends they choose a plan as normal.
+- Only the emails in the Vercel variable `OWNER_EMAILS` (comma separated) can use it; if unset, the address in `api/owner.js` is used.
+- **New sign-up alerts (optional):** add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in Vercel and redeploy. The setup wizard then sends you a Telegram message the moment a business finishes setting up.
+- Server function: `api/owner.js`. `firestore.rules` stops customers setting the founding fields themselves (paste the rules again to apply rule 13).
 
 ## Card payments (Stripe)
 

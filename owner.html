@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Owner - Housekeeping Hub</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+  .own-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  .own-table-box { overflow-x: auto; }
+  .own-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .own-table th, .own-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .own-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--slate); }
+  .own-table td.num { text-align: right; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .pill-trial { background: var(--blue-soft); color: var(--blue); }
+  .pill-ended { background: #fdecea; color: #b42318; }
+  .pill-paid { background: var(--green-soft); color: var(--green); }
+  .pill-found { background: var(--accent-soft); color: var(--accent-dark); }
+  .own-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 640px) { .own-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<div class="own-wrap">
+  <div class="page-head">
+    <div class="titles"><div class="breadcrumb">Housekeeping Hub - owner only</div><h1>Sign-ups and founding members</h1></div>
+    <div class="row right"><button class="btn btn-secondary btn-sm" id="refresh">Refresh</button><a class="btn btn-secondary btn-sm" href="dashboard.html">Back to the app</a></div>
+  </div>
+  <div id="note" class="day-banner hidden"></div>
+  <div class="own-kpis" id="kpis"></div>
+  <div class="card">
+    <div class="own-table-box">
+      <table class="own-table">
+        <thead><tr><th>Signed up</th><th>Business</th><th>Admin</th><th class="num">Rooms</th><th class="num">Staff</th><th>Last active</th><th>Status</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8" class="muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="toast-host"></div>
+<div id="modal-host"></div>
+<script src="js/firebase-config.js"></script>
+<script src="js/common.js"></script>
+<script>
+(function () {
+  var me = null;
+  auth.onAuthStateChanged(function (user) {
+    if (!user) { window.location.href = "login.html"; return; }
+    me = user; load();
+  });
+  document.getElementById("refresh").onclick = function () { load(); };
+
+  function call(payload) {
+    return me.getIdToken().then(function (token) {
+      return fetch("/api/owner", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify(payload) });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) { throw new Error((d && d.error) || "Something went wrong."); }
+        return d;
+      });
+    });
+  }
+  function fmtDate(t) {
+    if (!t) { return "-"; }
+    var d = new Date(t);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  }
+  function ago(t) {
+    if (!t) { return "never"; }
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 60) { return m + " min ago"; }
+    var h = Math.round(m / 60); if (h < 48) { return h + " h ago"; }
+    return Math.round(h / 24) + " days ago";
+  }
+  function status(o) {
+    if (o.paying) { return "<span class=\"pill pill-paid\">Paying - " + HK.esc(o.plan) + "</span>"; }
+    var ended = o.trialEndsAt && o.trialEndsAt <= Date.now();
+    if (o.founding && !ended) { return "<span class=\"pill pill-found\">Founding - free until " + fmtDate(o.trialEndsAt) + "</span>"; }
+    if (ended) { return "<span class=\"pill pill-ended\">Trial ended " + fmtDate(o.trialEndsAt) + "</span>"; }
+    if (!o.trialEndsAt) { return "<span class=\"pill pill-paid\">Active (no trial)</span>"; }
+    return "<span class=\"pill pill-trial\">Trial - ends " + fmtDate(o.trialEndsAt) + "</span>";
+  }
+  function kpi(host, val, label) {
+    var d = document.createElement("div"); d.className = "kpi";
+    d.innerHTML = "<div class=\"kpi-val\">" + HK.esc(String(val)) + "</div><div class=\"kpi-label\">" + HK.esc(label) + "</div>";
+    host.appendChild(d);
+  }
+
+  function load() {
+    document.getElementById("rows").innerHTML = "<tr><td colspan=\"8\" class=\"muted\">Loading...</td></tr>";
+    call({ action: "list" }).then(function (d) {
+      var orgs = d.orgs || [];
+      var week = Date.now() - 7 * 86400000;
+      var host = document.getElementById("kpis"); host.innerHTML = "";
+      kpi(host, orgs.length, "Businesses signed up");
+      kpi(host, orgs.filter(function (o) { return o.createdAt && o.createdAt >= week; }).length, "New this week");
+      kpi(host, orgs.filter(function (o) { return o.founding; }).length, "Founding members");
+      kpi(host, orgs.filter(function (o) { return o.paying; }).length, "Paying");
+      var note = document.getElementById("note");
+      if (!d.telegram) {
+        note.className = "day-banner";
+        note.textContent = "Tip: add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Vercel to get a Telegram message the moment someone signs up.";
+      } else { note.className = "day-banner hidden"; }
+      var tb = document.getElementById("rows"); tb.innerHTML = "";
+      if (!orgs.length) { tb.innerHTML = "<tr><td colspan=\"8\" class=\"muted\">No sign-ups yet.</td></tr>"; return; }
+      orgs.forEach(function (o) {
+        var tr = document.createElement("tr");
+        var props = o.properties.length ? "<div class=\"tiny muted\">" + HK.esc(o.properties.join(", ")) + "</div>" : "";
+        var mails = o.adminEmails.map(function (e) { return "<a href=\"mailto:" + encodeURIComponent(e) + "\">" + HK.esc(e) + "</a>"; }).join("<br>");
+        tr.innerHTML = "<td>" + fmtDate(o.createdAt) + "</td><td><strong>" + HK.esc(o.name || "-") + "</strong>" + props + "</td><td>" + (mails || "-") +
+          "</td><td class=\"num\">" + (o.rooms == null ? "-" : o.rooms) + "</td><td class=\"num\">" + o.staff + "</td><td>" + ago(o.lastLoginAt) + "</td><td>" + status(o) + "</td>";
+        var act = document.createElement("td");
+        if (!o.paying) {
+          var b = document.createElement("button"); b.className = "btn btn-sm " + (o.founding ? "btn-secondary" : "btn-accent");
+          b.textContent = o.founding ? "Add months" : "Make founding member";
+          b.onclick = function () { grantModal(o); };
+          act.appendChild(b);
+        }
+        tr.appendChild(act); tb.appendChild(tr);
+      });
+    }).catch(function (err) {
+      document.getElementById("rows").innerHTML = "<tr><td colspan=\"8\">" + HK.esc(err.message) + "</td></tr>";
+    });
+  }
+
+  function grantModal(o) {
+    var host = document.getElementById("modal-host"); host.innerHTML = "";
+    var back = document.createElement("div"); back.className = "modal-backdrop";
+    var box = document.createElement("div"); box.className = "modal"; box.style.maxWidth = "420px";
+    var h = document.createElement("h2"); h.textContent = (o.founding ? "Add free months: " : "Make founding member: ") + (o.name || "this business"); box.appendChild(h);
+    var p = document.createElement("p"); p.className = "small muted mb16";
+    p.textContent = "They keep every feature free for this long, with no card needed. Months are added from today, or from the end of their current free period if that is later.";
+    box.appendChild(p);
+    var f = document.createElement("div"); f.className = "field";
+    var l = document.createElement("label"); l.setAttribute("for", "months"); l.textContent = "Free months";
+    var sel = document.createElement("select"); sel.id = "months";
+    [1, 2, 3, 6, 12].forEach(function (m) { var op = document.createElement("option"); op.value = m; op.textContent = m + (m === 1 ? " month" : " months"); if (m === 6) { op.selected = true; } sel.appendChild(op); });
+    f.appendChild(l); f.appendChild(sel); box.appendChild(f);
+    var acts = document.createElement("div"); acts.className = "modal-actions";
+    var cancel = document.createElement("button"); cancel.className = "btn btn-secondary"; cancel.textContent = "Cancel";
+    var go = document.createElement("button"); go.className = "btn btn-accent"; go.textContent = "Confirm";
+    cancel.onclick = function () { host.innerHTML = ""; };
+    back.onclick = function (e) { if (e.target === back) { host.innerHTML = ""; } };
+    go.onclick = function () {
+      go.disabled = true; go.textContent = "Saving...";
+      call({ action: "grant", orgId: o.orgId, months: parseInt(sel.value, 10) }).then(function (d) {
+        host.innerHTML = "";
+        HK.toast((o.name || "Business") + " is free until " + fmtDate(d.until) + ".", "success");
+        load();
+      }).catch(function (err) { go.disabled = false; go.textContent = "Confirm"; HK.toast(err.message, "error"); });
+    };
+    acts.appendChild(cancel); acts.appendChild(go); box.appendChild(acts);
+    back.appendChild(box); host.appendChild(back);
+  }
+})();
+</script>
+</body>
+</html>

@@ -158,6 +158,8 @@ HK.trialBar = function () {
     msg.textContent = role === "admin"
       ? "Your " + what + " has ended. Your data is safe and you can still view it - choose a plan to keep working."
       : "This account's " + what + " has ended. You can view everything, but changes are paused until your manager chooses a plan.";
+  } else if ((HK.state.org || {}).founding) {
+    msg.textContent = "Founding member - every feature free until " + t.endsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) + ". Thank you for helping shape Housekeeping Hub.";
   } else {
     msg.textContent = "Free trial - " + t.daysLeft + (t.daysLeft === 1 ? " day" : " days") + " left.";
   }

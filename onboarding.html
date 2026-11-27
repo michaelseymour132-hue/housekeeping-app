@@ -172,7 +172,13 @@
           localStorage.setItem("hk_hotel_" + orgRef.id, hotelRef.id);
           try { localStorage.removeItem("hk_signup_name"); } catch (x) {}
           HK.toast("Setup complete. Welcome aboard!", "success");
-          setTimeout(function () { window.location.href = "dashboard.html"; }, 900);
+          // Let the owner of Housekeeping Hub know a new business has signed up.
+          // Best effort: a failure here must never stop the customer getting in.
+          var go = function () { window.location.href = "dashboard.html"; };
+          var timer = setTimeout(go, 2500);
+          auth.currentUser.getIdToken().then(function (token) {
+            return fetch("/api/owner", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ action: "signup", orgId: orgRef.id }) });
+          }).catch(function () {}).then(function () { clearTimeout(timer); setTimeout(go, 400); });
         })
         .catch(fail);
 
